@@ -68,6 +68,16 @@
               </div>
               <form class="exchange-panel" id="exchangePanel" hidden>
                 <label class="exchange-field">
+                  <span>Operation</span>
+                  <div class="currency-line single-control">
+                    <select id="exchangeSide" aria-label="Exchange operation">
+                      <option value="Buying USD">Buying USD</option>
+                      <option value="Selling USD">Selling USD</option>
+                    </select>
+                  </div>
+                </label>
+
+                <label class="exchange-field">
                   <span>Amount 1</span>
                   <div class="currency-line">
                     <input id="exchangeAmountA" type="text" inputmode="decimal" placeholder="0" />

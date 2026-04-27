@@ -47,6 +47,7 @@ const els = {
   taskTypeLabel: document.querySelector("#taskTypeLabel"),
   taskList: document.querySelector("#taskList"),
   exchangePanel: document.querySelector("#exchangePanel"),
+  exchangeSide: document.querySelector("#exchangeSide"),
   exchangeAmountA: document.querySelector("#exchangeAmountA"),
   exchangeAmountB: document.querySelector("#exchangeAmountB"),
   exchangeRate: document.querySelector("#exchangeRate"),
@@ -76,7 +77,10 @@ function tickClock() {
 }
 
 function todayKey() {
-  return new Intl.DateTimeFormat("en-CA").format(new Date());
+  const now = new Date();
+  const taskDate = new Date(now);
+  if (now.getHours() >= 23) taskDate.setDate(taskDate.getDate() + 1);
+  return new Intl.DateTimeFormat("en-CA").format(taskDate);
 }
 
 function escapeHtml(value) {
@@ -254,6 +258,10 @@ async function loadRemoteTaskState() {
   const taskIds = getAllTasks().map((task) => task.id);
   if (!taskIds.length) return;
 
+  taskIds.forEach((taskId) => {
+    delete state.taskState[taskId];
+  });
+
   const { data, error } = await supabaseClient.from("task_status").select("*").in("id", taskIds);
   if (error) throw error;
 
@@ -381,6 +389,10 @@ async function postUploadToSlack({ filePath, fileName, task, noteText }) {
       fileName,
       taskName: task.name,
       taskType: task.type,
+      iqd: task.iqd || 0,
+      usd: task.usd || 0,
+      exchangeSide: task.exchangeSide || "",
+      rate: task.rate || 0,
       noteText: noteText.trim(),
     }),
   });
@@ -552,6 +564,7 @@ function getExchangeText() {
   return [
     "Exchange Entry",
     `Date: ${now.toLocaleString()}`,
+    `Operation: ${els.exchangeSide.value}`,
     `Amount 1: ${formatPlainNumber(amountA, "IQD")} IQD`,
     `Amount 2: ${formatPlainNumber(amountB, "USD")} USD`,
     `Exchange Rate: ${formatPlainNumber(rate, "IQD")} IQD per 1 USD`,
@@ -581,7 +594,7 @@ async function saveExchangeEntry() {
     id: `${todayKey()}-exchange-${stamp}`,
     task_type: "exchange",
     task_date: todayKey(),
-    task_name: `${formatPlainNumber(amountA, "IQD")} IQD to ${formatPlainNumber(amountB, "USD")} USD`,
+    task_name: `${els.exchangeSide.value}: ${formatPlainNumber(amountA, "IQD")} IQD to ${formatPlainNumber(amountB, "USD")} USD`,
     done: true,
     file_path: filePath,
     file_name: fileName,
@@ -589,6 +602,20 @@ async function saveExchangeEntry() {
   };
   const { error } = await supabaseClient.from("task_status").upsert(row, { onConflict: "id" });
   if (error) throw error;
+
+  await postUploadToSlack({
+    filePath,
+    fileName,
+    task: {
+      name: row.task_name,
+      type: "exchange",
+      iqd: amountA,
+      usd: amountB,
+      rate,
+      exchangeSide: els.exchangeSide.value,
+    },
+    noteText: "",
+  });
 
   return fileName;
 }

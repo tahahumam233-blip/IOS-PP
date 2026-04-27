@@ -972,6 +972,10 @@ select {
   align-items: center;
 }
 
+.currency-line.single-control {
+  grid-template-columns: 1fr;
+}
+
 .currency-line input,
 .currency-line select {
   width: 100%;
