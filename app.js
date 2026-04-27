@@ -26,6 +26,7 @@ const state = {
   source: "Demo preview",
   loading: false,
   syncing: false,
+  savingExchange: false,
   taskState: JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"),
 };
 
@@ -170,6 +171,14 @@ function formatUSD(value) {
     currency: "USD",
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+function formatPlainNumber(value, currency = "") {
+  const number = Number(value) || 0;
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: currency === "USD" ? 2 : 0,
+  }).format(number);
 }
 
 function getTasks(type = state.activeType) {
@@ -384,9 +393,9 @@ async function loadSheet() {
 
 function renderMetrics() {
   if (state.activeType === "exchange") {
-    const rate = Number(els.exchangeRate.value) || 0;
-    const amountA = Number(els.exchangeAmountA.value) || 0;
-    const amountB = Number(els.exchangeAmountB.value) || 0;
+    const rate = parseAmount(els.exchangeRate.value);
+    const amountA = parseAmount(els.exchangeAmountA.value);
+    const amountB = parseAmount(els.exchangeAmountB.value);
 
     els.metrics.innerHTML = `
       <article class="metric-card total-card">
@@ -431,15 +440,15 @@ function renderMetrics() {
 }
 
 function getCurrencyAmount(currency) {
-  const amountA = Number(els.exchangeAmountA.value) || 0;
-  const amountB = Number(els.exchangeAmountB.value) || 0;
+  const amountA = parseAmount(els.exchangeAmountA.value);
+  const amountB = parseAmount(els.exchangeAmountB.value);
   const valueA = els.exchangeCurrencyA.value === currency ? amountA : 0;
   const valueB = els.exchangeCurrencyB.value === currency ? amountB : 0;
   return valueA || valueB;
 }
 
 function setCurrencyAmount(currency, value, target = "b") {
-  const formatted = Number.isFinite(value) && value > 0 ? Number(value.toFixed(currency === "IQD" ? 0 : 2)) : "";
+  const formatted = Number.isFinite(value) && value > 0 ? formatPlainNumber(value, currency) : "";
   if (els.exchangeCurrencyA.value === currency && target !== "b") {
     els.exchangeAmountA.value = formatted;
   } else if (els.exchangeCurrencyB.value === currency) {
@@ -459,32 +468,32 @@ function keepExchangeCurrenciesOpposite(changedSelect) {
 function calculateExchange(source) {
   keepExchangeCurrenciesOpposite(source === "currencyB" ? els.exchangeCurrencyB : els.exchangeCurrencyA);
 
-  const amountA = Number(els.exchangeAmountA.value) || 0;
-  const amountB = Number(els.exchangeAmountB.value) || 0;
-  const rate = Number(els.exchangeRate.value) || 0;
+  const amountA = parseAmount(els.exchangeAmountA.value);
+  const amountB = parseAmount(els.exchangeAmountB.value);
+  const rate = parseAmount(els.exchangeRate.value);
   const aCurrency = els.exchangeCurrencyA.value;
   const bCurrency = els.exchangeCurrencyB.value;
 
   if (source === "amountA" && amountA && rate) {
     const converted = aCurrency === "USD" ? amountA * rate : amountA / rate;
-    els.exchangeAmountB.value = Number(converted.toFixed(bCurrency === "IQD" ? 0 : 2));
+    els.exchangeAmountB.value = formatPlainNumber(converted, bCurrency);
   } else if (source === "amountB" && amountB && rate) {
     const converted = bCurrency === "USD" ? amountB * rate : amountB / rate;
-    els.exchangeAmountA.value = Number(converted.toFixed(aCurrency === "IQD" ? 0 : 2));
+    els.exchangeAmountA.value = formatPlainNumber(converted, aCurrency);
   } else if (source === "rate" && rate) {
     if (amountA) {
       const converted = aCurrency === "USD" ? amountA * rate : amountA / rate;
-      els.exchangeAmountB.value = Number(converted.toFixed(bCurrency === "IQD" ? 0 : 2));
+      els.exchangeAmountB.value = formatPlainNumber(converted, bCurrency);
     } else if (amountB) {
       const converted = bCurrency === "USD" ? amountB * rate : amountB / rate;
-      els.exchangeAmountA.value = Number(converted.toFixed(aCurrency === "IQD" ? 0 : 2));
+      els.exchangeAmountA.value = formatPlainNumber(converted, aCurrency);
     }
   }
 
   const iqd = getCurrencyAmount("IQD");
   const usd = getCurrencyAmount("USD");
   if (source !== "rate" && iqd && usd) {
-    els.exchangeRate.value = Number((iqd / usd).toFixed(2));
+    els.exchangeRate.value = formatPlainNumber(iqd / usd, "IQD");
   }
 
   renderMetrics();
@@ -492,25 +501,25 @@ function calculateExchange(source) {
 
 function getExchangeText() {
   const now = new Date();
-  const amountA = Number(els.exchangeAmountA.value) || 0;
-  const amountB = Number(els.exchangeAmountB.value) || 0;
-  const rate = Number(els.exchangeRate.value) || 0;
+  const amountA = parseAmount(els.exchangeAmountA.value);
+  const amountB = parseAmount(els.exchangeAmountB.value);
+  const rate = parseAmount(els.exchangeRate.value);
 
   return [
     "Exchange Entry",
     `Date: ${now.toLocaleString()}`,
-    `Amount 1: ${amountA} ${els.exchangeCurrencyA.value}`,
-    `Amount 2: ${amountB} ${els.exchangeCurrencyB.value}`,
-    `Exchange Rate: ${rate} IQD per 1 USD`,
+    `Amount 1: ${formatPlainNumber(amountA, els.exchangeCurrencyA.value)} ${els.exchangeCurrencyA.value}`,
+    `Amount 2: ${formatPlainNumber(amountB, els.exchangeCurrencyB.value)} ${els.exchangeCurrencyB.value}`,
+    `Exchange Rate: ${formatPlainNumber(rate, "IQD")} IQD per 1 USD`,
     "",
     "Saved from Zaki Payment Tasks",
   ].join("\n");
 }
 
 async function saveExchangeEntry() {
-  const amountA = Number(els.exchangeAmountA.value) || 0;
-  const amountB = Number(els.exchangeAmountB.value) || 0;
-  const rate = Number(els.exchangeRate.value) || 0;
+  const amountA = parseAmount(els.exchangeAmountA.value);
+  const amountB = parseAmount(els.exchangeAmountB.value);
+  const rate = parseAmount(els.exchangeRate.value);
   if (!amountA || !amountB || !rate) throw new Error("Enter two amounts or an amount plus exchange rate first.");
 
   const stamp = Date.now();
@@ -702,6 +711,10 @@ els.exchangeCurrencyA.addEventListener("change", () => calculateExchange("curren
 els.exchangeCurrencyB.addEventListener("change", () => calculateExchange("currencyB"));
 els.exchangePanel.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (state.savingExchange) return;
+  state.savingExchange = true;
+  els.saveExchangeButton.disabled = true;
+  els.saveExchangeButton.textContent = "Saving...";
   els.connectionLabel.textContent = "Saving";
   setUploadProgress(3);
   try {
@@ -714,6 +727,9 @@ els.exchangePanel.addEventListener("submit", async (event) => {
     window.setTimeout(() => {
       setUploadProgress(0, false);
       els.connectionLabel.textContent = state.source;
+      state.savingExchange = false;
+      els.saveExchangeButton.disabled = false;
+      els.saveExchangeButton.textContent = "Save Exchange";
       render();
     }, 550);
   }
