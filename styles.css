@@ -704,6 +704,7 @@ select {
   background: rgba(255, 255, 255, 0.06);
   cursor: pointer;
   transition: all 200ms var(--ease);
+  padding: 0;
 }
 
 .upload-control:hover {
@@ -733,14 +734,6 @@ select {
 .upload-control.idle {
   border-color: rgba(174, 182, 189, 0.26);
   background: rgba(174, 182, 189, 0.06);
-}
-
-.upload-control input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
 }
 
 .invoice-icon {
@@ -819,6 +812,102 @@ select {
   color: var(--muted);
   text-align: center;
   background: rgba(255, 255, 255, 0.02);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.modal-backdrop[hidden] {
+  display: none;
+}
+
+.upload-modal {
+  width: min(420px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(28, 32, 36, 0.98), rgba(10, 12, 14, 0.98));
+  box-shadow: var(--shadow-lift);
+  padding: 18px;
+}
+
+.modal-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.modal-heading p {
+  margin: 0 0 5px;
+  color: var(--muted-soft);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.modal-heading h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.15;
+}
+
+.modal-close {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.modal-field {
+  margin-bottom: 14px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.modal-field span {
+  color: var(--muted-soft);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.modal-field input,
+.modal-field textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--ink);
+  padding: 11px;
+  outline: none;
+  resize: vertical;
+}
+
+.modal-save {
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--cyan), var(--lime));
+  color: #071012;
+  font-weight: 900;
+  cursor: pointer;
 }
 
 .exchange-panel {

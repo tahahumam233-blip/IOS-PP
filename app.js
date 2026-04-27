@@ -27,6 +27,7 @@ const state = {
   loading: false,
   syncing: false,
   savingExchange: false,
+  activeUploadTaskId: "",
   taskState: JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"),
 };
 
@@ -52,6 +53,13 @@ const els = {
   exchangeRate: document.querySelector("#exchangeRate"),
   saveExchangeButton: document.querySelector("#saveExchangeButton"),
   gridWrap: document.querySelector(".grid-wrap"),
+  uploadModal: document.querySelector("#uploadModal"),
+  uploadForm: document.querySelector("#uploadForm"),
+  uploadTaskName: document.querySelector("#uploadTaskName"),
+  closeUploadModal: document.querySelector("#closeUploadModal"),
+  modalFileInput: document.querySelector("#modalFileInput"),
+  modalUploadNote: document.querySelector("#modalUploadNote"),
+  modalSaveButton: document.querySelector("#modalSaveButton"),
   rowCount: document.querySelector("#rowCount"),
   searchInput: document.querySelector("#searchInput"),
   refreshButton: document.querySelector("#refreshButton"),
@@ -281,6 +289,12 @@ function getStorageUploadUrl(filePath) {
   return `${SUPABASE_URL}/storage/v1/object/${encodedBucket}/${encodedPath}`;
 }
 
+function getNoteFilePath(filePath) {
+  const extensionIndex = filePath.lastIndexOf(".");
+  if (extensionIndex === -1) return `${filePath}-note.txt`;
+  return `${filePath.slice(0, extensionIndex)}-note.txt`;
+}
+
 async function uploadToStorage(filePath, body, contentType, onProgress = () => {}) {
   await new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
@@ -332,6 +346,43 @@ async function uploadTaskFile(taskId, file, onProgress = () => {}) {
   await uploadToStorage(filePath, file, file.type || "application/octet-stream", onProgress);
 
   return filePath;
+}
+
+async function uploadTaskNote(filePath, task, noteText) {
+  const cleanNote = noteText.trim();
+  if (!cleanNote) return "";
+
+  const notePath = getNoteFilePath(filePath);
+  const noteBody = [
+    "Upload Note",
+    `Date: ${new Date().toLocaleString()}`,
+    `Task: ${task.name}`,
+    `Type: ${task.type}`,
+    "",
+    cleanNote,
+  ].join("\n");
+  const noteBlob = new Blob([noteBody], { type: "text/plain;charset=utf-8" });
+  await uploadToStorage(notePath, noteBlob, "text/plain;charset=utf-8");
+  return notePath;
+}
+
+function openUploadModal(taskId) {
+  const task = findTask(taskId);
+  if (!task) return;
+
+  state.activeUploadTaskId = taskId;
+  els.uploadTaskName.textContent = task.name;
+  els.modalFileInput.value = "";
+  els.modalUploadNote.value = getSavedTask(taskId).uploadNote || "";
+  els.uploadModal.hidden = false;
+  window.setTimeout(() => els.modalFileInput.focus(), 0);
+}
+
+function closeUploadModal() {
+  state.activeUploadTaskId = "";
+  els.uploadModal.hidden = true;
+  els.modalFileInput.value = "";
+  els.modalUploadNote.value = "";
 }
 
 function getVisibleTasks() {
@@ -616,10 +667,9 @@ function renderTaskList() {
             <td>${escapeHtml(formatIQD(task.iqd))}</td>
             <td>${escapeHtml(formatUSD(task.usd))}</td>
             <td>
-              <label class="upload-control ${uploadState}" title="${escapeHtml(uploadTitle)}" aria-label="${escapeHtml(uploadTitle)}">
-                <input type="file" accept="image/*,.pdf" data-action="upload" />
+              <button class="upload-control ${uploadState}" type="button" data-action="open-upload" title="${escapeHtml(uploadTitle)}" aria-label="${escapeHtml(uploadTitle)}">
                 <span class="invoice-icon" aria-hidden="true"></span>
-              </label>
+              </button>
             </td>
           </tr>
         `;
@@ -669,49 +719,79 @@ els.taskList.addEventListener("change", async (event) => {
       els.lastUpdated.textContent = `Local only: ${error.message}`;
     }
   }
+});
 
-  if (event.target.dataset.action === "upload" && event.target.files[0]) {
-    const file = event.target.files[0];
-    els.connectionLabel.textContent = "Uploading";
-    setUploadProgress(3);
-    try {
-      const filePath = await uploadTaskFile(taskId, file, (percent) => {
-        setUploadProgress(percent);
-        els.connectionLabel.textContent = `Uploading ${percent}%`;
-      });
-      state.taskState[taskId] = {
-        ...getSavedTask(taskId),
-        receiptName: file.name,
-        filePath,
-        receiptSavedAt: new Date().toISOString(),
-      };
-      saveTaskState();
-      setUploadProgress(96);
-      await saveRemoteTaskState(taskId);
-      setUploadProgress(100);
-      els.lastUpdated.textContent = `Uploaded ${file.name}`;
-    } catch (error) {
-      state.taskState[taskId] = {
-        ...getSavedTask(taskId),
-        receiptName: "",
-        filePath: "",
-        receiptSavedAt: new Date().toISOString(),
-      };
-      saveTaskState();
-      els.lastUpdated.textContent = `Upload failed: ${error.message}`;
-    } finally {
-      window.setTimeout(() => {
-        setUploadProgress(0, false);
-        els.connectionLabel.textContent = state.source;
-        render();
-      }, 550);
-    }
+els.taskList.addEventListener("click", (event) => {
+  const uploadButton = event.target.closest('[data-action="open-upload"]');
+  if (!uploadButton) return;
+
+  const card = uploadButton.closest("[data-task-id]");
+  if (card) openUploadModal(card.dataset.taskId);
+});
+
+els.uploadForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const taskId = state.activeUploadTaskId;
+  const task = findTask(taskId);
+  const file = els.modalFileInput.files[0];
+  if (!task || !file) return;
+
+  els.modalSaveButton.disabled = true;
+  els.modalSaveButton.textContent = "Saving...";
+  els.connectionLabel.textContent = "Uploading";
+  setUploadProgress(3);
+
+  try {
+    const filePath = await uploadTaskFile(taskId, file, (percent) => {
+      setUploadProgress(percent);
+      els.connectionLabel.textContent = `Uploading ${percent}%`;
+    });
+    const notePath = await uploadTaskNote(filePath, task, els.modalUploadNote.value);
+    state.taskState[taskId] = {
+      ...getSavedTask(taskId),
+      receiptName: file.name,
+      filePath,
+      notePath,
+      uploadNote: els.modalUploadNote.value.trim(),
+      receiptSavedAt: new Date().toISOString(),
+    };
+    saveTaskState();
+    setUploadProgress(96);
+    await saveRemoteTaskState(taskId);
+    setUploadProgress(100);
+    els.lastUpdated.textContent = notePath ? `Uploaded ${file.name} with note` : `Uploaded ${file.name}`;
+    closeUploadModal();
+  } catch (error) {
+    state.taskState[taskId] = {
+      ...getSavedTask(taskId),
+      receiptName: "",
+      filePath: "",
+      notePath: "",
+      receiptSavedAt: new Date().toISOString(),
+    };
+    saveTaskState();
+    els.lastUpdated.textContent = `Upload failed: ${error.message}`;
+  } finally {
+    window.setTimeout(() => {
+      setUploadProgress(0, false);
+      els.connectionLabel.textContent = state.source;
+      els.modalSaveButton.disabled = false;
+      els.modalSaveButton.textContent = "Save Upload";
+      render();
+    }, 550);
   }
 });
 
 els.updateButton.addEventListener("click", loadSheet);
 els.refreshButton.addEventListener("click", loadSheet);
 els.searchInput.addEventListener("input", renderTaskList);
+els.closeUploadModal.addEventListener("click", closeUploadModal);
+els.uploadModal.addEventListener("click", (event) => {
+  if (event.target === els.uploadModal) closeUploadModal();
+});
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !els.uploadModal.hidden) closeUploadModal();
+});
 els.paymentsTab.addEventListener("click", () => setActiveType("payment"));
 els.withdrawalsTab.addEventListener("click", () => setActiveType("withdrawal"));
 els.exchangeTab.addEventListener("click", () => setActiveType("exchange"));

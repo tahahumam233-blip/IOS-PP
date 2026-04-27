@@ -121,6 +121,30 @@
       </aside>
     </main>
 
+    <div class="modal-backdrop" id="uploadModal" hidden>
+      <form class="upload-modal" id="uploadForm">
+        <div class="modal-heading">
+          <div>
+            <p>Receipt Upload</p>
+            <h2 id="uploadTaskName">Attach file</h2>
+          </div>
+          <button class="modal-close" id="closeUploadModal" type="button" aria-label="Close upload window">×</button>
+        </div>
+
+        <label class="modal-field">
+          <span>Picture or PDF</span>
+          <input id="modalFileInput" type="file" accept="image/*,.pdf" required />
+        </label>
+
+        <label class="modal-field">
+          <span>Note</span>
+          <textarea id="modalUploadNote" rows="4" placeholder="Add payment details, reference number, or comments"></textarea>
+        </label>
+
+        <button class="modal-save" id="modalSaveButton" type="submit">Save Upload</button>
+      </form>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js"></script>
   </body>
