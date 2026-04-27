@@ -181,6 +181,17 @@ function formatPlainNumber(value, currency = "") {
   }).format(number);
 }
 
+function formatExchangeInput(input, currency) {
+  const raw = input.value;
+  if (!raw) return;
+  const parsed = parseAmount(raw);
+  if (!parsed) {
+    input.value = "";
+    return;
+  }
+  input.value = formatPlainNumber(parsed, currency);
+}
+
 function getTasks(type = state.activeType) {
   return type === "withdrawal" ? state.withdrawals : state.payments;
 }
@@ -704,11 +715,26 @@ els.searchInput.addEventListener("input", renderTaskList);
 els.paymentsTab.addEventListener("click", () => setActiveType("payment"));
 els.withdrawalsTab.addEventListener("click", () => setActiveType("withdrawal"));
 els.exchangeTab.addEventListener("click", () => setActiveType("exchange"));
-els.exchangeAmountA.addEventListener("input", () => calculateExchange("amountA"));
-els.exchangeAmountB.addEventListener("input", () => calculateExchange("amountB"));
-els.exchangeRate.addEventListener("input", () => calculateExchange("rate"));
-els.exchangeCurrencyA.addEventListener("change", () => calculateExchange("currencyA"));
-els.exchangeCurrencyB.addEventListener("change", () => calculateExchange("currencyB"));
+els.exchangeAmountA.addEventListener("input", () => {
+  formatExchangeInput(els.exchangeAmountA, els.exchangeCurrencyA.value);
+  calculateExchange("amountA");
+});
+els.exchangeAmountB.addEventListener("input", () => {
+  formatExchangeInput(els.exchangeAmountB, els.exchangeCurrencyB.value);
+  calculateExchange("amountB");
+});
+els.exchangeRate.addEventListener("input", () => {
+  formatExchangeInput(els.exchangeRate, "IQD");
+  calculateExchange("rate");
+});
+els.exchangeCurrencyA.addEventListener("change", () => {
+  formatExchangeInput(els.exchangeAmountA, els.exchangeCurrencyA.value);
+  calculateExchange("currencyA");
+});
+els.exchangeCurrencyB.addEventListener("change", () => {
+  formatExchangeInput(els.exchangeAmountB, els.exchangeCurrencyB.value);
+  calculateExchange("currencyB");
+});
 els.exchangePanel.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (state.savingExchange) return;
