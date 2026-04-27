@@ -6,6 +6,7 @@ const SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhZXFubGNoZW56eWJrZnljZWxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyNzQ1OTUsImV4cCI6MjA5Mjg1MDU5NX0.2qHHPs2sx-WUjpTQGStbLKzjAI51NSv-xGl4wQvbU5Q";
 const RECEIPTS_BUCKET = "IOS-PP- Receipts";
+const SLACK_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/post-to-slack`;
 const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const demoPayments = [
@@ -364,6 +365,29 @@ async function uploadTaskNote(filePath, task, noteText) {
   return notePath;
 }
 
+async function postUploadToSlack({ filePath, fileName, task, noteText }) {
+  const response = await fetch(SLACK_FUNCTION_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify({
+      filePath,
+      fileName,
+      taskName: task.name,
+      taskType: task.type,
+      noteText: noteText.trim(),
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.error || `Slack post failed: ${response.status}`);
+  }
+}
+
 function openUploadModal(taskId) {
   const task = findTask(taskId);
   if (!task) return;
@@ -704,8 +728,15 @@ els.uploadForm.addEventListener("submit", async (event) => {
     saveTaskState();
     setUploadProgress(96);
     await saveRemoteTaskState(taskId);
+    els.connectionLabel.textContent = "Posting";
+    await postUploadToSlack({
+      filePath,
+      fileName: file.name,
+      task,
+      noteText: els.modalUploadNote.value,
+    });
     setUploadProgress(100);
-    els.lastUpdated.textContent = notePath ? `Uploaded ${file.name} with note` : `Uploaded ${file.name}`;
+    els.lastUpdated.textContent = notePath ? `Posted ${file.name} with note to Slack` : `Posted ${file.name} to Slack`;
     closeUploadModal();
   } catch (error) {
     state.taskState[taskId] = {
