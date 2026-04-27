@@ -47,9 +47,7 @@ const els = {
   taskList: document.querySelector("#taskList"),
   exchangePanel: document.querySelector("#exchangePanel"),
   exchangeAmountA: document.querySelector("#exchangeAmountA"),
-  exchangeCurrencyA: document.querySelector("#exchangeCurrencyA"),
   exchangeAmountB: document.querySelector("#exchangeAmountB"),
-  exchangeCurrencyB: document.querySelector("#exchangeCurrencyB"),
   exchangeRate: document.querySelector("#exchangeRate"),
   saveExchangeButton: document.querySelector("#saveExchangeButton"),
   gridWrap: document.querySelector(".grid-wrap"),
@@ -501,62 +499,10 @@ function renderMetrics() {
   `;
 }
 
-function getCurrencyAmount(currency) {
+function calculateExchange() {
   const amountA = parseAmount(els.exchangeAmountA.value);
   const amountB = parseAmount(els.exchangeAmountB.value);
-  const valueA = els.exchangeCurrencyA.value === currency ? amountA : 0;
-  const valueB = els.exchangeCurrencyB.value === currency ? amountB : 0;
-  return valueA || valueB;
-}
-
-function setCurrencyAmount(currency, value, target = "b") {
-  const formatted = Number.isFinite(value) && value > 0 ? formatPlainNumber(value, currency) : "";
-  if (els.exchangeCurrencyA.value === currency && target !== "b") {
-    els.exchangeAmountA.value = formatted;
-  } else if (els.exchangeCurrencyB.value === currency) {
-    els.exchangeAmountB.value = formatted;
-  } else if (els.exchangeCurrencyA.value === currency) {
-    els.exchangeAmountA.value = formatted;
-  }
-}
-
-function keepExchangeCurrenciesOpposite(changedSelect) {
-  if (els.exchangeCurrencyA.value !== els.exchangeCurrencyB.value) return;
-  const otherValue = changedSelect.value === "IQD" ? "USD" : "IQD";
-  if (changedSelect === els.exchangeCurrencyA) els.exchangeCurrencyB.value = otherValue;
-  else els.exchangeCurrencyA.value = otherValue;
-}
-
-function calculateExchange(source) {
-  keepExchangeCurrenciesOpposite(source === "currencyB" ? els.exchangeCurrencyB : els.exchangeCurrencyA);
-
-  const amountA = parseAmount(els.exchangeAmountA.value);
-  const amountB = parseAmount(els.exchangeAmountB.value);
-  const rate = parseAmount(els.exchangeRate.value);
-  const aCurrency = els.exchangeCurrencyA.value;
-  const bCurrency = els.exchangeCurrencyB.value;
-
-  if (source === "amountA" && amountA && rate) {
-    const converted = aCurrency === "USD" ? amountA * rate : amountA / rate;
-    els.exchangeAmountB.value = formatPlainNumber(converted, bCurrency);
-  } else if (source === "amountB" && amountB && rate) {
-    const converted = bCurrency === "USD" ? amountB * rate : amountB / rate;
-    els.exchangeAmountA.value = formatPlainNumber(converted, aCurrency);
-  } else if (source === "rate" && rate) {
-    if (amountA) {
-      const converted = aCurrency === "USD" ? amountA * rate : amountA / rate;
-      els.exchangeAmountB.value = formatPlainNumber(converted, bCurrency);
-    } else if (amountB) {
-      const converted = bCurrency === "USD" ? amountB * rate : amountB / rate;
-      els.exchangeAmountA.value = formatPlainNumber(converted, aCurrency);
-    }
-  }
-
-  const iqd = getCurrencyAmount("IQD");
-  const usd = getCurrencyAmount("USD");
-  if (source !== "rate" && iqd && usd) {
-    els.exchangeRate.value = formatPlainNumber(iqd / usd, "IQD");
-  }
+  els.exchangeRate.value = amountA && amountB ? formatPlainNumber(amountA / amountB, "IQD") : "";
 
   renderMetrics();
 }
@@ -570,8 +516,8 @@ function getExchangeText() {
   return [
     "Exchange Entry",
     `Date: ${now.toLocaleString()}`,
-    `Amount 1: ${formatPlainNumber(amountA, els.exchangeCurrencyA.value)} ${els.exchangeCurrencyA.value}`,
-    `Amount 2: ${formatPlainNumber(amountB, els.exchangeCurrencyB.value)} ${els.exchangeCurrencyB.value}`,
+    `Amount 1: ${formatPlainNumber(amountA, "IQD")} IQD`,
+    `Amount 2: ${formatPlainNumber(amountB, "USD")} USD`,
     `Exchange Rate: ${formatPlainNumber(rate, "IQD")} IQD per 1 USD`,
     "",
     "Saved from Zaki Payment Tasks",
@@ -599,7 +545,7 @@ async function saveExchangeEntry() {
     id: `${todayKey()}-exchange-${stamp}`,
     task_type: "exchange",
     task_date: todayKey(),
-    task_name: `${amountA} ${els.exchangeCurrencyA.value} to ${amountB} ${els.exchangeCurrencyB.value}`,
+    task_name: `${formatPlainNumber(amountA, "IQD")} IQD to ${formatPlainNumber(amountB, "USD")} USD`,
     done: true,
     file_path: filePath,
     file_name: fileName,
@@ -796,24 +742,12 @@ els.paymentsTab.addEventListener("click", () => setActiveType("payment"));
 els.withdrawalsTab.addEventListener("click", () => setActiveType("withdrawal"));
 els.exchangeTab.addEventListener("click", () => setActiveType("exchange"));
 els.exchangeAmountA.addEventListener("input", () => {
-  formatExchangeInput(els.exchangeAmountA, els.exchangeCurrencyA.value);
-  calculateExchange("amountA");
+  formatExchangeInput(els.exchangeAmountA, "IQD");
+  calculateExchange();
 });
 els.exchangeAmountB.addEventListener("input", () => {
-  formatExchangeInput(els.exchangeAmountB, els.exchangeCurrencyB.value);
-  calculateExchange("amountB");
-});
-els.exchangeRate.addEventListener("input", () => {
-  formatExchangeInput(els.exchangeRate, "IQD");
-  calculateExchange("rate");
-});
-els.exchangeCurrencyA.addEventListener("change", () => {
-  formatExchangeInput(els.exchangeAmountA, els.exchangeCurrencyA.value);
-  calculateExchange("currencyA");
-});
-els.exchangeCurrencyB.addEventListener("change", () => {
-  formatExchangeInput(els.exchangeAmountB, els.exchangeCurrencyB.value);
-  calculateExchange("currencyB");
+  formatExchangeInput(els.exchangeAmountB, "USD");
+  calculateExchange();
 });
 els.exchangePanel.addEventListener("submit", async (event) => {
   event.preventDefault();
