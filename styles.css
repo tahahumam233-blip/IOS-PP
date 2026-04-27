@@ -244,6 +244,34 @@ button:disabled {
   50% { box-shadow: 0 0 0 9px rgba(184, 243, 106, 0.04); }
 }
 
+.upload-progress {
+  flex: 0 0 auto;
+  width: min(72%, 270px);
+  height: 5px;
+  margin: 9px auto 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 180ms var(--ease), transform 180ms var(--ease);
+  pointer-events: none;
+}
+
+.upload-progress.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.upload-progress-bar {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--cyan), var(--lime));
+  box-shadow: 0 0 14px rgba(119, 228, 255, 0.35);
+  transition: width 160ms linear;
+}
+
 .hero {
   flex: 0 0 auto;
   padding: 26px 2px 12px;
@@ -328,7 +356,7 @@ button:disabled {
 .task-tabs {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   min-height: 44px;
   margin: 4px 0 10px;
@@ -791,6 +819,66 @@ select {
   color: var(--muted);
   text-align: center;
   background: rgba(255, 255, 255, 0.02);
+}
+
+.exchange-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  overflow: auto;
+}
+
+.exchange-panel[hidden] {
+  display: none;
+}
+
+.exchange-field {
+  margin: 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.exchange-field > span {
+  color: var(--muted-soft);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.currency-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px;
+  gap: 8px;
+  align-items: center;
+}
+
+.currency-line input,
+.currency-line select {
+  width: 100%;
+}
+
+.currency-line strong {
+  display: grid;
+  min-height: 38px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.exchange-save {
+  min-height: 44px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--cyan), var(--lime));
+  color: #071012;
+  font-weight: 900;
+  cursor: pointer;
 }
 
 .control-panel {

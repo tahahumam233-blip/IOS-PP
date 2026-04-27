@@ -35,11 +35,22 @@ const els = {
   sheetName: document.querySelector("#sheetName"),
   lastUpdated: document.querySelector("#lastUpdated"),
   updateButton: document.querySelector("#updateButton"),
+  uploadProgress: document.querySelector("#uploadProgress"),
+  uploadProgressBar: document.querySelector("#uploadProgressBar"),
   paymentsTab: document.querySelector("#paymentsTab"),
   withdrawalsTab: document.querySelector("#withdrawalsTab"),
+  exchangeTab: document.querySelector("#exchangeTab"),
   metrics: document.querySelector("#metrics"),
   taskTypeLabel: document.querySelector("#taskTypeLabel"),
   taskList: document.querySelector("#taskList"),
+  exchangePanel: document.querySelector("#exchangePanel"),
+  exchangeAmountA: document.querySelector("#exchangeAmountA"),
+  exchangeCurrencyA: document.querySelector("#exchangeCurrencyA"),
+  exchangeAmountB: document.querySelector("#exchangeAmountB"),
+  exchangeCurrencyB: document.querySelector("#exchangeCurrencyB"),
+  exchangeRate: document.querySelector("#exchangeRate"),
+  saveExchangeButton: document.querySelector("#saveExchangeButton"),
+  gridWrap: document.querySelector(".grid-wrap"),
   rowCount: document.querySelector("#rowCount"),
   searchInput: document.querySelector("#searchInput"),
   refreshButton: document.querySelector("#refreshButton"),
@@ -237,7 +248,58 @@ async function saveRemoteTaskState(taskId) {
   if (error) throw error;
 }
 
-async function uploadTaskFile(taskId, file) {
+function setUploadProgress(percent, isVisible = true) {
+  const safePercent = Math.max(0, Math.min(100, percent));
+  els.uploadProgress.classList.toggle("active", isVisible);
+  els.uploadProgress.setAttribute("aria-hidden", isVisible ? "false" : "true");
+  els.uploadProgressBar.style.width = `${safePercent}%`;
+}
+
+function getStorageUploadUrl(filePath) {
+  const encodedBucket = encodeURIComponent(RECEIPTS_BUCKET);
+  const encodedPath = filePath.split("/").map(encodeURIComponent).join("/");
+  return `${SUPABASE_URL}/storage/v1/object/${encodedBucket}/${encodedPath}`;
+}
+
+async function uploadToStorage(filePath, body, contentType, onProgress = () => {}) {
+  await new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", getStorageUploadUrl(filePath));
+    request.setRequestHeader("apikey", SUPABASE_ANON_KEY);
+    request.setRequestHeader("Authorization", `Bearer ${SUPABASE_ANON_KEY}`);
+    request.setRequestHeader("Content-Type", contentType || "application/octet-stream");
+    request.setRequestHeader("Cache-Control", "3600");
+    request.setRequestHeader("x-upsert", "true");
+
+    request.upload.addEventListener("progress", (event) => {
+      if (!event.lengthComputable) return;
+      onProgress(Math.round((event.loaded / event.total) * 92));
+    });
+
+    request.addEventListener("load", () => {
+      if (request.status >= 200 && request.status < 300) {
+        onProgress(100);
+        resolve();
+        return;
+      }
+
+      let message = `Storage upload returned ${request.status}`;
+      try {
+        const response = JSON.parse(request.responseText);
+        message = response.message || response.error || message;
+      } catch {
+        if (request.responseText) message = request.responseText;
+      }
+      reject(new Error(message));
+    });
+
+    request.addEventListener("error", () => reject(new Error("Network error during upload.")));
+    request.addEventListener("abort", () => reject(new Error("Upload was cancelled.")));
+    request.send(body);
+  });
+}
+
+async function uploadTaskFile(taskId, file, onProgress = () => {}) {
   if (!supabaseClient) throw new Error("Supabase is not loaded yet.");
 
   const task = findTask(taskId);
@@ -247,11 +309,7 @@ async function uploadTaskFile(taskId, file) {
   const folder = task.type === "withdrawal" ? "withdrawals" : "payments";
   const filePath = `${getTaskDateFromId(task.id)}/${folder}/${slugify(task.name)}-${Date.now()}.${extension}`;
 
-  const { error } = await supabaseClient.storage.from(RECEIPTS_BUCKET).upload(filePath, file, {
-    cacheControl: "3600",
-    upsert: true,
-  });
-  if (error) throw error;
+  await uploadToStorage(filePath, file, file.type || "application/octet-stream", onProgress);
 
   return filePath;
 }
@@ -325,6 +383,30 @@ async function loadSheet() {
 }
 
 function renderMetrics() {
+  if (state.activeType === "exchange") {
+    const rate = Number(els.exchangeRate.value) || 0;
+    const amountA = Number(els.exchangeAmountA.value) || 0;
+    const amountB = Number(els.exchangeAmountB.value) || 0;
+
+    els.metrics.innerHTML = `
+      <article class="metric-card total-card">
+        <div>
+          <b>Exchange rate</b>
+          <strong>${rate ? formatIQD(rate).replace(" IQD", "") : "0"}</strong>
+        </div>
+        <span class="metric-chip">IQD per USD</span>
+      </article>
+      <article class="metric-card total-card">
+        <div>
+          <b>Current entry</b>
+          <strong>${amountA || amountB ? "Ready" : "Draft"}</strong>
+        </div>
+        <span class="metric-chip">Save as text</span>
+      </article>
+    `;
+    return;
+  }
+
   const activeTasks = getTasks();
   const totals = getTotals(activeTasks);
   const pending = activeTasks.length - totals.done;
@@ -348,11 +430,133 @@ function renderMetrics() {
   `;
 }
 
+function getCurrencyAmount(currency) {
+  const amountA = Number(els.exchangeAmountA.value) || 0;
+  const amountB = Number(els.exchangeAmountB.value) || 0;
+  const valueA = els.exchangeCurrencyA.value === currency ? amountA : 0;
+  const valueB = els.exchangeCurrencyB.value === currency ? amountB : 0;
+  return valueA || valueB;
+}
+
+function setCurrencyAmount(currency, value, target = "b") {
+  const formatted = Number.isFinite(value) && value > 0 ? Number(value.toFixed(currency === "IQD" ? 0 : 2)) : "";
+  if (els.exchangeCurrencyA.value === currency && target !== "b") {
+    els.exchangeAmountA.value = formatted;
+  } else if (els.exchangeCurrencyB.value === currency) {
+    els.exchangeAmountB.value = formatted;
+  } else if (els.exchangeCurrencyA.value === currency) {
+    els.exchangeAmountA.value = formatted;
+  }
+}
+
+function keepExchangeCurrenciesOpposite(changedSelect) {
+  if (els.exchangeCurrencyA.value !== els.exchangeCurrencyB.value) return;
+  const otherValue = changedSelect.value === "IQD" ? "USD" : "IQD";
+  if (changedSelect === els.exchangeCurrencyA) els.exchangeCurrencyB.value = otherValue;
+  else els.exchangeCurrencyA.value = otherValue;
+}
+
+function calculateExchange(source) {
+  keepExchangeCurrenciesOpposite(source === "currencyB" ? els.exchangeCurrencyB : els.exchangeCurrencyA);
+
+  const amountA = Number(els.exchangeAmountA.value) || 0;
+  const amountB = Number(els.exchangeAmountB.value) || 0;
+  const rate = Number(els.exchangeRate.value) || 0;
+  const aCurrency = els.exchangeCurrencyA.value;
+  const bCurrency = els.exchangeCurrencyB.value;
+
+  if (source === "amountA" && amountA && rate) {
+    const converted = aCurrency === "USD" ? amountA * rate : amountA / rate;
+    els.exchangeAmountB.value = Number(converted.toFixed(bCurrency === "IQD" ? 0 : 2));
+  } else if (source === "amountB" && amountB && rate) {
+    const converted = bCurrency === "USD" ? amountB * rate : amountB / rate;
+    els.exchangeAmountA.value = Number(converted.toFixed(aCurrency === "IQD" ? 0 : 2));
+  } else if (source === "rate" && rate) {
+    if (amountA) {
+      const converted = aCurrency === "USD" ? amountA * rate : amountA / rate;
+      els.exchangeAmountB.value = Number(converted.toFixed(bCurrency === "IQD" ? 0 : 2));
+    } else if (amountB) {
+      const converted = bCurrency === "USD" ? amountB * rate : amountB / rate;
+      els.exchangeAmountA.value = Number(converted.toFixed(aCurrency === "IQD" ? 0 : 2));
+    }
+  }
+
+  const iqd = getCurrencyAmount("IQD");
+  const usd = getCurrencyAmount("USD");
+  if (source !== "rate" && iqd && usd) {
+    els.exchangeRate.value = Number((iqd / usd).toFixed(2));
+  }
+
+  renderMetrics();
+}
+
+function getExchangeText() {
+  const now = new Date();
+  const amountA = Number(els.exchangeAmountA.value) || 0;
+  const amountB = Number(els.exchangeAmountB.value) || 0;
+  const rate = Number(els.exchangeRate.value) || 0;
+
+  return [
+    "Exchange Entry",
+    `Date: ${now.toLocaleString()}`,
+    `Amount 1: ${amountA} ${els.exchangeCurrencyA.value}`,
+    `Amount 2: ${amountB} ${els.exchangeCurrencyB.value}`,
+    `Exchange Rate: ${rate} IQD per 1 USD`,
+    "",
+    "Saved from Zaki Payment Tasks",
+  ].join("\n");
+}
+
+async function saveExchangeEntry() {
+  const amountA = Number(els.exchangeAmountA.value) || 0;
+  const amountB = Number(els.exchangeAmountB.value) || 0;
+  const rate = Number(els.exchangeRate.value) || 0;
+  if (!amountA || !amountB || !rate) throw new Error("Enter two amounts or an amount plus exchange rate first.");
+
+  const stamp = Date.now();
+  const fileName = `exchange-${stamp}.txt`;
+  const filePath = `${todayKey()}/exchange/${fileName}`;
+  const text = getExchangeText();
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+
+  await uploadToStorage(filePath, blob, "text/plain;charset=utf-8", (percent) => {
+    setUploadProgress(percent);
+    els.connectionLabel.textContent = `Saving ${percent}%`;
+  });
+
+  const row = {
+    id: `${todayKey()}-exchange-${stamp}`,
+    task_type: "exchange",
+    task_date: todayKey(),
+    task_name: `${amountA} ${els.exchangeCurrencyA.value} to ${amountB} ${els.exchangeCurrencyB.value}`,
+    done: true,
+    file_path: filePath,
+    file_name: fileName,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await supabaseClient.from("task_status").upsert(row, { onConflict: "id" });
+  if (error) throw error;
+
+  return fileName;
+}
+
 function renderTaskList() {
+  if (state.activeType === "exchange") {
+    els.taskTypeLabel.textContent = "Exchange Entry";
+    els.rowCount.textContent = "Calculator";
+    els.searchInput.hidden = true;
+    els.gridWrap.hidden = true;
+    els.exchangePanel.hidden = false;
+    return;
+  }
+
   const tasks = getVisibleTasks();
   const totals = getTotals(tasks);
   const typeLabel = state.activeType === "withdrawal" ? "Withdrawals" : "Supplier Payments";
 
+  els.searchInput.hidden = false;
+  els.gridWrap.hidden = false;
+  els.exchangePanel.hidden = true;
   els.taskTypeLabel.textContent = typeLabel;
   els.rowCount.textContent = `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}`;
 
@@ -416,6 +620,7 @@ function setActiveType(type) {
   state.activeType = type;
   els.paymentsTab.classList.toggle("active", type === "payment");
   els.withdrawalsTab.classList.toggle("active", type === "withdrawal");
+  els.exchangeTab.classList.toggle("active", type === "exchange");
   els.searchInput.value = "";
   render();
 }
@@ -448,8 +653,12 @@ els.taskList.addEventListener("change", async (event) => {
   if (event.target.dataset.action === "upload" && event.target.files[0]) {
     const file = event.target.files[0];
     els.connectionLabel.textContent = "Uploading";
+    setUploadProgress(3);
     try {
-      const filePath = await uploadTaskFile(taskId, file);
+      const filePath = await uploadTaskFile(taskId, file, (percent) => {
+        setUploadProgress(percent);
+        els.connectionLabel.textContent = `Uploading ${percent}%`;
+      });
       state.taskState[taskId] = {
         ...getSavedTask(taskId),
         receiptName: file.name,
@@ -457,7 +666,9 @@ els.taskList.addEventListener("change", async (event) => {
         receiptSavedAt: new Date().toISOString(),
       };
       saveTaskState();
+      setUploadProgress(96);
       await saveRemoteTaskState(taskId);
+      setUploadProgress(100);
       els.lastUpdated.textContent = `Uploaded ${file.name}`;
     } catch (error) {
       state.taskState[taskId] = {
@@ -469,8 +680,11 @@ els.taskList.addEventListener("change", async (event) => {
       saveTaskState();
       els.lastUpdated.textContent = `Upload failed: ${error.message}`;
     } finally {
-      els.connectionLabel.textContent = state.source;
-      render();
+      window.setTimeout(() => {
+        setUploadProgress(0, false);
+        els.connectionLabel.textContent = state.source;
+        render();
+      }, 550);
     }
   }
 });
@@ -480,6 +694,30 @@ els.refreshButton.addEventListener("click", loadSheet);
 els.searchInput.addEventListener("input", renderTaskList);
 els.paymentsTab.addEventListener("click", () => setActiveType("payment"));
 els.withdrawalsTab.addEventListener("click", () => setActiveType("withdrawal"));
+els.exchangeTab.addEventListener("click", () => setActiveType("exchange"));
+els.exchangeAmountA.addEventListener("input", () => calculateExchange("amountA"));
+els.exchangeAmountB.addEventListener("input", () => calculateExchange("amountB"));
+els.exchangeRate.addEventListener("input", () => calculateExchange("rate"));
+els.exchangeCurrencyA.addEventListener("change", () => calculateExchange("currencyA"));
+els.exchangeCurrencyB.addEventListener("change", () => calculateExchange("currencyB"));
+els.exchangePanel.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  els.connectionLabel.textContent = "Saving";
+  setUploadProgress(3);
+  try {
+    const fileName = await saveExchangeEntry();
+    setUploadProgress(100);
+    els.lastUpdated.textContent = `Saved ${fileName}`;
+  } catch (error) {
+    els.lastUpdated.textContent = `Exchange save failed: ${error.message}`;
+  } finally {
+    window.setTimeout(() => {
+      setUploadProgress(0, false);
+      els.connectionLabel.textContent = state.source;
+      render();
+    }, 550);
+  }
+});
 els.sheetLink.href = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit?gid=${SHEET_GID}#gid=${SHEET_GID}`;
 
 tickClock();
