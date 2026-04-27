@@ -59,6 +59,9 @@ const els = {
   modalFileInput: document.querySelector("#modalFileInput"),
   modalUploadNote: document.querySelector("#modalUploadNote"),
   modalSaveButton: document.querySelector("#modalSaveButton"),
+  successModal: document.querySelector("#successModal"),
+  successMessage: document.querySelector("#successMessage"),
+  successOkButton: document.querySelector("#successOkButton"),
   rowCount: document.querySelector("#rowCount"),
   searchInput: document.querySelector("#searchInput"),
   refreshButton: document.querySelector("#refreshButton"),
@@ -407,6 +410,15 @@ function closeUploadModal() {
   els.modalUploadNote.value = "";
 }
 
+function showSuccessMessage(message) {
+  els.successMessage.textContent = message;
+  els.successModal.hidden = false;
+}
+
+function closeSuccessMessage() {
+  els.successModal.hidden = true;
+}
+
 function getVisibleTasks() {
   const query = els.searchInput.value.trim().toLowerCase();
   const tasks = getTasks();
@@ -738,6 +750,7 @@ els.uploadForm.addEventListener("submit", async (event) => {
     setUploadProgress(100);
     els.lastUpdated.textContent = notePath ? `Posted ${file.name} with note to Slack` : `Posted ${file.name} to Slack`;
     closeUploadModal();
+    showSuccessMessage(notePath ? "The file and note were posted to Slack." : "The file was posted to Slack.");
   } catch (error) {
     state.taskState[taskId] = {
       ...getSavedTask(taskId),
@@ -766,8 +779,13 @@ els.closeUploadModal.addEventListener("click", closeUploadModal);
 els.uploadModal.addEventListener("click", (event) => {
   if (event.target === els.uploadModal) closeUploadModal();
 });
+els.successOkButton.addEventListener("click", closeSuccessMessage);
+els.successModal.addEventListener("click", (event) => {
+  if (event.target === els.successModal) closeSuccessMessage();
+});
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !els.uploadModal.hidden) closeUploadModal();
+  if (event.key === "Escape" && !els.successModal.hidden) closeSuccessMessage();
 });
 els.paymentsTab.addEventListener("click", () => setActiveType("payment"));
 els.withdrawalsTab.addEventListener("click", () => setActiveType("withdrawal"));

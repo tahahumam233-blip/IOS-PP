@@ -139,7 +139,16 @@
       </form>
     </div>
 
+    <div class="modal-backdrop" id="successModal" hidden>
+      <div class="upload-modal success-dialog" role="dialog" aria-labelledby="successTitle">
+        <div class="success-mark" aria-hidden="true">✓</div>
+        <h2 id="successTitle">Posted to Slack</h2>
+        <p id="successMessage">The file and note were posted successfully.</p>
+        <button class="modal-save" id="successOkButton" type="button">OK</button>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=slack-20260427-1"></script>
   </body>
 </html>

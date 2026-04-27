@@ -910,6 +910,34 @@ select {
   cursor: pointer;
 }
 
+.success-dialog {
+  text-align: center;
+}
+
+.success-mark {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  background: var(--lime);
+  color: #06110b;
+  font-size: 30px;
+  font-weight: 900;
+  box-shadow: 0 0 0 8px rgba(184, 243, 106, 0.12);
+}
+
+.success-dialog h2 {
+  margin: 0 0 8px;
+}
+
+.success-dialog p {
+  margin: 0 0 16px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .exchange-panel {
   flex: 1 1 auto;
   min-height: 0;
