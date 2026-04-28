@@ -748,63 +748,27 @@ select {
   background: rgba(16, 19, 21, 0.98);
 }
 
-.task-check {
-  position: relative;
-  display: inline-grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  margin: 0;
-  cursor: pointer;
+.status-cell {
+  text-align: center;
 }
 
-.task-check input {
-  position: absolute;
-  inset: 0;
-  width: 28px;
-  height: 28px;
-  min-height: 28px;
-  margin: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.check-mark {
-  position: relative;
-  width: 22px;
-  height: 22px;
-  border: 1.5px solid rgba(255, 255, 255, 0.28);
+.status-dot {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.04);
-  transition: all 220ms var(--ease);
+  vertical-align: middle;
+  background: rgba(174, 182, 189, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.task-check:hover .check-mark {
-  border-color: var(--lime);
-  background: rgba(184, 243, 106, 0.06);
-}
-
-.check-mark::after {
-  content: "";
-  position: absolute;
-  width: 9px;
-  height: 5px;
-  border-left: 2px solid #06110b;
-  border-bottom: 2px solid #06110b;
-  transform: translate(6px, 7px) rotate(-45deg) scale(0.6);
-  opacity: 0;
-  transition: opacity 200ms var(--ease), transform 220ms var(--ease);
-}
-
-.task-check input:checked + .check-mark {
-  border-color: transparent;
+.status-dot.uploaded {
   background: var(--lime);
-  box-shadow: 0 0 0 4px rgba(184, 243, 106, 0.16), 0 4px 12px rgba(184, 243, 106, 0.25);
-}
-
-.task-check input:checked + .check-mark::after {
-  opacity: 1;
-  transform: translate(6px, 7px) rotate(-45deg) scale(1);
+  border-color: rgba(184, 243, 106, 0.92);
+  box-shadow:
+    0 0 0 4px rgba(184, 243, 106, 0.12),
+    0 4px 12px rgba(184, 243, 106, 0.24);
 }
 
 .upload-control {

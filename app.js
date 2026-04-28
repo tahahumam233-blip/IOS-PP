@@ -575,7 +575,7 @@ function getTotals(tasks) {
     (totals, task) => ({
       iqd: totals.iqd + task.iqd,
       usd: totals.usd + task.usd,
-      done: totals.done + (getSavedTask(task.id).done ? 1 : 0),
+      done: totals.done + (getSavedTask(task.id).fileNames.length ? 1 : 0),
     }),
     { iqd: 0, usd: 0, done: 0 }
   );
@@ -772,7 +772,6 @@ function renderTaskList() {
   }
 
   const tasks = getVisibleTasks();
-  const totals = getTotals(tasks);
   const typeLabel = state.activeType === "withdrawal" ? "Withdrawals" : "Supplier Payments";
 
   els.searchInput.hidden = false;
@@ -792,49 +791,34 @@ function renderTaskList() {
     return;
   }
 
-  els.taskList.innerHTML =
-    tasks
-      .map((task) => {
-        const saved = getSavedTask(task.id);
-        const status = saved.done ? "Done" : "Pending";
-        const uploadLabel = task.type === "withdrawal" ? "Upload invoice" : "Upload receipt";
-        const uploadCount = saved.fileNames.length;
-        const uploadState = uploadCount ? "uploaded" : saved.done ? "missing" : "idle";
-        const uploadTitle = uploadCount
-          ? `Uploaded ${uploadCount} ${uploadCount === 1 ? "file" : "files"}: ${saved.fileNames.join(", ")}`
-          : saved.done
-            ? `${uploadLabel} required`
-            : uploadLabel;
-        return `
-          <tr class="${saved.done ? "done" : ""}" data-task-id="${escapeHtml(task.id)}">
-            <td class="status-cell" data-label="Status">
-              <label class="task-check" title="${escapeHtml(status)}">
-                <input type="checkbox" data-action="toggle" ${saved.done ? "checked" : ""} />
-                <span class="check-mark" aria-hidden="true"></span>
-                <span class="sr-only">${escapeHtml(status)}</span>
-              </label>
-            </td>
-            <td class="name-cell">${escapeHtml(task.name)}</td>
-            <td class="amount-cell" data-label="IQD">${escapeHtml(formatCompactAmount(task.iqd, "IQD"))}</td>
-            <td class="amount-cell" data-label="USD">${escapeHtml(formatCompactAmount(task.usd, "USD"))}</td>
-            <td class="file-cell" data-label="File">
-              <button class="upload-control ${uploadState}" type="button" data-action="open-upload" title="${escapeHtml(uploadTitle)}" aria-label="${escapeHtml(uploadTitle)}">
-                <span class="invoice-icon" aria-hidden="true"></span>
-              </button>
-            </td>
-          </tr>
-        `;
-      })
-      .join("") +
-    `
-      <tr class="total-row">
-        <td></td>
-        <td>Visible total</td>
-        <td>${escapeHtml(formatCompactAmount(totals.iqd, "IQD"))}</td>
-        <td>${escapeHtml(formatCompactAmount(totals.usd, "USD"))}</td>
-        <td></td>
-      </tr>
-    `;
+  els.taskList.innerHTML = tasks
+    .map((task) => {
+      const saved = getSavedTask(task.id);
+      const uploadLabel = task.type === "withdrawal" ? "Upload invoice" : "Upload receipt";
+      const uploadCount = saved.fileNames.length;
+      const isUploaded = uploadCount > 0;
+      const status = isUploaded ? "Uploaded" : "Pending";
+      const uploadState = isUploaded ? "uploaded" : "idle";
+      const uploadTitle = uploadCount
+        ? `Uploaded ${uploadCount} ${uploadCount === 1 ? "file" : "files"}: ${saved.fileNames.join(", ")}`
+        : uploadLabel;
+      return `
+        <tr class="${isUploaded ? "done" : ""}" data-task-id="${escapeHtml(task.id)}">
+          <td class="status-cell" data-label="Status">
+            <span class="status-dot ${isUploaded ? "uploaded" : "pending"}" title="${escapeHtml(status)}" aria-label="${escapeHtml(status)}"></span>
+          </td>
+          <td class="name-cell">${escapeHtml(task.name)}</td>
+          <td class="amount-cell" data-label="IQD">${escapeHtml(formatCompactAmount(task.iqd, "IQD"))}</td>
+          <td class="amount-cell" data-label="USD">${escapeHtml(formatCompactAmount(task.usd, "USD"))}</td>
+          <td class="file-cell" data-label="File">
+            <button class="upload-control ${uploadState}" type="button" data-action="open-upload" title="${escapeHtml(uploadTitle)}" aria-label="${escapeHtml(uploadTitle)}">
+              <span class="invoice-icon" aria-hidden="true"></span>
+            </button>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
 }
 
 function setActiveType(type) {
@@ -851,26 +835,6 @@ function render() {
   renderMetrics();
   renderTaskList();
 }
-
-els.taskList.addEventListener("change", async (event) => {
-  const card = event.target.closest("[data-task-id]");
-  if (!card) return;
-
-  const taskId = card.dataset.taskId;
-  const saved = getSavedTask(taskId);
-
-  if (event.target.dataset.action === "toggle") {
-    state.taskState[taskId] = { ...saved, done: event.target.checked };
-    saveTaskState();
-    render();
-    try {
-      await saveRemoteTaskState(taskId);
-      els.lastUpdated.textContent = `Saved ${new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit" }).format(new Date())}`;
-    } catch (error) {
-      els.lastUpdated.textContent = `Local only: ${error.message}`;
-    }
-  }
-});
 
 els.taskList.addEventListener("click", (event) => {
   const uploadButton = event.target.closest('[data-action="open-upload"]');
@@ -925,6 +889,7 @@ async function runBackgroundUpload({ jobId, taskId, files, noteText }) {
     const mergedNotePaths = mergeStoredList(previous.notePaths, notePaths);
     state.taskState[taskId] = {
       ...previous,
+      done: true,
       receiptName: joinStoredList(fileNames),
       fileName: fileNames[0] || "",
       fileNames,
