@@ -28,7 +28,9 @@ const state = {
   source: "Demo preview",
   loading: false,
   syncing: false,
-  uploading: false,
+  uploadJobs: {},
+  statusQueue: [],
+  showingStatus: false,
   savingExchange: false,
   activeUploadTaskId: "",
   taskState: JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"),
@@ -42,6 +44,7 @@ const els = {
   updateButton: document.querySelector("#updateButton"),
   uploadProgress: document.querySelector("#uploadProgress"),
   uploadProgressBar: document.querySelector("#uploadProgressBar"),
+  uploadJobs: document.querySelector("#uploadJobs"),
   paymentsTab: document.querySelector("#paymentsTab"),
   withdrawalsTab: document.querySelector("#withdrawalsTab"),
   exchangeTab: document.querySelector("#exchangeTab"),
@@ -334,6 +337,53 @@ function setUploadProgress(percent, isVisible = true) {
   els.uploadProgressBar.style.width = `${safePercent}%`;
 }
 
+function renderUploadJobs() {
+  const jobs = Object.values(state.uploadJobs);
+  els.uploadJobs.innerHTML = jobs
+    .map((job) => `
+      <div class="upload-job ${job.failed ? "failed" : ""}">
+        <div class="upload-job-top">
+          <span class="upload-job-name">${escapeHtml(job.name)}</span>
+          <span class="upload-job-percent">${Math.round(job.percent)}%</span>
+        </div>
+        <div class="upload-job-status">${escapeHtml(job.status)}</div>
+        <div class="upload-job-track">
+          <div class="upload-job-fill" style="width: ${Math.max(0, Math.min(100, job.percent))}%"></div>
+        </div>
+      </div>
+    `)
+    .join("");
+}
+
+function createUploadJob(task) {
+  const jobId = globalThis.crypto?.randomUUID
+    ? globalThis.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  state.uploadJobs[jobId] = {
+    id: jobId,
+    name: task.name,
+    status: "Waiting",
+    percent: 1,
+    failed: false,
+  };
+  renderUploadJobs();
+  return jobId;
+}
+
+function updateUploadJob(jobId, changes) {
+  if (!state.uploadJobs[jobId]) return;
+  state.uploadJobs[jobId] = { ...state.uploadJobs[jobId], ...changes };
+  renderUploadJobs();
+}
+
+function finishUploadJob(jobId, changes = {}) {
+  updateUploadJob(jobId, changes);
+  window.setTimeout(() => {
+    delete state.uploadJobs[jobId];
+    renderUploadJobs();
+  }, 1800);
+}
+
 function getStorageUploadUrl(filePath) {
   const encodedBucket = encodeURIComponent(RECEIPTS_BUCKET);
   const encodedPath = filePath.split("/").map(encodeURIComponent).join("/");
@@ -478,6 +528,12 @@ function closeUploadModal() {
 }
 
 function showStatusMessage(title, message) {
+  if (state.showingStatus) {
+    state.statusQueue.push({ title, message });
+    return;
+  }
+
+  state.showingStatus = true;
   els.successTitle.textContent = title;
   els.successMessage.textContent = message;
   els.successModal.hidden = false;
@@ -485,6 +541,17 @@ function showStatusMessage(title, message) {
 
 function closeSuccessMessage() {
   els.successModal.hidden = true;
+  const next = state.statusQueue.shift();
+  if (next) {
+    window.setTimeout(() => {
+      els.successTitle.textContent = next.title;
+      els.successMessage.textContent = next.message;
+      els.successModal.hidden = false;
+    }, 120);
+    return;
+  }
+
+  state.showingStatus = false;
 }
 
 function getVisibleTasks() {
@@ -803,57 +870,46 @@ els.taskList.addEventListener("click", (event) => {
   if (card) openUploadModal(card.dataset.taskId);
 });
 
-els.uploadForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (state.uploading) return;
-
-  const taskId = state.activeUploadTaskId;
+async function runBackgroundUpload({ jobId, taskId, files, noteText }) {
   const task = findTask(taskId);
-  const files = Array.from(els.modalFileInput.files || []);
-  if (!task || !files.length) return;
-
-  state.uploading = true;
-  els.modalSaveButton.disabled = true;
-  els.modalSaveButton.textContent = "Uploading...";
-  els.modalFileInput.disabled = true;
-  els.modalUploadNote.disabled = true;
-  els.closeUploadModal.disabled = true;
-  els.connectionLabel.textContent = "Uploading";
-  setUploadProgress(3);
-
   const uploadedFiles = [];
   const notePaths = [];
 
   try {
+    if (!task) throw new Error("Task was not found.");
+
     for (let index = 0; index < files.length; index += 1) {
       const file = files[index];
       const filePath = await uploadTaskFile(taskId, file, (percent) => {
-        const totalPercent = Math.round(((index + percent / 100) / files.length) * 92);
-        setUploadProgress(totalPercent);
-        els.connectionLabel.textContent = `Uploading ${index + 1}/${files.length}`;
+        const totalPercent = Math.round(((index + percent / 100) / files.length) * 84);
+        updateUploadJob(jobId, {
+          status: `Uploading ${index + 1}/${files.length}`,
+          percent: totalPercent,
+        });
       });
       uploadedFiles.push({ filePath, fileName: file.name });
 
-      const notePath = await uploadTaskNote(filePath, task, els.modalUploadNote.value);
+      const notePath = await uploadTaskNote(filePath, task, noteText);
       if (notePath) notePaths.push(notePath);
     }
 
-    const previous = getSavedTask(taskId);
-    setUploadProgress(96);
-    els.connectionLabel.textContent = "Posting";
-    els.modalSaveButton.textContent = "Posting...";
+    updateUploadJob(jobId, { status: "Posting to Slack", percent: 88 });
 
     for (let index = 0; index < uploadedFiles.length; index += 1) {
       const uploadedFile = uploadedFiles[index];
-      els.connectionLabel.textContent = `Posting ${index + 1}/${uploadedFiles.length}`;
+      updateUploadJob(jobId, {
+        status: `Posting ${index + 1}/${uploadedFiles.length}`,
+        percent: Math.round(88 + ((index + 1) / uploadedFiles.length) * 8),
+      });
       await postUploadToSlack({
         filePath: uploadedFile.filePath,
         fileName: uploadedFile.fileName,
         task,
-        noteText: els.modalUploadNote.value,
+        noteText,
       });
     }
 
+    const previous = getSavedTask(taskId);
     const fileNames = mergeStoredList(previous.fileNames, uploadedFiles.map((file) => file.fileName));
     const filePaths = mergeStoredList(previous.filePaths, uploadedFiles.map((file) => file.filePath));
     const mergedNotePaths = mergeStoredList(previous.notePaths, notePaths);
@@ -866,35 +922,38 @@ els.uploadForm.addEventListener("submit", async (event) => {
       filePaths,
       notePath: mergedNotePaths[0] || previous.notePath || "",
       notePaths: mergedNotePaths,
-      uploadNote: els.modalUploadNote.value.trim(),
+      uploadNote: noteText,
       receiptSavedAt: new Date().toISOString(),
     };
     saveTaskState();
     await saveRemoteTaskState(taskId);
 
-    setUploadProgress(100);
     const fileWord = uploadedFiles.length === 1 ? "file" : "files";
-    els.lastUpdated.textContent = `Posted ${uploadedFiles.length} ${fileWord} to Slack`;
-    closeUploadModal();
-    showStatusMessage("Posted to Slack", `${uploadedFiles.length} ${fileWord} posted to Slack.`);
+    els.lastUpdated.textContent = `Posted ${task.name} to Slack`;
+    finishUploadJob(jobId, { status: "Done", percent: 100 });
+    showStatusMessage("Posted to Slack", `${task.name}: ${uploadedFiles.length} ${fileWord} posted.`);
+    render();
   } catch (error) {
     await removeUploadedFiles([...uploadedFiles.map((file) => file.filePath), ...notePaths]);
-    els.lastUpdated.textContent = `Upload not saved: ${error.message}`;
-    closeUploadModal();
-    showStatusMessage("Slack Post Failed", `The upload window was closed, but Slack did not accept the post. The task was not saved with these files. ${error.message}`);
-  } finally {
-    window.setTimeout(() => {
-      setUploadProgress(0, false);
-      els.connectionLabel.textContent = state.source;
-      state.uploading = false;
-      els.modalSaveButton.disabled = false;
-      els.modalFileInput.disabled = false;
-      els.modalUploadNote.disabled = false;
-      els.closeUploadModal.disabled = false;
-      els.modalSaveButton.textContent = "Save & Post";
-      render();
-    }, 550);
+    const message = error instanceof Error ? error.message : String(error);
+    els.lastUpdated.textContent = `Upload not saved: ${message}`;
+    finishUploadJob(jobId, { status: "Failed", percent: 100, failed: true });
+    showStatusMessage("Slack Post Failed", `${task?.name || "Upload"} was not saved. ${message}`);
   }
+}
+
+els.uploadForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const taskId = state.activeUploadTaskId;
+  const task = findTask(taskId);
+  const files = Array.from(els.modalFileInput.files || []);
+  if (!task || !files.length) return;
+
+  const jobId = createUploadJob(task);
+  const noteText = els.modalUploadNote.value.trim();
+  closeUploadModal();
+  els.lastUpdated.textContent = `Uploading ${task.name}`;
+  void runBackgroundUpload({ jobId, taskId, files, noteText });
 });
 
 els.updateButton.addEventListener("click", loadSheet);
@@ -949,6 +1008,12 @@ els.exchangePanel.addEventListener("submit", async (event) => {
   }
 });
 els.sheetLink.href = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit?gid=${SHEET_GID}#gid=${SHEET_GID}`;
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}
 
 tickClock();
 setInterval(tickClock, 1000 * 30);
