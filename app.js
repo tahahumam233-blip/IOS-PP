@@ -214,8 +214,37 @@ function getTasks(type = state.activeType) {
   return type === "withdrawal" ? state.withdrawals : state.payments;
 }
 
+function splitStoredList(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return String(value || "")
+    .split(/\n+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function joinStoredList(values) {
+  return splitStoredList(values).join("\n");
+}
+
+function normalizeSavedTask(saved = {}) {
+  const fileNames = splitStoredList(saved.fileNames || saved.receiptName);
+  const filePaths = splitStoredList(saved.filePaths || saved.filePath);
+  return {
+    done: Boolean(saved.done),
+    receiptName: joinStoredList(fileNames),
+    fileName: fileNames[0] || "",
+    fileNames,
+    filePath: filePaths[0] || "",
+    filePaths,
+    notePath: saved.notePath || "",
+    notePaths: splitStoredList(saved.notePaths || saved.notePath),
+    uploadNote: saved.uploadNote || "",
+    receiptSavedAt: saved.receiptSavedAt || "",
+  };
+}
+
 function getSavedTask(id) {
-  return state.taskState[id] || { done: false, receiptName: "" };
+  return normalizeSavedTask(state.taskState[id] || { done: false, receiptName: "" });
 }
 
 function saveTaskState() {
@@ -250,8 +279,8 @@ function getSupabaseRow(task, saved = getSavedTask(task.id)) {
     task_date: getTaskDateFromId(task.id),
     task_name: task.name,
     done: Boolean(saved.done),
-    file_path: saved.filePath || null,
-    file_name: saved.receiptName || null,
+    file_path: joinStoredList(saved.filePaths) || null,
+    file_name: joinStoredList(saved.fileNames) || null,
     updated_at: new Date().toISOString(),
   };
 }
@@ -274,6 +303,8 @@ async function loadRemoteTaskState() {
       done: Boolean(row.done),
       receiptName: row.file_name || "",
       filePath: row.file_path || "",
+      fileNames: splitStoredList(row.file_name),
+      filePaths: splitStoredList(row.file_path),
       receiptSavedAt: row.updated_at || "",
     };
   });
@@ -355,7 +386,8 @@ async function uploadTaskFile(taskId, file, onProgress = () => {}) {
 
   const extension = file.name.includes(".") ? file.name.split(".").pop().toLowerCase() : "file";
   const folder = task.type === "withdrawal" ? "withdrawals" : "payments";
-  const filePath = `${getTaskDateFromId(task.id)}/${folder}/${slugify(task.name)}-${Date.now()}.${extension}`;
+  const uniqueId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const filePath = `${getTaskDateFromId(task.id)}/${folder}/${slugify(task.name)}-${uniqueId}.${extension}`;
 
   await uploadToStorage(filePath, file, file.type || "application/octet-stream", onProgress);
 
@@ -669,9 +701,10 @@ function renderTaskList() {
         const saved = getSavedTask(task.id);
         const status = saved.done ? "Done" : "Pending";
         const uploadLabel = task.type === "withdrawal" ? "Upload invoice" : "Upload receipt";
-        const uploadState = saved.receiptName ? "uploaded" : saved.done ? "missing" : "idle";
-        const uploadTitle = saved.receiptName
-          ? `Uploaded: ${saved.receiptName}`
+        const uploadCount = saved.fileNames.length;
+        const uploadState = uploadCount ? "uploaded" : saved.done ? "missing" : "idle";
+        const uploadTitle = uploadCount
+          ? `Uploaded ${uploadCount} ${uploadCount === 1 ? "file" : "files"}: ${saved.fileNames.join(", ")}`
           : saved.done
             ? `${uploadLabel} required`
             : uploadLabel;
@@ -754,8 +787,8 @@ els.uploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const taskId = state.activeUploadTaskId;
   const task = findTask(taskId);
-  const file = els.modalFileInput.files[0];
-  if (!task || !file) return;
+  const files = Array.from(els.modalFileInput.files || []);
+  if (!task || !files.length) return;
 
   els.modalSaveButton.disabled = true;
   els.modalSaveButton.textContent = "Saving...";
@@ -763,16 +796,34 @@ els.uploadForm.addEventListener("submit", async (event) => {
   setUploadProgress(3);
 
   try {
-    const filePath = await uploadTaskFile(taskId, file, (percent) => {
-      setUploadProgress(percent);
-      els.connectionLabel.textContent = `Uploading ${percent}%`;
-    });
-    const notePath = await uploadTaskNote(filePath, task, els.modalUploadNote.value);
+    const uploadedFiles = [];
+    const notePaths = [];
+
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      const filePath = await uploadTaskFile(taskId, file, (percent) => {
+        const totalPercent = Math.round(((index + percent / 100) / files.length) * 92);
+        setUploadProgress(totalPercent);
+        els.connectionLabel.textContent = `Uploading ${index + 1}/${files.length}`;
+      });
+      uploadedFiles.push({ filePath, fileName: file.name });
+
+      const notePath = await uploadTaskNote(filePath, task, els.modalUploadNote.value);
+      if (notePath) notePaths.push(notePath);
+    }
+
+    const previous = getSavedTask(taskId);
+    const fileNames = [...previous.fileNames, ...uploadedFiles.map((file) => file.fileName)];
+    const filePaths = [...previous.filePaths, ...uploadedFiles.map((file) => file.filePath)];
     state.taskState[taskId] = {
-      ...getSavedTask(taskId),
-      receiptName: file.name,
-      filePath,
-      notePath,
+      ...previous,
+      receiptName: joinStoredList(fileNames),
+      fileName: fileNames[0] || "",
+      fileNames,
+      filePath: filePaths[0] || "",
+      filePaths,
+      notePath: notePaths[0] || previous.notePath || "",
+      notePaths: [...previous.notePaths, ...notePaths],
       uploadNote: els.modalUploadNote.value.trim(),
       receiptSavedAt: new Date().toISOString(),
     };
@@ -780,22 +831,26 @@ els.uploadForm.addEventListener("submit", async (event) => {
     setUploadProgress(96);
     await saveRemoteTaskState(taskId);
     els.connectionLabel.textContent = "Posting";
-    await postUploadToSlack({
-      filePath,
-      fileName: file.name,
-      task,
-      noteText: els.modalUploadNote.value,
-    });
+
+    for (let index = 0; index < uploadedFiles.length; index += 1) {
+      const uploadedFile = uploadedFiles[index];
+      els.connectionLabel.textContent = `Posting ${index + 1}/${uploadedFiles.length}`;
+      await postUploadToSlack({
+        filePath: uploadedFile.filePath,
+        fileName: uploadedFile.fileName,
+        task,
+        noteText: els.modalUploadNote.value,
+      });
+    }
+
     setUploadProgress(100);
-    els.lastUpdated.textContent = notePath ? `Posted ${file.name} with note to Slack` : `Posted ${file.name} to Slack`;
+    const fileWord = uploadedFiles.length === 1 ? "file" : "files";
+    els.lastUpdated.textContent = `Posted ${uploadedFiles.length} ${fileWord} to Slack`;
     closeUploadModal();
-    showSuccessMessage(notePath ? "The file and note were posted to Slack." : "The file was posted to Slack.");
+    showSuccessMessage(`${uploadedFiles.length} ${fileWord} posted to Slack.`);
   } catch (error) {
     state.taskState[taskId] = {
       ...getSavedTask(taskId),
-      receiptName: "",
-      filePath: "",
-      notePath: "",
       receiptSavedAt: new Date().toISOString(),
     };
     saveTaskState();
