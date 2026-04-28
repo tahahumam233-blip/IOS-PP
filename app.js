@@ -31,6 +31,8 @@ const state = {
   uploadJobs: {},
   statusQueue: [],
   showingStatus: false,
+  audioContext: null,
+  audioUnlocked: false,
   savingExchange: false,
   activeUploadTaskId: "",
   taskState: JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"),
@@ -394,11 +396,39 @@ function finishUploadJob(jobId, changes = {}) {
   }, 1800);
 }
 
-function playNotificationSound(type = "success") {
+function getAudioContext() {
   const AudioContext = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContext) return;
+  if (!AudioContext) return null;
 
-  const context = new AudioContext();
+  if (!state.audioContext) {
+    state.audioContext = new AudioContext();
+  }
+
+  return state.audioContext;
+}
+
+function unlockNotificationSound() {
+  const context = getAudioContext();
+  if (!context || state.audioUnlocked) return;
+
+  const gain = context.createGain();
+  const oscillator = context.createOscillator();
+  gain.gain.setValueAtTime(0.0001, context.currentTime);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start();
+  oscillator.stop(context.currentTime + 0.03);
+  state.audioUnlocked = true;
+}
+
+function playNotificationSound(type = "success") {
+  const context = getAudioContext();
+  if (!context) return;
+
+  if (context.state === "suspended") {
+    context.resume().catch(() => {});
+  }
+
   const gain = context.createGain();
   gain.connect(context.destination);
   gain.gain.setValueAtTime(0.0001, context.currentTime);
@@ -423,8 +453,6 @@ function playNotificationSound(type = "success") {
     oscillator.start(context.currentTime + tone.start);
     oscillator.stop(context.currentTime + tone.start + tone.duration);
   });
-
-  window.setTimeout(() => context.close().catch(() => {}), 750);
 }
 
 function getStorageUploadUrl(filePath) {
@@ -954,6 +982,7 @@ async function runBackgroundUpload({ jobId, taskId, files, noteText }) {
 
 els.uploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  unlockNotificationSound();
   const taskId = state.activeUploadTaskId;
   const task = findTask(taskId);
   const files = Array.from(els.modalFileInput.files || []);
