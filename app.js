@@ -196,6 +196,16 @@ function formatUSD(value) {
   }).format(value);
 }
 
+function formatCompactAmount(value, currency) {
+  const amount = Number(value) || 0;
+  if (!amount) return "-";
+  const formatted = new Intl.NumberFormat("en-US", {
+    notation: amount >= 1000000 ? "compact" : "standard",
+    maximumFractionDigits: amount >= 1000000 ? 1 : 0,
+  }).format(amount);
+  return currency === "USD" ? `$${formatted}` : `${formatted} IQD`;
+}
+
 function formatPlainNumber(value, currency = "") {
   const number = Number(value) || 0;
   return new Intl.NumberFormat("en-US", {
@@ -797,7 +807,7 @@ function renderTaskList() {
             : uploadLabel;
         return `
           <tr class="${saved.done ? "done" : ""}" data-task-id="${escapeHtml(task.id)}">
-            <td>
+            <td class="status-cell" data-label="Status">
               <label class="task-check" title="${escapeHtml(status)}">
                 <input type="checkbox" data-action="toggle" ${saved.done ? "checked" : ""} />
                 <span class="check-mark" aria-hidden="true"></span>
@@ -805,9 +815,9 @@ function renderTaskList() {
               </label>
             </td>
             <td class="name-cell">${escapeHtml(task.name)}</td>
-            <td>${escapeHtml(formatIQD(task.iqd))}</td>
-            <td>${escapeHtml(formatUSD(task.usd))}</td>
-            <td>
+            <td class="amount-cell" data-label="IQD">${escapeHtml(formatCompactAmount(task.iqd, "IQD"))}</td>
+            <td class="amount-cell" data-label="USD">${escapeHtml(formatCompactAmount(task.usd, "USD"))}</td>
+            <td class="file-cell" data-label="File">
               <button class="upload-control ${uploadState}" type="button" data-action="open-upload" title="${escapeHtml(uploadTitle)}" aria-label="${escapeHtml(uploadTitle)}">
                 <span class="invoice-icon" aria-hidden="true"></span>
               </button>
@@ -820,8 +830,8 @@ function renderTaskList() {
       <tr class="total-row">
         <td></td>
         <td>Visible total</td>
-        <td>${escapeHtml(formatIQD(totals.iqd))}</td>
-        <td>${escapeHtml(formatUSD(totals.usd))}</td>
+        <td>${escapeHtml(formatCompactAmount(totals.iqd, "IQD"))}</td>
+        <td>${escapeHtml(formatCompactAmount(totals.usd, "USD"))}</td>
         <td></td>
       </tr>
     `;

@@ -609,10 +609,10 @@ select {
   flex: 1 1 auto;
   min-height: 0;
   max-height: none;
-  overflow: auto;
+  overflow: hidden auto;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(0, 0, 0, 0.22);
+  background: rgba(0, 0, 0, 0.16);
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }
@@ -629,47 +629,79 @@ select {
 
 .task-grid {
   width: 100%;
-  border-collapse: collapse;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0 7px;
   font-size: 11px;
 }
 
 .task-grid th,
 .task-grid td {
-  min-width: 68px;
-  padding: 9px 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 8px 6px;
+  border-bottom: 0;
   text-align: left;
-  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .task-grid tbody tr {
-  transition: background 160ms var(--ease);
+  transition: background 160ms var(--ease), transform 160ms var(--ease);
 }
 
 .task-grid tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+  transform: none;
 }
 
 .task-grid th {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: rgba(12, 14, 16, 0.96);
+  background: rgba(12, 14, 16, 0.98);
   backdrop-filter: blur(8px);
   color: var(--muted-soft);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
 }
 
 .task-grid th:first-child,
-.task-grid td:first-child,
+.task-grid td:first-child {
+  width: 42px;
+  text-align: center;
+}
+
 .task-grid th:last-child,
 .task-grid td:last-child {
-  min-width: 48px;
-  width: 48px;
+  width: 46px;
   text-align: center;
+}
+
+.task-grid th:nth-child(2),
+.task-grid td:nth-child(2) {
+  width: auto;
+}
+
+.task-grid th:nth-child(3),
+.task-grid td:nth-child(3),
+.task-grid th:nth-child(4),
+.task-grid td:nth-child(4) {
+  width: 66px;
+}
+
+.task-grid tbody tr td {
+  background: rgba(255, 255, 255, 0.045);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.task-grid tbody tr td:first-child {
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px 0 0 12px;
+}
+
+.task-grid tbody tr td:last-child {
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 0 12px 12px 0;
 }
 
 .task-grid tr.done td {
@@ -683,12 +715,21 @@ select {
 }
 
 .task-grid .name-cell {
-  min-width: 135px;
-  max-width: 175px;
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: 600;
   color: var(--ink);
+  white-space: nowrap;
+}
+
+.amount-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(247, 247, 242, 0.88);
+  font-weight: 800;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .total-row td {
@@ -702,12 +743,17 @@ select {
   font-variant-numeric: tabular-nums;
 }
 
+.total-row td:first-child,
+.total-row td:last-child {
+  background: rgba(16, 19, 21, 0.98);
+}
+
 .task-check {
   position: relative;
   display: inline-grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   margin: 0;
   cursor: pointer;
 }
@@ -715,9 +761,9 @@ select {
 .task-check input {
   position: absolute;
   inset: 0;
-  width: 30px;
-  height: 30px;
-  min-height: 30px;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
   margin: 0;
   opacity: 0;
   cursor: pointer;
@@ -725,8 +771,8 @@ select {
 
 .check-mark {
   position: relative;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border: 1.5px solid rgba(255, 255, 255, 0.28);
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.04);
@@ -745,7 +791,7 @@ select {
   height: 5px;
   border-left: 2px solid #06110b;
   border-bottom: 2px solid #06110b;
-  transform: translate(7px, 8px) rotate(-45deg) scale(0.6);
+  transform: translate(6px, 7px) rotate(-45deg) scale(0.6);
   opacity: 0;
   transition: opacity 200ms var(--ease), transform 220ms var(--ease);
 }
@@ -758,16 +804,16 @@ select {
 
 .task-check input:checked + .check-mark::after {
   opacity: 1;
-  transform: translate(7px, 8px) rotate(-45deg) scale(1);
+  transform: translate(6px, 7px) rotate(-45deg) scale(1);
 }
 
 .upload-control {
   position: relative;
   display: inline-grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  min-height: 36px;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
   margin: 0;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 50%;
@@ -1337,7 +1383,32 @@ label {
 
   .task-grid th,
   .task-grid td {
-    padding: 7px 6px;
+    padding: 7px 4px;
+  }
+
+  .task-grid th:first-child,
+  .task-grid td:first-child {
+    width: 36px;
+  }
+
+  .task-grid th:last-child,
+  .task-grid td:last-child {
+    width: 40px;
+  }
+
+  .task-grid th:nth-child(3),
+  .task-grid td:nth-child(3),
+  .task-grid th:nth-child(4),
+  .task-grid td:nth-child(4) {
+    width: 58px;
+  }
+
+  .task-grid {
+    font-size: 10px;
+  }
+
+  .task-grid th {
+    font-size: 8px;
   }
 }
 
