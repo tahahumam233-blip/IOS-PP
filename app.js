@@ -1,6 +1,7 @@
 const SHEET_ID = "1K14ioxhRa-oCNOQ9T3DodnpNIyimkfQvsOPHP59rCbw";
 const SHEET_GID = "0";
 const RANGE = "A1:N100";
+const WITHDRAWAL_RANGE = "L25:N38";
 const STORAGE_KEY = "zaki-payment-task-state";
 const SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
 const SUPABASE_ANON_KEY =
@@ -142,7 +143,19 @@ function makeTaskId(type, rowNumber, name, iqd, usd) {
   return `${todayKey()}-${type}-${rowNumber}-${cleanName}-${iqd}-${usd}`;
 }
 
-function normalizeTasks(csvRows) {
+function normalizeWithdrawalRows(csvRows) {
+  return csvRows
+    .map((row, index) => {
+      const name = (row[0] || "").trim();
+      const iqd = parseAmount(row[1]);
+      const usd = parseAmount(row[2]);
+      const rowNumber = 25 + index;
+      return { id: makeTaskId("withdrawal", rowNumber, name, iqd, usd), type: "withdrawal", name, iqd, usd };
+    })
+    .filter((task) => task.name && (task.iqd > 0 || task.usd > 0));
+}
+
+function normalizeTasks(csvRows, withdrawalRows = []) {
   const providerHeaderIndex = csvRows.findIndex((row) => {
     const nameHeader = String(row[0] || "").toLowerCase();
     const usdHeader = String(row[9] || "").toLowerCase();
@@ -161,21 +174,7 @@ function normalizeTasks(csvRows) {
     })
     .filter((task) => task.name && (task.iqd > 0 || task.usd > 0));
 
-  const withdrawalHeaderIndex = csvRows.findIndex((row) => {
-    const iqdHeader = String(row[12] || "").toLowerCase();
-    return iqdHeader === "iqd";
-  });
-  const withdrawalStartIndex = withdrawalHeaderIndex >= 0 ? withdrawalHeaderIndex + 2 : 24;
-  const withdrawals = csvRows
-    .slice(withdrawalStartIndex, withdrawalStartIndex + 16)
-    .map((row, index) => {
-      const name = (row[11] || "").trim();
-      const iqd = parseAmount(row[12]);
-      const usd = parseAmount(row[13]);
-      const rowNumber = withdrawalStartIndex + index + 1;
-      return { id: makeTaskId("withdrawal", rowNumber, name, iqd, usd), type: "withdrawal", name, iqd, usd };
-    })
-    .filter((task) => task.name && (task.iqd > 0 || task.usd > 0));
+  const withdrawals = normalizeWithdrawalRows(withdrawalRows);
 
   return { payments, withdrawals };
 }
@@ -453,11 +452,11 @@ function getTotals(tasks) {
   );
 }
 
-function getSheetCsvUrl() {
+function getSheetCsvUrl(range = RANGE) {
   const params = new URLSearchParams({
     tqx: "out:csv",
     gid: SHEET_GID,
-    range: RANGE,
+    range,
     cache: Date.now().toString(),
   });
   return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?${params.toString()}`;
@@ -474,14 +473,22 @@ function setLoading(isLoading) {
 async function loadSheet() {
   setLoading(true);
   try {
-    const response = await fetch(getSheetCsvUrl(), { cache: "no-store" });
+    const [response, withdrawalResponse] = await Promise.all([
+      fetch(getSheetCsvUrl(RANGE), { cache: "no-store" }),
+      fetch(getSheetCsvUrl(WITHDRAWAL_RANGE), { cache: "no-store" }),
+    ]);
     if (!response.ok) throw new Error(`Google Sheets returned ${response.status}`);
+    if (!withdrawalResponse.ok) throw new Error(`Google Sheets withdrawals returned ${withdrawalResponse.status}`);
     const text = await response.text();
+    const withdrawalText = await withdrawalResponse.text();
     if (text.trim().startsWith("<")) {
       throw new Error("Google returned an HTML page. Publish the sheet to the web or make it accessible to fetch.");
     }
+    if (withdrawalText.trim().startsWith("<")) {
+      throw new Error("Google returned an HTML page for withdrawals. Publish the sheet to the web or make it accessible to fetch.");
+    }
 
-    const { payments, withdrawals } = normalizeTasks(parseCsvRows(text));
+    const { payments, withdrawals } = normalizeTasks(parseCsvRows(text), parseCsvRows(withdrawalText));
     if (!payments.length && !withdrawals.length) throw new Error("No payment or withdrawal tasks were found.");
 
     state.payments = payments;
