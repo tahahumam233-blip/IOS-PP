@@ -394,6 +394,39 @@ function finishUploadJob(jobId, changes = {}) {
   }, 1800);
 }
 
+function playNotificationSound(type = "success") {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+
+  const context = new AudioContext();
+  const gain = context.createGain();
+  gain.connect(context.destination);
+  gain.gain.setValueAtTime(0.0001, context.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.12, context.currentTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.55);
+
+  const tones = type === "error"
+    ? [
+        { frequency: 260, start: 0, duration: 0.16 },
+        { frequency: 180, start: 0.18, duration: 0.22 },
+      ]
+    : [
+        { frequency: 520, start: 0, duration: 0.13 },
+        { frequency: 780, start: 0.14, duration: 0.2 },
+      ];
+
+  tones.forEach((tone) => {
+    const oscillator = context.createOscillator();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(tone.frequency, context.currentTime + tone.start);
+    oscillator.connect(gain);
+    oscillator.start(context.currentTime + tone.start);
+    oscillator.stop(context.currentTime + tone.start + tone.duration);
+  });
+
+  window.setTimeout(() => context.close().catch(() => {}), 750);
+}
+
 function getStorageUploadUrl(filePath) {
   const encodedBucket = encodeURIComponent(RECEIPTS_BUCKET);
   const encodedPath = filePath.split("/").map(encodeURIComponent).join("/");
@@ -906,6 +939,7 @@ async function runBackgroundUpload({ jobId, taskId, files, noteText }) {
     const fileWord = uploadedFiles.length === 1 ? "file" : "files";
     els.lastUpdated.textContent = `Posted ${task.name} to Slack`;
     finishUploadJob(jobId, { status: "Done", percent: 100 });
+    playNotificationSound("success");
     showStatusMessage("Posted to Slack", `${task.name}: ${uploadedFiles.length} ${fileWord} posted.`);
     render();
   } catch (error) {
@@ -913,6 +947,7 @@ async function runBackgroundUpload({ jobId, taskId, files, noteText }) {
     const message = error instanceof Error ? error.message : String(error);
     els.lastUpdated.textContent = `Upload not saved: ${message}`;
     finishUploadJob(jobId, { status: "Failed", percent: 100, failed: true });
+    playNotificationSound("error");
     showStatusMessage("Slack Post Failed", `${task?.name || "Upload"} was not saved. ${message}`);
   }
 }
