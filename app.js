@@ -420,6 +420,17 @@ async function uploadTaskNote(filePath, task, noteText) {
   return notePath;
 }
 
+async function removeUploadedFiles(paths) {
+  const cleanPaths = splitStoredList(paths);
+  if (!supabaseClient || !cleanPaths.length) return;
+
+  try {
+    await supabaseClient.storage.from(RECEIPTS_BUCKET).remove(cleanPaths);
+  } catch {
+    // Best effort cleanup only. Slack errors should remain the visible message.
+  }
+}
+
 async function postUploadToSlack({ filePath, fileName, task, noteText }) {
   const response = await fetch(SLACK_FUNCTION_URL, {
     method: "POST",
@@ -803,17 +814,17 @@ els.uploadForm.addEventListener("submit", async (event) => {
 
   state.uploading = true;
   els.modalSaveButton.disabled = true;
-  els.modalSaveButton.textContent = "Saving...";
+  els.modalSaveButton.textContent = "Uploading...";
   els.modalFileInput.disabled = true;
   els.modalUploadNote.disabled = true;
   els.closeUploadModal.disabled = true;
   els.connectionLabel.textContent = "Uploading";
   setUploadProgress(3);
 
-  try {
-    const uploadedFiles = [];
-    const notePaths = [];
+  const uploadedFiles = [];
+  const notePaths = [];
 
+  try {
     for (let index = 0; index < files.length; index += 1) {
       const file = files[index];
       const filePath = await uploadTaskFile(taskId, file, (percent) => {
@@ -830,6 +841,7 @@ els.uploadForm.addEventListener("submit", async (event) => {
     const previous = getSavedTask(taskId);
     setUploadProgress(96);
     els.connectionLabel.textContent = "Posting";
+    els.modalSaveButton.textContent = "Posting...";
 
     for (let index = 0; index < uploadedFiles.length; index += 1) {
       const uploadedFile = uploadedFiles[index];
@@ -866,8 +878,10 @@ els.uploadForm.addEventListener("submit", async (event) => {
     closeUploadModal();
     showStatusMessage("Posted to Slack", `${uploadedFiles.length} ${fileWord} posted to Slack.`);
   } catch (error) {
+    await removeUploadedFiles([...uploadedFiles.map((file) => file.filePath), ...notePaths]);
     els.lastUpdated.textContent = `Upload not saved: ${error.message}`;
-    showStatusMessage("Upload Not Saved", `The files did not post to Slack, so the task was not saved. ${error.message}`);
+    closeUploadModal();
+    showStatusMessage("Slack Post Failed", `The upload window was closed, but Slack did not accept the post. The task was not saved with these files. ${error.message}`);
   } finally {
     window.setTimeout(() => {
       setUploadProgress(0, false);
@@ -877,7 +891,7 @@ els.uploadForm.addEventListener("submit", async (event) => {
       els.modalFileInput.disabled = false;
       els.modalUploadNote.disabled = false;
       els.closeUploadModal.disabled = false;
-      els.modalSaveButton.textContent = "Save Upload";
+      els.modalSaveButton.textContent = "Save & Post";
       render();
     }, 550);
   }
