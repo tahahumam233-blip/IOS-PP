@@ -161,13 +161,18 @@ function normalizeTasks(csvRows) {
     })
     .filter((task) => task.name && (task.iqd > 0 || task.usd > 0));
 
+  const withdrawalHeaderIndex = csvRows.findIndex((row) => {
+    const iqdHeader = String(row[12] || "").toLowerCase();
+    return iqdHeader === "iqd";
+  });
+  const withdrawalStartIndex = withdrawalHeaderIndex >= 0 ? withdrawalHeaderIndex + 2 : 24;
   const withdrawals = csvRows
-    .slice(25, 38)
+    .slice(withdrawalStartIndex, withdrawalStartIndex + 16)
     .map((row, index) => {
       const name = (row[11] || "").trim();
       const iqd = parseAmount(row[12]);
       const usd = parseAmount(row[13]);
-      const rowNumber = index + 26;
+      const rowNumber = withdrawalStartIndex + index + 1;
       return { id: makeTaskId("withdrawal", rowNumber, name, iqd, usd), type: "withdrawal", name, iqd, usd };
     })
     .filter((task) => task.name && (task.iqd > 0 || task.usd > 0));
