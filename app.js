@@ -28,6 +28,7 @@ const state = {
   source: "Demo preview",
   loading: false,
   syncing: false,
+  uploading: false,
   savingExchange: false,
   activeUploadTaskId: "",
   taskState: JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"),
@@ -62,6 +63,7 @@ const els = {
   modalUploadNote: document.querySelector("#modalUploadNote"),
   modalSaveButton: document.querySelector("#modalSaveButton"),
   successModal: document.querySelector("#successModal"),
+  successTitle: document.querySelector("#successTitle"),
   successMessage: document.querySelector("#successMessage"),
   successOkButton: document.querySelector("#successOkButton"),
   rowCount: document.querySelector("#rowCount"),
@@ -226,6 +228,10 @@ function joinStoredList(values) {
   return splitStoredList(values).join("\n");
 }
 
+function mergeStoredList(...lists) {
+  return [...new Set(lists.flatMap((list) => splitStoredList(list)))];
+}
+
 function normalizeSavedTask(saved = {}) {
   const fileNames = splitStoredList(saved.fileNames || saved.receiptName);
   const filePaths = splitStoredList(saved.filePaths || saved.filePath);
@@ -386,7 +392,9 @@ async function uploadTaskFile(taskId, file, onProgress = () => {}) {
 
   const extension = file.name.includes(".") ? file.name.split(".").pop().toLowerCase() : "file";
   const folder = task.type === "withdrawal" ? "withdrawals" : "payments";
-  const uniqueId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const uniqueId = globalThis.crypto?.randomUUID
+    ? globalThis.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const filePath = `${getTaskDateFromId(task.id)}/${folder}/${slugify(task.name)}-${uniqueId}.${extension}`;
 
   await uploadToStorage(filePath, file, file.type || "application/octet-stream", onProgress);
@@ -458,7 +466,8 @@ function closeUploadModal() {
   els.modalUploadNote.value = "";
 }
 
-function showSuccessMessage(message) {
+function showStatusMessage(title, message) {
+  els.successTitle.textContent = title;
   els.successMessage.textContent = message;
   els.successModal.hidden = false;
 }
@@ -785,13 +794,19 @@ els.taskList.addEventListener("click", (event) => {
 
 els.uploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (state.uploading) return;
+
   const taskId = state.activeUploadTaskId;
   const task = findTask(taskId);
   const files = Array.from(els.modalFileInput.files || []);
   if (!task || !files.length) return;
 
+  state.uploading = true;
   els.modalSaveButton.disabled = true;
   els.modalSaveButton.textContent = "Saving...";
+  els.modalFileInput.disabled = true;
+  els.modalUploadNote.disabled = true;
+  els.closeUploadModal.disabled = true;
   els.connectionLabel.textContent = "Uploading";
   setUploadProgress(3);
 
@@ -813,23 +828,7 @@ els.uploadForm.addEventListener("submit", async (event) => {
     }
 
     const previous = getSavedTask(taskId);
-    const fileNames = [...previous.fileNames, ...uploadedFiles.map((file) => file.fileName)];
-    const filePaths = [...previous.filePaths, ...uploadedFiles.map((file) => file.filePath)];
-    state.taskState[taskId] = {
-      ...previous,
-      receiptName: joinStoredList(fileNames),
-      fileName: fileNames[0] || "",
-      fileNames,
-      filePath: filePaths[0] || "",
-      filePaths,
-      notePath: notePaths[0] || previous.notePath || "",
-      notePaths: [...previous.notePaths, ...notePaths],
-      uploadNote: els.modalUploadNote.value.trim(),
-      receiptSavedAt: new Date().toISOString(),
-    };
-    saveTaskState();
     setUploadProgress(96);
-    await saveRemoteTaskState(taskId);
     els.connectionLabel.textContent = "Posting";
 
     for (let index = 0; index < uploadedFiles.length; index += 1) {
@@ -843,23 +842,41 @@ els.uploadForm.addEventListener("submit", async (event) => {
       });
     }
 
+    const fileNames = mergeStoredList(previous.fileNames, uploadedFiles.map((file) => file.fileName));
+    const filePaths = mergeStoredList(previous.filePaths, uploadedFiles.map((file) => file.filePath));
+    const mergedNotePaths = mergeStoredList(previous.notePaths, notePaths);
+    state.taskState[taskId] = {
+      ...previous,
+      receiptName: joinStoredList(fileNames),
+      fileName: fileNames[0] || "",
+      fileNames,
+      filePath: filePaths[0] || "",
+      filePaths,
+      notePath: mergedNotePaths[0] || previous.notePath || "",
+      notePaths: mergedNotePaths,
+      uploadNote: els.modalUploadNote.value.trim(),
+      receiptSavedAt: new Date().toISOString(),
+    };
+    saveTaskState();
+    await saveRemoteTaskState(taskId);
+
     setUploadProgress(100);
     const fileWord = uploadedFiles.length === 1 ? "file" : "files";
     els.lastUpdated.textContent = `Posted ${uploadedFiles.length} ${fileWord} to Slack`;
     closeUploadModal();
-    showSuccessMessage(`${uploadedFiles.length} ${fileWord} posted to Slack.`);
+    showStatusMessage("Posted to Slack", `${uploadedFiles.length} ${fileWord} posted to Slack.`);
   } catch (error) {
-    state.taskState[taskId] = {
-      ...getSavedTask(taskId),
-      receiptSavedAt: new Date().toISOString(),
-    };
-    saveTaskState();
-    els.lastUpdated.textContent = `Upload failed: ${error.message}`;
+    els.lastUpdated.textContent = `Upload not saved: ${error.message}`;
+    showStatusMessage("Upload Not Saved", `The files did not post to Slack, so the task was not saved. ${error.message}`);
   } finally {
     window.setTimeout(() => {
       setUploadProgress(0, false);
       els.connectionLabel.textContent = state.source;
+      state.uploading = false;
       els.modalSaveButton.disabled = false;
+      els.modalFileInput.disabled = false;
+      els.modalUploadNote.disabled = false;
+      els.closeUploadModal.disabled = false;
       els.modalSaveButton.textContent = "Save Upload";
       render();
     }, 550);
