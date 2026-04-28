@@ -202,7 +202,6 @@ function formatCompactAmount(value, currency) {
   const amount = Number(value) || 0;
   if (!amount) return "-";
   const formatted = new Intl.NumberFormat("en-US", {
-    notation: amount >= 1000000 ? "compact" : "standard",
     maximumFractionDigits: amount >= 1000000 ? 1 : 0,
   }).format(amount);
   return currency === "USD" ? `$${formatted}` : `${formatted} IQD`;

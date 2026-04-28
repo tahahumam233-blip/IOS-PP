@@ -631,13 +631,13 @@ select {
   width: 100%;
   table-layout: fixed;
   border-collapse: separate;
-  border-spacing: 0 7px;
-  font-size: 11px;
+  border-spacing: 0 6px;
+  font-size: 10px;
 }
 
 .task-grid th,
 .task-grid td {
-  padding: 8px 6px;
+  padding: 8px 5px;
   border-bottom: 0;
   text-align: left;
   vertical-align: middle;
@@ -685,7 +685,7 @@ select {
 .task-grid td:nth-child(3),
 .task-grid th:nth-child(4),
 .task-grid td:nth-child(4) {
-  width: 66px;
+  width: 82px;
 }
 
 .task-grid tbody tr td {
@@ -717,19 +717,20 @@ select {
 .task-grid .name-cell {
   overflow: hidden;
   text-overflow: ellipsis;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--ink);
   white-space: nowrap;
 }
 
 .amount-cell {
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
   color: rgba(247, 247, 242, 0.88);
   font-weight: 800;
   text-align: right;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 }
 
 .total-row td {
@@ -1364,11 +1365,11 @@ label {
   .task-grid td:nth-child(3),
   .task-grid th:nth-child(4),
   .task-grid td:nth-child(4) {
-    width: 58px;
+    width: 74px;
   }
 
   .task-grid {
-    font-size: 10px;
+    font-size: 9px;
   }
 
   .task-grid th {
