@@ -77,8 +77,11 @@ select {
   z-index: 20;
   display: grid;
   place-items: center;
-  padding: 22px;
-  background: var(--bg);
+  padding: 18px;
+  background:
+    radial-gradient(circle at 50% 10%, rgba(72, 210, 255, 0.2), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 280px),
+    var(--bg);
 }
 
 .login-screen[hidden] {
@@ -87,19 +90,33 @@ select {
 
 .login-card {
   width: 100%;
+  max-width: 370px;
   display: grid;
-  gap: 14px;
-  padding: 22px;
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  background: var(--panel-strong);
-  box-shadow: var(--shadow);
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: 26px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 42%),
+    var(--panel-strong);
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
 }
 
 .login-card img {
-  width: 68px;
-  height: 68px;
-  border-radius: 18px;
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.26);
 }
 
 .login-card p,
@@ -109,7 +126,39 @@ select {
 }
 
 .login-card h1 {
-  margin: 0 0 4px;
+  margin: 3px 0 0;
+  font-size: 28px;
+  letter-spacing: -0.04em;
+}
+
+.account-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.account-switch button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 12px;
+  color: var(--muted);
+  background: transparent;
+  font-weight: 850;
+}
+
+.account-switch button.active {
+  color: #071015;
+  background: linear-gradient(135deg, var(--cyan), #99f177);
+  box-shadow: 0 8px 18px rgba(72, 210, 255, 0.18);
+}
+
+.field-stack {
+  display: grid;
+  gap: 11px;
 }
 
 label {
@@ -124,13 +173,21 @@ label {
 
 input,
 select {
-  min-height: 44px;
+  min-height: 46px;
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 0 12px;
+  border-radius: 14px;
+  padding: 0 13px;
   color: var(--ink);
-  background: rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.24);
   outline: none;
+  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+input:focus,
+select:focus {
+  border-color: rgba(72, 210, 255, 0.9);
+  background: rgba(0, 0, 0, 0.32);
+  box-shadow: 0 0 0 4px rgba(72, 210, 255, 0.12);
 }
 
 .login-card button,
@@ -144,6 +201,50 @@ select {
   color: var(--cyan);
   background: rgba(72, 210, 255, 0.08);
   font-weight: 850;
+}
+
+.login-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.login-card button.secondary {
+  color: var(--muted);
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.login-error {
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 109, 134, 0.35);
+  border-radius: 13px;
+  color: var(--red);
+  background: rgba(255, 109, 134, 0.1);
+  font-size: 13px;
+}
+
+.login-hint {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.login-hint strong {
+  font-size: 13px;
+}
+
+.login-hint span {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
 }
 
 .status-bar {
@@ -224,6 +325,16 @@ h1 {
   border-radius: 999px;
   font-size: 14px;
   font-weight: 800;
+}
+
+.app[data-role="guest"] .role-pill {
+  color: var(--yellow);
+  border-color: rgba(255, 190, 46, 0.55);
+}
+
+.app[data-role="admin"] .role-pill {
+  color: var(--green);
+  border-color: rgba(115, 230, 87, 0.55);
 }
 
 .role-pill {
@@ -514,6 +625,13 @@ h1 {
   min-height: 32px;
   padding: 0 10px;
   font-size: 11px;
+}
+
+.locked-action {
+  min-width: 78px;
+  color: var(--muted);
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .task-row.posted .upload {

@@ -7,28 +7,42 @@
     <title>Payment Tracker Demo</title>
     <link rel="icon" type="image/png" href="assets/icon-192.png" />
     <link rel="apple-touch-icon" href="assets/icon-180.png" />
-    <link rel="stylesheet" href="demo.css?v=compact-retry-1" />
+    <link rel="stylesheet" href="demo.css?v=login-polish-1" />
   </head>
   <body>
     <main class="app" data-theme="dark">
       <section class="login-screen" id="loginScreen">
         <div class="login-card">
-          <img src="assets/icon-192.png" alt="" />
-          <p>Payment Tracker</p>
-          <h1>Sign in</h1>
-          <label>
-            User
-            <select id="loginRole">
-              <option value="zaki">Zaki - can post</option>
-              <option value="admin">Admin - full access</option>
-            </select>
-          </label>
-          <label>
-            PIN
-            <input id="loginPin" type="password" inputmode="numeric" value="1234" />
-          </label>
-          <button id="loginButton" type="button">Login</button>
-          <span>Demo only. Real login will use Supabase Auth.</span>
+          <div class="login-brand">
+            <img src="assets/icon-192.png" alt="" />
+            <div>
+              <p>Payment Tracker</p>
+              <h1>Welcome back</h1>
+            </div>
+          </div>
+          <div class="account-switch" aria-label="Demo accounts">
+            <button class="active" data-demo-user="zaki" type="button">Zaki</button>
+            <button data-demo-user="admin" type="button">Admin</button>
+          </div>
+          <div class="field-stack">
+            <label>
+              User ID
+              <input id="loginId" type="text" autocomplete="username" value="zaki" />
+            </label>
+            <label>
+              Password
+              <input id="loginPassword" type="password" autocomplete="current-password" value="zaki2026" />
+            </label>
+          </div>
+          <div class="login-actions">
+            <button id="loginButton" type="button">Login</button>
+            <button id="guestButton" class="secondary" type="button">Continue as guest</button>
+          </div>
+          <b class="login-error" id="loginError" hidden>Wrong ID or password.</b>
+          <div class="login-hint">
+            <strong>Secure demo access</strong>
+            <span>Zaki can post. Admin can retry and close the day. Guests are view-only.</span>
+          </div>
         </div>
       </section>
 
@@ -45,7 +59,7 @@
         <div class="top-actions">
           <span class="role-pill" id="rolePill">Zaki</span>
           <span class="live"><b></b>Live</span>
-          <button type="button">Update</button>
+          <button id="updateButton" type="button">Update</button>
         </div>
       </header>
 
@@ -103,7 +117,7 @@
             <span>Failed</span><b>1</b>
             <span>Receipts</span><b>4 files</b>
           </div>
-          <button type="button">Prepare close report</button>
+          <button id="closeReportButton" type="button">Prepare close report</button>
         </div>
         <div class="close-card compact">
           <p>Admin controls</p>
@@ -125,7 +139,7 @@
         <div class="settings-card">
           <div>
             <strong>Access</strong>
-            <span>Zaki can upload and post. Admin can post, retry, review, and close the day.</span>
+            <span id="accessText">Zaki can upload and post. Admin can post, retry, review, and close the day.</span>
           </div>
           <button class="signout" id="signOutButton" type="button">Sign out</button>
         </div>
@@ -152,6 +166,6 @@
       </div>
     </main>
 
-    <script src="demo.js?v=compact-retry-1"></script>
+    <script src="demo.js?v=login-polish-1"></script>
   </body>
 </html>
