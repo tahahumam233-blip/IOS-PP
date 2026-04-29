@@ -307,7 +307,6 @@ function setPreviewAccess(user) {
   document.querySelector("#previewLoginScreen").hidden = true;
   document.querySelector("#previewLoginError").hidden = true;
   document.querySelector("#updateButton").disabled = user.role === "guest";
-  document.querySelector("#refreshButton").disabled = user.role === "guest";
   document.querySelector("#saveExchangeButton").disabled = user.role === "guest";
   document.querySelector("#previewAccessText").textContent = user.role === "admin"
     ? "Signed in as Admin. You can post, retry, review activity, and close the day."
@@ -327,7 +326,6 @@ function resetLoginForm({ keepRememberedId = true } = {}) {
   previewApp.dataset.role = "guest";
   document.querySelector("#previewRolePill").textContent = "Guest";
   document.querySelector("#updateButton").disabled = true;
-  document.querySelector("#refreshButton").disabled = true;
   document.querySelector("#saveExchangeButton").disabled = true;
   document.querySelector("#previewAccessText").textContent = "Login is required before posting, updating, or saving exchange records.";
   idInput.value = rememberedId;

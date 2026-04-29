@@ -654,7 +654,7 @@ function getSheetCsvUrl(range = RANGE) {
 function setLoading(isLoading) {
   state.loading = isLoading;
   els.updateButton.disabled = isLoading;
-  els.refreshButton.disabled = isLoading;
+  if (els.refreshButton) els.refreshButton.disabled = isLoading;
   els.connectionLabel.textContent = isLoading ? "Updating" : state.source;
   els.updateButton.textContent = isLoading ? "Updating..." : "Update Data";
 }
@@ -995,7 +995,7 @@ els.uploadForm.addEventListener("submit", async (event) => {
 });
 
 els.updateButton.addEventListener("click", loadSheet);
-els.refreshButton.addEventListener("click", loadSheet);
+els.refreshButton?.addEventListener("click", loadSheet);
 els.searchInput.addEventListener("input", renderTaskList);
 els.closeUploadModal.addEventListener("click", closeUploadModal);
 els.uploadModal.addEventListener("click", (event) => {

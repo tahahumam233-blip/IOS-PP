@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" href="assets/logo-red.png" />
     <link rel="apple-touch-icon" href="assets/logo-white-red.png" />
     <link rel="stylesheet" href="styles.css?v=20260429-1" />
-    <link rel="stylesheet" href="live-preview.css?v=20260429-22" />
+    <link rel="stylesheet" href="live-preview.css?v=20260429-23" />
   </head>
   <body>
     <main class="app-preview" data-theme="dark" data-role="guest">
@@ -69,9 +69,9 @@
         </div>
         <div class="top-actions">
           <span class="role-pill" id="previewRolePill">Guest</span>
-          <button class="live-pill" id="refreshButton" type="button"><b></b><span id="connectionLabel">Demo data</span></button>
           <button class="update-button" id="updateButton" type="button">Update</button>
         </div>
+        <span class="sr-only" id="connectionLabel">Demo data</span>
       </header>
 
       <div class="upload-jobs" id="uploadJobs" aria-live="polite"></div>
@@ -250,6 +250,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js?v=20260429-1"></script>
-    <script src="live-preview.js?v=20260429-22"></script>
+    <script src="live-preview.js?v=20260429-23"></script>
   </body>
 </html>

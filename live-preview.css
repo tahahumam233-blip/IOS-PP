@@ -90,8 +90,7 @@ textarea {
 .metric-card,
 .preview-card,
 .activity-row,
-.role-pill,
-.live-pill {
+.role-pill {
   transition:
     transform 180ms var(--preview-ease),
     border-color 180ms var(--preview-ease),
@@ -364,8 +363,7 @@ label {
   max-width: 260px;
 }
 
-.role-pill,
-.live-pill {
+.role-pill {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -386,32 +384,6 @@ label {
   color: var(--preview-muted);
   border-color: var(--preview-line-strong);
   background: rgba(255, 255, 255, 0.055);
-}
-
-.live-pill {
-  color: #dfffe9;
-  border: 1px solid rgba(79, 220, 131, 0.34);
-  background: rgba(15, 143, 82, 0.16);
-}
-
-.live-pill b {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--preview-green) !important;
-  box-shadow: 0 0 0 4px rgba(79, 220, 131, 0.12);
-  animation: livePulse 2.2s ease-in-out infinite;
-}
-
-@keyframes livePulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 4px rgba(79, 220, 131, 0.13);
-  }
-
-  50% {
-    box-shadow: 0 0 0 7px rgba(79, 220, 131, 0.02);
-  }
 }
 
 .preview-topbar .update-button {
@@ -1026,8 +998,7 @@ label {
     gap: 5px;
   }
 
-  .role-pill,
-  .live-pill {
+  .role-pill {
     min-height: 24px;
     font-size: 10px;
   }
