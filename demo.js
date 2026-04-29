@@ -33,6 +33,16 @@ const users = {
 };
 let activeFilter = "all";
 let currentUser = { role: "guest", label: "Guest" };
+let lastTouchEnd = 0;
+
+document.addEventListener("gesturestart", (event) => event.preventDefault());
+document.addEventListener("gesturechange", (event) => event.preventDefault());
+document.addEventListener("gestureend", (event) => event.preventDefault());
+document.addEventListener("touchend", (event) => {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 300) event.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
 
 function amountText(label, value) {
   if (!value) return "";
