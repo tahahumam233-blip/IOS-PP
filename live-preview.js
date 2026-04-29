@@ -84,6 +84,27 @@ function renderActivity() {
   `).join("");
 }
 
+function updatePendingMetric() {
+  const metrics = document.querySelector("#metrics");
+  if (!metrics || document.querySelector("#exchangePanel:not([hidden])")) return;
+
+  const existing = metrics.querySelector(".preview-pending-card");
+  if (existing) existing.remove();
+
+  const rows = Array.from(document.querySelectorAll("#taskList tr[data-task-id]"));
+  const pending = rows.filter((row) => !row.querySelector(".status-dot.uploaded")).length;
+  const label = document.querySelector("#paymentsTab")?.classList.contains("active") ? "Pending payments" : "Pending withdrawals";
+  const card = document.createElement("article");
+  card.className = "metric-card total-card preview-pending-card";
+  card.innerHTML = `
+    <div>
+      <b>${label}</b>
+      <strong>${pending}</strong>
+    </div>
+  `;
+  metrics.appendChild(card);
+}
+
 function showReceiptPreview(taskId) {
   const taskState = readPreviewTaskState()[taskId] || {};
   const filePaths = splitPreviewList(taskState.filePaths || taskState.filePath);
@@ -250,5 +271,26 @@ lastUpdatedObserver.observe(document.querySelector("#lastUpdated"), {
   subtree: true,
 });
 
+const metricsObserver = new MutationObserver(() => {
+  window.requestAnimationFrame(updatePendingMetric);
+});
+
+metricsObserver.observe(document.querySelector("#metrics"), {
+  childList: true,
+  subtree: true,
+});
+
+const taskListObserver = new MutationObserver(() => {
+  window.requestAnimationFrame(updatePendingMetric);
+});
+
+taskListObserver.observe(document.querySelector("#taskList"), {
+  childList: true,
+  subtree: true,
+  attributes: true,
+  attributeFilter: ["class"],
+});
+
 setPreviewAccess(previewUser);
 renderActivity();
+window.requestAnimationFrame(updatePendingMetric);

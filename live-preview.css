@@ -346,6 +346,10 @@ label {
   border-right: 0;
 }
 
+.preview-pending-card strong {
+  color: var(--preview-yellow);
+}
+
 .metric-card b {
   color: var(--preview-muted);
   font-size: 12px;
