@@ -3,26 +3,54 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#090b0e" />
+    <meta name="theme-color" content="#080b0f" />
     <title>Payment Tracker Demo</title>
     <link rel="icon" type="image/png" href="assets/icon-192.png" />
     <link rel="apple-touch-icon" href="assets/icon-180.png" />
     <link rel="stylesheet" href="demo.css" />
   </head>
   <body>
-    <main class="demo-app">
-      <header class="app-header">
-        <div>
-          <p class="eyebrow">Live from sheet</p>
-          <h1>Zaki Tasks</h1>
+    <main class="app" data-theme="dark">
+      <section class="login-screen" id="loginScreen">
+        <div class="login-card">
+          <img src="assets/icon-192.png" alt="" />
+          <p>Payment Tracker</p>
+          <h1>Sign in</h1>
+          <label>
+            User
+            <select id="loginRole">
+              <option value="zaki">Zaki - can post</option>
+              <option value="admin">Admin - full access</option>
+            </select>
+          </label>
+          <label>
+            PIN
+            <input id="loginPin" type="password" inputmode="numeric" value="1234" />
+          </label>
+          <button id="loginButton" type="button">Login</button>
+          <span>Demo only. Real login will use Supabase Auth.</span>
         </div>
-        <div class="live-cluster">
-          <span class="live-pill"><span></span>Live</span>
+      </section>
+
+      <div class="status-bar" aria-hidden="true">
+        <span>9:41</span>
+        <div class="phone-icons"><i></i><i></i><i></i></div>
+      </div>
+
+      <header class="topbar">
+        <div>
+          <h1>Zaki Tasks</h1>
+          <p>Updated 12:34 PM</p>
+        </div>
+        <div class="top-actions">
+          <span class="role-pill" id="rolePill">Zaki</span>
+          <span class="live"><b></b>Live</span>
           <button type="button">Update</button>
         </div>
       </header>
 
-      <section class="sync-card" aria-label="Upload progress">
+      <section class="progress-card" aria-label="Upload progress">
+        <div class="upload-badge">UP</div>
         <div>
           <strong>SFG IQD</strong>
           <span>Posting 2/2</span>
@@ -31,13 +59,13 @@
         <i><span style="width: 92%"></span></i>
       </section>
 
-      <nav class="tabs" aria-label="Task type">
+      <nav class="segment" aria-label="Task type">
         <button class="active" type="button">Payments</button>
         <button type="button">Withdrawals</button>
         <button type="button">Exchange</button>
       </nav>
 
-      <section class="summary-grid" aria-label="Totals">
+      <section class="totals" aria-label="Totals">
         <article>
           <span>Total IQD</span>
           <strong>84,000,007</strong>
@@ -48,21 +76,80 @@
         </article>
         <article>
           <span>Pending</span>
-          <strong>6</strong>
+          <strong id="pendingCount">6</strong>
         </article>
       </section>
 
-      <section class="task-surface" aria-label="Supplier payment grid">
-        <div class="section-title">
-          <div>
-            <p>Supplier Payments</p>
-            <h2>Today</h2>
-          </div>
-          <input type="search" placeholder="Search" aria-label="Search" />
+      <section class="view view-tasks active" id="tasksView">
+        <div class="filter-bar" aria-label="Task filter">
+          <button class="active" data-filter="all" type="button">All</button>
+          <button data-filter="pending" type="button">Pending</button>
+          <button data-filter="posted" type="button">Posted</button>
         </div>
-
-        <div class="task-grid" id="taskGrid"></div>
+        <div class="task-list" id="taskList"></div>
       </section>
+
+      <section class="view" id="activityView">
+        <div class="activity-list" id="activityList"></div>
+      </section>
+
+      <section class="view" id="summaryView">
+        <div class="close-card">
+          <p>Daily Close</p>
+          <h2>Ready for 23:00</h2>
+          <div class="close-grid">
+            <span>Posted</span><b>2</b>
+            <span>Pending</span><b>5</b>
+            <span>Failed</span><b>1</b>
+            <span>Receipts</span><b>4 files</b>
+          </div>
+          <button type="button">Prepare close report</button>
+        </div>
+        <div class="close-card compact">
+          <p>Admin controls</p>
+          <span>Admin can review pending work, retry failed Slack posts, and close the day.</span>
+        </div>
+      </section>
+
+      <section class="view" id="settingsView">
+        <div class="settings-card">
+          <div>
+            <strong>Appearance</strong>
+            <span>Choose the app theme for this device.</span>
+          </div>
+          <div class="theme-toggle" role="group" aria-label="Theme">
+            <button class="active" data-theme-choice="dark" type="button">Dark</button>
+            <button data-theme-choice="light" type="button">Light</button>
+          </div>
+        </div>
+        <div class="settings-card">
+          <div>
+            <strong>Access</strong>
+            <span>Zaki can upload and post. Admin can post, retry, review, and close the day.</span>
+          </div>
+          <button class="signout" id="signOutButton" type="button">Sign out</button>
+        </div>
+      </section>
+
+      <nav class="bottom-nav" aria-label="App navigation">
+        <button class="active" data-view="tasksView" type="button"><span>Tasks</span></button>
+        <button data-view="activityView" type="button"><span>Activity</span></button>
+        <button data-view="summaryView" type="button"><span>Summary</span></button>
+        <button data-view="settingsView" type="button"><span>Settings</span></button>
+      </nav>
+
+      <div class="modal" id="receiptModal" hidden>
+        <div class="receipt-card">
+          <button id="closeReceipt" type="button">Close</button>
+          <p>Receipt Preview</p>
+          <strong id="receiptTitle">Sham Wings Airlines</strong>
+          <div class="receipt-art">
+            <span></span>
+            <i></i>
+            <b>POSTED</b>
+          </div>
+        </div>
+      </div>
     </main>
 
     <script src="demo.js"></script>
