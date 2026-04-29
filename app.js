@@ -78,6 +78,7 @@ const els = {
 };
 
 function tickClock() {
+  if (!els.clock) return;
   els.clock.textContent = new Intl.DateTimeFormat([], {
     hour: "numeric",
     minute: "2-digit",

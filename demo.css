@@ -248,53 +248,12 @@ button:disabled {
   opacity: 0.56;
 }
 
-.status-bar {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 24px;
-  padding: 0 20px;
-  font-size: 15px;
-  font-weight: 850;
-}
-
-.phone-icons {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.phone-icons i {
-  display: block;
-  background: currentColor;
-}
-
-.phone-icons i:nth-child(1) {
-  width: 20px;
-  height: 14px;
-  border-radius: 3px;
-}
-
-.phone-icons i:nth-child(2) {
-  width: 19px;
-  height: 13px;
-  border-radius: 18px 18px 0 0;
-}
-
-.phone-icons i:nth-child(3) {
-  width: 27px;
-  height: 14px;
-  border-radius: 4px;
-}
-
 .topbar {
   flex: 0 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 14px;
-  padding-top: 8px;
 }
 
 .title-lockup {
@@ -304,8 +263,8 @@ button:disabled {
 }
 
 .title-lockup .brand-logo {
-  width: 86px;
-  height: 86px;
+  width: 104px;
+  height: 104px;
   flex: 0 0 auto;
   filter: drop-shadow(0 8px 18px rgba(214, 0, 58, 0.2));
 }

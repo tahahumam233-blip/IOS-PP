@@ -150,56 +150,6 @@ button:disabled {
   display: none;
 }
 
-.status-bar {
-  height: 28px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 12px;
-  color: rgba(255, 255, 255, 0.92);
-  font-size: 13px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.status-icons {
-  display: flex;
-  align-items: end;
-  gap: 4px;
-}
-
-.status-icons span {
-  display: block;
-  width: 4px;
-  border-radius: 3px;
-  background: currentColor;
-}
-
-.status-icons span:nth-child(1) {
-  height: 7px;
-}
-
-.status-icons span:nth-child(2) {
-  height: 10px;
-}
-
-.status-icons span:nth-child(3) {
-  width: 18px;
-  height: 9px;
-  border: 1px solid currentColor;
-  background: transparent;
-  position: relative;
-}
-
-.status-icons span:nth-child(3)::after {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  width: 70%;
-  background: currentColor;
-  border-radius: 1px;
-}
-
 .island {
   position: sticky;
   top: 8px;
@@ -1378,10 +1328,6 @@ label {
 }
 
 @media (max-width: 390px), (max-height: 780px) {
-  .status-bar {
-    height: 24px;
-  }
-
   .island {
     height: 34px;
     width: 158px;
