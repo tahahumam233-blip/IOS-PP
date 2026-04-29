@@ -1,9 +1,17 @@
-const CACHE_NAME = "payment-tracker-pwa-20260429-1";
+const CACHE_NAME = "payment-tracker-pwa-20260429-live-2";
 const STATIC_ASSETS = [
+  "./",
+  "./index.html",
   "./manifest.json",
+  "./styles.css",
+  "./live-preview.css",
+  "./app.js",
+  "./live-preview.js",
   "./assets/icon-180.png",
   "./assets/icon-192.png",
-  "./assets/icon-512.png"
+  "./assets/icon-512.png",
+  "./assets/logo-red.png",
+  "./assets/logo-white-red.png"
 ];
 
 self.addEventListener("install", (event) => {
@@ -41,6 +49,8 @@ self.addEventListener("fetch", (event) => {
     url.pathname.endsWith("/index.html") ||
     url.pathname.endsWith("/app.js") ||
     url.pathname.endsWith("/styles.css") ||
+    url.pathname.endsWith("/live-preview.css") ||
+    url.pathname.endsWith("/live-preview.js") ||
     url.pathname.endsWith("/sw.js")
   ) {
     event.respondWith(

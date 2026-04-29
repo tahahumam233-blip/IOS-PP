@@ -1059,7 +1059,8 @@ if ("serviceWorker" in navigator) {
 
     navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" })
       .then((registration) => {
-        registration.update().catch(() => {});
+        const checkForUpdate = () => registration.update().catch(() => {});
+        checkForUpdate();
 
         if (registration.waiting) {
           registration.waiting.postMessage({ type: "SKIP_WAITING" });
@@ -1074,6 +1075,13 @@ if ("serviceWorker" in navigator) {
               worker.postMessage({ type: "SKIP_WAITING" });
             }
           });
+        });
+
+        window.addEventListener("focus", checkForUpdate);
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") {
+            checkForUpdate();
+          }
         });
       })
       .catch(() => {});
