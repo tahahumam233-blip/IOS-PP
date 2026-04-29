@@ -13,6 +13,13 @@ let lastTouchEnd = 0;
 let previewReceiptTaskId = "";
 let previewReplaceTaskId = "";
 
+function syncAppViewport() {
+  const viewport = window.visualViewport;
+  const height = Math.ceil(viewport?.height || window.innerHeight || document.documentElement.clientHeight);
+  document.documentElement.style.setProperty("--app-height", `${height}px`);
+  document.documentElement.style.setProperty("--app-width", `${Math.ceil(viewport?.width || window.innerWidth)}px`);
+}
+
 function previewCanPost() {
   return previewUser.role === "admin" || previewUser.role === "zaki";
 }
@@ -335,6 +342,10 @@ function resetLoginForm({ keepRememberedId = true } = {}) {
 document.addEventListener("gesturestart", (event) => event.preventDefault());
 document.addEventListener("gesturechange", (event) => event.preventDefault());
 document.addEventListener("gestureend", (event) => event.preventDefault());
+window.addEventListener("resize", syncAppViewport);
+window.addEventListener("orientationchange", syncAppViewport);
+window.visualViewport?.addEventListener("resize", syncAppViewport);
+window.visualViewport?.addEventListener("scroll", syncAppViewport);
 document.addEventListener("touchend", (event) => {
   const now = Date.now();
   if (now - lastTouchEnd <= 300) event.preventDefault();
@@ -521,7 +532,9 @@ taskListObserver.observe(document.querySelector("#taskList"), {
 
 resetLoginForm();
 renderActivity();
+syncAppViewport();
 window.requestAnimationFrame(() => {
+  syncAppViewport();
   enhanceTaskRows();
   updatePendingMetric();
 });
