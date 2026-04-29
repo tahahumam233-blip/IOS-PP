@@ -1,18 +1,21 @@
 :root {
-  --brand: #d6003a;
-  --brand-strong: #ff2b5f;
-  --brand-soft: rgba(214, 0, 58, 0.13);
-  --preview-bg: #08070a;
-  --preview-panel: rgba(22, 18, 22, 0.84);
-  --preview-panel-strong: rgba(28, 22, 27, 0.96);
-  --preview-line: rgba(255, 255, 255, 0.11);
-  --preview-line-strong: rgba(255, 255, 255, 0.2);
-  --preview-ink: #fbf7f9;
-  --preview-muted: #b2a8ae;
-  --preview-green: #7ee766;
-  --preview-yellow: #ffc83d;
-  --preview-red: #ff667d;
-  --preview-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  --brand: #d10f3f;
+  --brand-strong: #ff3f6d;
+  --brand-deep: #a90931;
+  --brand-soft: rgba(209, 15, 63, 0.16);
+  --preview-bg: #08090d;
+  --preview-panel: rgba(22, 23, 28, 0.86);
+  --preview-panel-strong: rgba(28, 29, 35, 0.96);
+  --preview-line: rgba(255, 255, 255, 0.1);
+  --preview-line-strong: rgba(255, 255, 255, 0.18);
+  --preview-ink: #f8f7f8;
+  --preview-muted: #b6b0b5;
+  --preview-soft: #85808a;
+  --preview-green: #67dc73;
+  --preview-yellow: #f4b740;
+  --preview-red: #ff5f7d;
+  --preview-shadow: 0 10px 26px rgba(0, 0, 0, 0.24);
+  --preview-ease: cubic-bezier(0.22, 1, 0.36, 1);
   color-scheme: dark;
 }
 
@@ -51,22 +54,47 @@ textarea {
   padding: max(8px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
   color: var(--preview-ink);
   background:
-    radial-gradient(circle at 18% 0%, rgba(214, 0, 58, 0.22), transparent 28%),
-    radial-gradient(circle at 92% 18%, rgba(255, 43, 95, 0.12), transparent 30%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 210px),
+    radial-gradient(circle at 16% -4%, rgba(209, 15, 63, 0.16), transparent 26%),
+    radial-gradient(circle at 92% 15%, rgba(255, 63, 109, 0.08), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 190px),
     var(--preview-bg);
 }
 
 .app-preview[data-theme="light"] {
   color-scheme: light;
-  --preview-bg: #faf6f7;
-  --preview-panel: rgba(255, 255, 255, 0.96);
+  --preview-bg: #fbfafb;
+  --preview-panel: rgba(255, 255, 255, 0.98);
   --preview-panel-strong: #ffffff;
-  --preview-line: rgba(58, 31, 40, 0.14);
-  --preview-line-strong: rgba(58, 31, 40, 0.24);
-  --preview-ink: #171216;
-  --preview-muted: #61565c;
-  --preview-shadow: 0 10px 24px rgba(80, 21, 38, 0.12);
+  --preview-line: rgba(31, 35, 42, 0.14);
+  --preview-line-strong: rgba(31, 35, 42, 0.22);
+  --preview-ink: #17191f;
+  --preview-muted: #4d515c;
+  --preview-soft: #6d7280;
+  --preview-shadow: 0 9px 22px rgba(31, 35, 42, 0.11);
+}
+
+.app-preview button,
+.app-preview a,
+.task-grid tbody tr,
+.upload-control,
+.metric-card,
+.preview-card,
+.activity-row,
+.role-pill,
+.live-pill {
+  transition:
+    transform 180ms var(--preview-ease),
+    border-color 180ms var(--preview-ease),
+    background 180ms var(--preview-ease),
+    color 180ms var(--preview-ease),
+    box-shadow 220ms var(--preview-ease),
+    opacity 180ms var(--preview-ease);
+}
+
+.app-preview button:not(:disabled):active,
+.app-preview a:active,
+.upload-control:active {
+  transform: scale(0.97);
 }
 
 .app-shell,
@@ -190,8 +218,8 @@ label {
 .app-preview[data-theme="light"] input,
 .app-preview[data-theme="light"] select,
 .app-preview[data-theme="light"] textarea {
-  color: #160d11;
-  background: #fff8fa;
+  color: #17191f;
+  background: #ffffff;
 }
 
 .login-actions {
@@ -307,14 +335,15 @@ label {
 }
 
 .app-preview[data-role="guest"] .role-pill {
-  color: var(--preview-yellow);
-  border-color: rgba(255, 190, 46, 0.55);
+  color: var(--preview-muted);
+  border-color: var(--preview-line-strong);
+  background: rgba(255, 255, 255, 0.055);
 }
 
 .live-pill {
   color: var(--preview-green);
-  border-color: rgba(115, 230, 87, 0.65);
-  background: rgba(115, 230, 87, 0.08);
+  border: 1px solid rgba(103, 220, 115, 0.34);
+  background: rgba(103, 220, 115, 0.09);
 }
 
 .live-pill b {
@@ -322,6 +351,19 @@ label {
   height: 7px;
   border-radius: 50%;
   background: currentColor;
+  box-shadow: 0 0 0 4px rgba(103, 220, 115, 0.12);
+  animation: livePulse 2.2s ease-in-out infinite;
+}
+
+@keyframes livePulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgba(103, 220, 115, 0.13);
+  }
+
+  50% {
+    box-shadow: 0 0 0 7px rgba(103, 220, 115, 0.02);
+  }
 }
 
 .preview-topbar .update-button {
@@ -329,12 +371,16 @@ label {
   min-height: 30px;
   margin: 0;
   padding: 0 11px;
-  border: 1px solid rgba(214, 0, 58, 0.68);
+  border: 1px solid rgba(209, 15, 63, 0.64);
   border-radius: 12px;
-  color: var(--brand-strong);
-  background: rgba(214, 0, 58, 0.1);
-  box-shadow: none;
+  color: #ffffff;
+  background: linear-gradient(180deg, var(--brand-strong), var(--brand));
+  box-shadow: 0 8px 18px rgba(209, 15, 63, 0.18);
   font-size: 12px;
+}
+
+.preview-topbar .update-button:not(:disabled):hover {
+  box-shadow: 0 10px 22px rgba(209, 15, 63, 0.24);
 }
 
 .preview-view {
@@ -423,8 +469,8 @@ label {
 .task-tabs button.active,
 .theme-toggle button.active {
   color: #fff;
-  background: linear-gradient(180deg, #f21d52, #c60036);
-  box-shadow: 0 7px 16px rgba(214, 0, 58, 0.18);
+  background: linear-gradient(180deg, var(--brand-strong), var(--brand-deep));
+  box-shadow: 0 7px 16px rgba(209, 15, 63, 0.18);
 }
 
 .panel,
@@ -507,6 +553,19 @@ label {
   border-radius: 13px;
   background: var(--preview-panel);
   overflow: visible;
+  animation: rowIn 240ms var(--preview-ease) both;
+}
+
+@keyframes rowIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .task-grid tbody tr td {
@@ -617,6 +676,7 @@ label {
   min-width: 56px;
   height: 36px;
   min-height: 36px;
+  border: 1px solid rgba(209, 15, 63, 0.34);
   border-radius: 999px;
   color: var(--brand-strong);
   background: var(--brand-soft);
@@ -631,6 +691,11 @@ label {
 .upload-control.uploaded::after {
   content: "View";
   color: var(--preview-green);
+}
+
+.upload-control.uploaded {
+  border-color: rgba(103, 220, 115, 0.42);
+  background: rgba(103, 220, 115, 0.1);
 }
 
 .invoice-icon {
@@ -750,7 +815,7 @@ label {
 }
 
 .app-preview[data-theme="light"] .bottom-nav {
-  background: rgba(247, 237, 240, 0.92);
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .bottom-nav button {
@@ -764,6 +829,44 @@ label {
 
 .bottom-nav button.active {
   color: var(--brand-strong);
+}
+
+.app-preview[data-theme="light"] .task-tabs button,
+.app-preview[data-theme="light"] .theme-toggle button,
+.app-preview[data-theme="light"] .bottom-nav button {
+  color: #4d515c;
+}
+
+.app-preview[data-theme="light"] .task-tabs button.active,
+.app-preview[data-theme="light"] .theme-toggle button.active {
+  color: #ffffff;
+}
+
+.app-preview[data-theme="light"] .bottom-nav button.active {
+  color: var(--brand);
+}
+
+.app-preview[data-theme="light"] .panel-heading p,
+.app-preview[data-theme="light"] .panel-heading h2,
+.app-preview[data-theme="light"] .preview-card p,
+.app-preview[data-theme="light"] .preview-card h2,
+.app-preview[data-theme="light"] .settings-card strong,
+.app-preview[data-theme="light"] .task-grid .name-cell,
+.app-preview[data-theme="light"] .metric-card strong,
+.app-preview[data-theme="light"] .activity-row strong,
+.app-preview[data-theme="light"] .close-grid b {
+  color: #17191f;
+}
+
+.app-preview[data-theme="light"] .sheet-name,
+.app-preview[data-theme="light"] #lastUpdated,
+.app-preview[data-theme="light"] .metric-card b,
+.app-preview[data-theme="light"] .amount-label,
+.app-preview[data-theme="light"] .settings-card span,
+.app-preview[data-theme="light"] .activity-row span,
+.app-preview[data-theme="light"] .close-grid,
+.app-preview[data-theme="light"] .preview-card p {
+  color: #4d515c;
 }
 
 .modal-backdrop {
