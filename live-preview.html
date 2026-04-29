@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#10070b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Payments" />
+    <title>Payment Tracker Preview</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" type="image/png" href="assets/logo-red.png" />
+    <link rel="apple-touch-icon" href="assets/logo-white-red.png" />
+    <link rel="stylesheet" href="styles.css?v=20260429-1" />
+    <link rel="stylesheet" href="live-preview.css?v=20260429-1" />
+  </head>
+  <body>
+    <main class="app-preview" data-theme="dark" data-role="guest">
+      <section class="login-screen" id="previewLoginScreen">
+        <div class="login-card">
+          <div class="login-brand">
+            <img class="brand-logo logo-dark" src="assets/logo-white-red.png" alt="" />
+            <img class="brand-logo logo-light" src="assets/logo-red.png" alt="" />
+            <div>
+              <p>Payment Tracker</p>
+              <h1>Welcome back</h1>
+            </div>
+          </div>
+
+          <div class="field-stack">
+            <label>
+              User ID
+              <input id="previewLoginId" type="text" autocomplete="username" value="zaki" />
+            </label>
+            <label>
+              Password
+              <input id="previewLoginPassword" type="password" autocomplete="current-password" value="zaki2026" />
+            </label>
+          </div>
+
+          <div class="login-actions">
+            <button id="previewLoginButton" type="button">Login</button>
+            <button id="previewGuestButton" class="secondary" type="button">Continue as guest</button>
+          </div>
+          <b class="login-error" id="previewLoginError" hidden>Wrong ID or password.</b>
+          <div class="login-hint">
+            <strong>Secure preview access</strong>
+            <span>Zaki can post. Admin can retry and close the day. Guests are view-only.</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="status-bar">
+        <span id="clock">9:41</span>
+        <div class="status-icons" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+
+      <header class="preview-topbar">
+        <div>
+          <img class="brand-logo logo-dark" src="assets/logo-white-red.png" alt="" />
+          <img class="brand-logo logo-light" src="assets/logo-red.png" alt="" />
+          <p id="lastUpdated">Ready to connect</p>
+        </div>
+        <div class="top-actions">
+          <span class="role-pill" id="previewRolePill">Guest</span>
+          <button class="live-pill" id="refreshButton" type="button"><b></b><span id="connectionLabel">Demo data</span></button>
+          <button class="update-button" id="updateButton" type="button">Update</button>
+        </div>
+      </header>
+
+      <div class="upload-jobs" id="uploadJobs" aria-live="polite"></div>
+      <div class="upload-progress" id="uploadProgress" aria-hidden="true">
+        <div class="upload-progress-bar" id="uploadProgressBar"></div>
+      </div>
+
+      <section class="preview-view active" id="tasksView">
+        <p class="sheet-name" id="sheetName">Zaki Work List</p>
+        <section class="metrics" id="metrics" aria-label="Key metrics"></section>
+
+        <div class="task-tabs" role="tablist" aria-label="Task type">
+          <button class="active" id="paymentsTab" type="button">Payments</button>
+          <button id="withdrawalsTab" type="button">Withdrawals</button>
+          <button id="exchangeTab" type="button">Exchange</button>
+        </div>
+
+        <section class="panel task-panel" aria-label="Zaki task list">
+          <div class="panel-heading">
+            <div>
+              <p id="taskTypeLabel">Supplier Payments</p>
+              <h2 id="rowCount">0 entries</h2>
+            </div>
+            <input id="searchInput" type="search" placeholder="Search" aria-label="Search rows" />
+          </div>
+
+          <div class="grid-wrap">
+            <table class="task-grid">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Name</th>
+                  <th>IQD</th>
+                  <th>USD</th>
+                  <th>File</th>
+                </tr>
+              </thead>
+              <tbody id="taskList"></tbody>
+            </table>
+          </div>
+
+          <form class="exchange-panel" id="exchangePanel" hidden>
+            <label class="exchange-field">
+              <span>Operation</span>
+              <div class="currency-line single-control">
+                <select id="exchangeSide" aria-label="Exchange operation">
+                  <option value="Buying USD">Buying USD</option>
+                  <option value="Selling USD">Selling USD</option>
+                </select>
+              </div>
+            </label>
+            <label class="exchange-field">
+              <span>Amount 1</span>
+              <div class="currency-line">
+                <input id="exchangeAmountA" type="text" inputmode="decimal" placeholder="0" />
+                <strong>IQD</strong>
+              </div>
+            </label>
+            <label class="exchange-field">
+              <span>Amount 2</span>
+              <div class="currency-line">
+                <input id="exchangeAmountB" type="text" inputmode="decimal" placeholder="0" />
+                <strong>USD</strong>
+              </div>
+            </label>
+            <label class="exchange-field">
+              <span>Exchange rate</span>
+              <div class="currency-line">
+                <input id="exchangeRate" type="text" inputmode="decimal" placeholder="IQD per 1 USD" readonly />
+                <strong>IQD/USD</strong>
+              </div>
+            </label>
+            <button class="exchange-save" id="saveExchangeButton" type="submit">Save Exchange</button>
+          </form>
+        </section>
+      </section>
+
+      <section class="preview-view" id="activityView" hidden>
+        <div class="preview-card">
+          <p>Activity</p>
+          <h2>Live posting history</h2>
+          <div class="activity-row"><strong>Slack posts</strong><span>Successful uploads will appear in Supabase and Slack.</span><b>Live</b></div>
+          <div class="activity-row"><strong>Retry queue</strong><span>Failed jobs stay visible at the top while they finish.</span><b>Ready</b></div>
+        </div>
+      </section>
+
+      <section class="preview-view" id="summaryView" hidden>
+        <div class="preview-card">
+          <p>Daily Close</p>
+          <h2>End-of-day check</h2>
+          <div class="close-grid">
+            <span>Payments</span><b>From Google Sheet</b>
+            <span>Withdrawals</span><b>From Google Sheet</b>
+            <span>Receipts</span><b>Stored in Supabase</b>
+            <span>Slack</span><b>Daily threads</b>
+          </div>
+        </div>
+      </section>
+
+      <section class="preview-view" id="settingsView" hidden>
+        <div class="preview-card settings-card">
+          <div>
+            <strong>Appearance</strong>
+            <span>Choose the app theme for this device.</span>
+          </div>
+          <div class="theme-toggle" role="group" aria-label="Theme">
+            <button class="active" data-theme-choice="dark" type="button">Dark</button>
+            <button data-theme-choice="light" type="button">Light</button>
+          </div>
+        </div>
+        <div class="preview-card settings-card">
+          <div>
+            <strong>Access</strong>
+            <span id="previewAccessText">Guest mode is view-only. Sign in as Zaki or Admin to post.</span>
+          </div>
+          <button class="signout" id="previewSignOutButton" type="button">Sign out</button>
+        </div>
+      </section>
+
+      <nav class="bottom-nav" aria-label="App navigation">
+        <button class="active" data-preview-view="tasksView" type="button">Tasks</button>
+        <button data-preview-view="activityView" type="button">Activity</button>
+        <button data-preview-view="summaryView" type="button">Summary</button>
+        <button data-preview-view="settingsView" type="button">Settings</button>
+      </nav>
+    </main>
+
+    <div class="modal-backdrop" id="uploadModal" hidden>
+      <form class="upload-modal" id="uploadForm">
+        <div class="modal-heading">
+          <div>
+            <p>Receipt Upload</p>
+            <h2 id="uploadTaskName">Attach file</h2>
+          </div>
+          <button class="modal-close" id="closeUploadModal" type="button" aria-label="Close upload window">×</button>
+        </div>
+        <label class="modal-field">
+          <span>Pictures or PDFs</span>
+          <input id="modalFileInput" type="file" accept="image/*,.pdf" multiple required />
+        </label>
+        <label class="modal-field">
+          <span>Note</span>
+          <textarea id="modalUploadNote" rows="4" placeholder="Add payment details, reference number, or comments"></textarea>
+        </label>
+        <button class="modal-save" id="modalSaveButton" type="submit">Save &amp; Post</button>
+      </form>
+    </div>
+
+    <div class="modal-backdrop" id="successModal" hidden>
+      <div class="upload-modal success-dialog" role="dialog" aria-labelledby="successTitle">
+        <div class="success-mark" aria-hidden="true">✓</div>
+        <h2 id="successTitle">Posted to Slack</h2>
+        <p id="successMessage">The file and note were posted successfully.</p>
+        <button class="modal-save" id="successOkButton" type="button">OK</button>
+      </div>
+    </div>
+
+    <a class="source-link" id="sheetLink" href="#" target="_blank" rel="noreferrer">Open source sheet</a>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js?v=20260429-1"></script>
+    <script src="live-preview.js?v=20260429-1"></script>
+  </body>
+</html>
