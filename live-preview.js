@@ -191,36 +191,6 @@ function resetReplaceMode() {
   els.modalSaveButton.textContent = "Save & Post";
 }
 
-async function correctSlackReceipt({ task, previous }) {
-  const oldFilePath = splitPreviewList(previous.filePaths || previous.filePath)[0] || "";
-  const oldFileName = splitPreviewList(previous.fileNames || previous.receiptName)[0] || "wrong-receipt";
-  if (!oldFilePath) throw new Error("No previous receipt file path was found.");
-
-  const response = await fetch(SLACK_FUNCTION_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-    body: JSON.stringify({
-      action: "replace_receipt",
-      filePath: oldFilePath,
-      fileName: oldFileName,
-      taskName: task.name,
-      taskType: task.type,
-      oldFilePaths: previous.filePaths || [],
-      oldFileNames: previous.fileNames || [],
-      replacementText: ".",
-    }),
-  });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok || data.ok === false) {
-    throw new Error(data.error || `Slack correction failed: ${response.status}`);
-  }
-}
-
 async function runBackgroundReplace({ jobId, taskId, files, noteText }) {
   const task = findTask(taskId);
   const uploadedFiles = [];
@@ -232,10 +202,7 @@ async function runBackgroundReplace({ jobId, taskId, files, noteText }) {
     const oldPaths = [...previous.filePaths, ...previous.notePaths];
     if (!oldPaths.length) throw new Error("No previous receipt was found to replace.");
 
-    updateUploadJob(jobId, { status: "Correcting Slack", percent: 5 });
-    await correctSlackReceipt({ task, previous });
-
-    updateUploadJob(jobId, { status: "Removing old receipt", percent: 12 });
+    updateUploadJob(jobId, { status: "Removing old receipt", percent: 8 });
     await removeUploadedFiles(oldPaths);
 
     state.taskState[taskId] = {
@@ -257,7 +224,7 @@ async function runBackgroundReplace({ jobId, taskId, files, noteText }) {
     for (let index = 0; index < files.length; index += 1) {
       const file = files[index];
       const filePath = await uploadTaskFile(taskId, file, (percent) => {
-        const totalPercent = Math.round(14 + ((index + percent / 100) / files.length) * 70);
+        const totalPercent = Math.round(12 + ((index + percent / 100) / files.length) * 72);
         updateUploadJob(jobId, {
           status: `Uploading replacement ${index + 1}/${files.length}`,
           percent: totalPercent,
