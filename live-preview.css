@@ -45,7 +45,7 @@ textarea {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 9px;
   overflow: hidden;
   position: relative;
   padding: max(12px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
@@ -255,8 +255,8 @@ label {
 }
 
 .preview-topbar .brand-logo {
-  width: 86px;
-  height: 86px;
+  width: 72px;
+  height: 72px;
   filter: drop-shadow(0 8px 18px rgba(214, 0, 58, 0.2));
 }
 
@@ -266,6 +266,11 @@ label {
   color: var(--preview-muted);
   font-size: 14px;
   font-weight: 750;
+}
+
+.sheet-name {
+  margin-top: 2px;
+  margin-bottom: 8px;
 }
 
 .top-actions {
@@ -332,7 +337,7 @@ label {
 }
 
 .metric-card {
-  min-height: 70px;
+  min-height: 74px;
   border: 0;
   border-right: 1px solid var(--preview-line);
   border-radius: 0;
@@ -352,14 +357,16 @@ label {
 
 .metric-card b {
   color: var(--preview-muted);
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0;
   text-transform: none;
+  line-height: 1.2;
 }
 
 .metric-card strong {
   color: var(--preview-ink);
-  font-size: 16px;
+  font-size: 17px;
+  line-height: 1.15;
 }
 
 .metric-chip {
@@ -420,7 +427,16 @@ label {
 }
 
 .panel-heading {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
   margin-bottom: 10px;
+}
+
+.panel-heading input {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 14px;
 }
 
 .panel-heading p,
@@ -451,19 +467,19 @@ label {
 
 .task-grid tbody {
   display: grid;
-  gap: 10px;
+  gap: 9px;
   padding-bottom: 90px;
 }
 
 .task-grid tbody tr {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) 66px;
+  grid-template-columns: 18px minmax(0, 1fr) 62px;
   grid-template-rows: auto auto auto;
-  column-gap: 10px;
-  row-gap: 6px;
+  column-gap: 9px;
+  row-gap: 5px;
   align-items: start;
   min-height: 0;
-  padding: 13px;
+  padding: 12px;
   border: 1px solid var(--preview-line);
   border-radius: 13px;
   background: var(--preview-panel);
@@ -479,16 +495,23 @@ label {
 
 .task-grid td:nth-child(3),
 .task-grid td:nth-child(4) {
-  display: block;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   grid-column: 2;
   color: var(--preview-muted);
-  font-size: 16px;
+  min-height: 22px;
+  font-size: 17px;
   font-weight: 850;
-  line-height: 1.25;
+  line-height: 1.2;
   min-width: 0;
   overflow: visible;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.task-grid td.empty-amount {
+  display: none;
 }
 
 .task-grid td:nth-child(3) {
@@ -534,6 +557,7 @@ label {
   white-space: nowrap;
   color: var(--preview-ink);
   font-size: 18px;
+  line-height: 1.15;
   font-weight: 850;
 }
 
@@ -547,19 +571,22 @@ label {
   color: var(--brand-strong);
 }
 
-.task-grid td:nth-child(3)::before {
-  content: "IQD ";
+.amount-label {
+  flex: 0 0 auto;
   color: var(--preview-muted);
+  font-size: 14px;
+  font-weight: 900;
 }
 
-.task-grid td:nth-child(4)::before {
-  content: "USD ";
-  color: var(--preview-muted);
+.amount-number {
+  min-width: 0;
+  color: var(--brand-strong);
+  overflow-wrap: anywhere;
 }
 
 .upload-control {
   width: auto;
-  min-width: 58px;
+  min-width: 56px;
   height: 36px;
   min-height: 36px;
   border-radius: 999px;
@@ -775,8 +802,8 @@ label {
   }
 
   .preview-topbar .brand-logo {
-    width: 76px;
-    height: 76px;
+    width: 66px;
+    height: 66px;
   }
 
   .task-grid .name-cell {
@@ -785,10 +812,10 @@ label {
 
   .task-grid td:nth-child(3),
   .task-grid td:nth-child(4) {
-    font-size: 15px;
+    font-size: 16px;
   }
 
   .task-grid tbody tr {
-    grid-template-columns: 18px minmax(0, 1fr) 60px;
+    grid-template-columns: 16px minmax(0, 1fr) 58px;
   }
 }

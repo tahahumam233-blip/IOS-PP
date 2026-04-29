@@ -84,16 +84,56 @@ function renderActivity() {
   `).join("");
 }
 
+function enhanceTaskRows() {
+  document.querySelectorAll("#taskList .amount-cell").forEach((cell) => {
+    const raw = (cell.dataset.rawAmount || cell.textContent || "").trim();
+    cell.dataset.rawAmount = raw;
+    if (cell.dataset.enhancedAmount === raw) return;
+
+    const label = cell.dataset.label || "";
+    const isEmpty = raw === "-" || raw === "$0" || raw === "0 IQD" || raw === "0";
+
+    cell.classList.toggle("empty-amount", isEmpty);
+    cell.dataset.enhancedAmount = raw;
+    if (isEmpty) {
+      cell.innerHTML = "";
+      return;
+    }
+
+    const value = raw
+      .replace(/\s*IQD$/i, "")
+      .replace(/^\$/, "")
+      .trim();
+
+    cell.innerHTML = `
+      <span class="amount-label">${label}</span>
+      <span class="amount-number">${value}</span>
+    `;
+  });
+}
+
 function updatePendingMetric() {
   const metrics = document.querySelector("#metrics");
-  if (!metrics || document.querySelector("#exchangePanel:not([hidden])")) return;
+  if (!metrics) return;
 
   const existing = metrics.querySelector(".preview-pending-card");
-  if (existing) existing.remove();
+  if (document.querySelector("#exchangePanel:not([hidden])")) {
+    if (existing) existing.remove();
+    return;
+  }
 
   const rows = Array.from(document.querySelectorAll("#taskList tr[data-task-id]"));
   const pending = rows.filter((row) => !row.querySelector(".status-dot.uploaded")).length;
   const label = document.querySelector("#paymentsTab")?.classList.contains("active") ? "Pending payments" : "Pending withdrawals";
+
+  if (existing) {
+    const labelNode = existing.querySelector("b");
+    const valueNode = existing.querySelector("strong");
+    if (labelNode && labelNode.textContent !== label) labelNode.textContent = label;
+    if (valueNode && valueNode.textContent !== String(pending)) valueNode.textContent = String(pending);
+    return;
+  }
+
   const card = document.createElement("article");
   card.className = "metric-card total-card preview-pending-card";
   card.innerHTML = `
@@ -272,7 +312,10 @@ lastUpdatedObserver.observe(document.querySelector("#lastUpdated"), {
 });
 
 const metricsObserver = new MutationObserver(() => {
-  window.requestAnimationFrame(updatePendingMetric);
+  window.requestAnimationFrame(() => {
+    enhanceTaskRows();
+    updatePendingMetric();
+  });
 });
 
 metricsObserver.observe(document.querySelector("#metrics"), {
@@ -281,7 +324,10 @@ metricsObserver.observe(document.querySelector("#metrics"), {
 });
 
 const taskListObserver = new MutationObserver(() => {
-  window.requestAnimationFrame(updatePendingMetric);
+  window.requestAnimationFrame(() => {
+    enhanceTaskRows();
+    updatePendingMetric();
+  });
 });
 
 taskListObserver.observe(document.querySelector("#taskList"), {
@@ -293,4 +339,7 @@ taskListObserver.observe(document.querySelector("#taskList"), {
 
 setPreviewAccess(previewUser);
 renderActivity();
-window.requestAnimationFrame(updatePendingMetric);
+window.requestAnimationFrame(() => {
+  enhanceTaskRows();
+  updatePendingMetric();
+});
