@@ -144,17 +144,6 @@ document.querySelector("#guestButton").addEventListener("click", () => {
   signIn({ role: "guest", label: "Guest" });
 });
 
-document.querySelectorAll("[data-demo-user]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const userId = button.dataset.demoUser;
-    document.querySelector("#loginId").value = userId;
-    document.querySelector("#loginPassword").value = users[userId].password;
-    document.querySelectorAll("[data-demo-user]").forEach((item) => item.classList.remove("active"));
-    button.classList.add("active");
-    loginError.hidden = true;
-  });
-});
-
 document.querySelector("#signOutButton").addEventListener("click", () => {
   currentUser = { role: "guest", label: "Guest" };
   applyAccess();

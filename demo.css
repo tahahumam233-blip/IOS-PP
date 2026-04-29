@@ -131,31 +131,6 @@ select {
   letter-spacing: -0.04em;
 }
 
-.account-switch {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 5px;
-  padding: 5px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.22);
-}
-
-.account-switch button {
-  min-height: 38px;
-  border: 0;
-  border-radius: 12px;
-  color: var(--muted);
-  background: transparent;
-  font-weight: 850;
-}
-
-.account-switch button.active {
-  color: #071015;
-  background: linear-gradient(135deg, var(--cyan), #99f177);
-  box-shadow: 0 8px 18px rgba(72, 210, 255, 0.18);
-}
-
 .field-stack {
   display: grid;
   gap: 11px;
