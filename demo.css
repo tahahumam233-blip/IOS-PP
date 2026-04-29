@@ -428,7 +428,7 @@ h1 {
 
 .task-row {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) 68px;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   min-height: 82px;
@@ -481,14 +481,16 @@ h1 {
 }
 
 .row-actions {
-  display: grid;
+  display: flex;
+  gap: 6px;
   justify-items: end;
-  align-content: center;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .upload,
 .retry {
-  width: 68px;
+  min-width: 54px;
   min-height: 36px;
   border: 1px solid var(--line-strong);
   border-radius: 999px;
@@ -709,11 +711,12 @@ h1 {
   }
 
   .task-row {
-    grid-template-columns: 18px minmax(0, 1fr) 62px;
+    grid-template-columns: 18px minmax(0, 1fr) auto;
   }
 
   .upload,
   .retry {
-    width: 62px;
+    min-width: 48px;
+    padding-inline: 9px;
   }
 }
