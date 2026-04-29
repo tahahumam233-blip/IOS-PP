@@ -348,16 +348,16 @@ label {
 }
 
 .live-pill {
-  color: var(--preview-green);
-  border: 1px solid rgba(79, 220, 131, 0.36);
-  background: rgba(79, 220, 131, 0.1);
+  color: #dfffe9;
+  border: 1px solid rgba(79, 220, 131, 0.34);
+  background: rgba(15, 143, 82, 0.16);
 }
 
 .live-pill b {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: currentColor;
+  background: var(--preview-green) !important;
   box-shadow: 0 0 0 4px rgba(79, 220, 131, 0.12);
   animation: livePulse 2.2s ease-in-out infinite;
 }
@@ -380,10 +380,11 @@ label {
   padding: 0 11px;
   border: 1px solid rgba(79, 220, 131, 0.44);
   border-radius: 12px;
-  color: #04130b;
-  background: linear-gradient(180deg, var(--preview-green), var(--preview-green-strong));
-  box-shadow: 0 8px 18px rgba(36, 200, 111, 0.16);
+  color: #ffffff;
+  background: linear-gradient(180deg, #35d77d, #12985a);
+  box-shadow: 0 8px 18px rgba(36, 200, 111, 0.18);
   font-size: 12px;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.22);
 }
 
 .preview-topbar .update-button:not(:disabled):hover {
