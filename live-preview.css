@@ -11,7 +11,9 @@
   --preview-ink: #f8f7f8;
   --preview-muted: #b6b0b5;
   --preview-soft: #85808a;
-  --preview-green: #67dc73;
+  --preview-green: #4fdc83;
+  --preview-green-strong: #24c86f;
+  --preview-green-deep: #0f8f52;
   --preview-yellow: #f4b740;
   --preview-red: #ff5f7d;
   --preview-shadow: 0 10px 26px rgba(0, 0, 0, 0.24);
@@ -347,8 +349,8 @@ label {
 
 .live-pill {
   color: var(--preview-green);
-  border: 1px solid rgba(103, 220, 115, 0.34);
-  background: rgba(103, 220, 115, 0.09);
+  border: 1px solid rgba(79, 220, 131, 0.36);
+  background: rgba(79, 220, 131, 0.1);
 }
 
 .live-pill b {
@@ -356,18 +358,18 @@ label {
   height: 7px;
   border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 0 0 4px rgba(103, 220, 115, 0.12);
+  box-shadow: 0 0 0 4px rgba(79, 220, 131, 0.12);
   animation: livePulse 2.2s ease-in-out infinite;
 }
 
 @keyframes livePulse {
   0%,
   100% {
-    box-shadow: 0 0 0 4px rgba(103, 220, 115, 0.13);
+    box-shadow: 0 0 0 4px rgba(79, 220, 131, 0.13);
   }
 
   50% {
-    box-shadow: 0 0 0 7px rgba(103, 220, 115, 0.02);
+    box-shadow: 0 0 0 7px rgba(79, 220, 131, 0.02);
   }
 }
 
@@ -376,16 +378,16 @@ label {
   min-height: 30px;
   margin: 0;
   padding: 0 11px;
-  border: 1px solid rgba(209, 15, 63, 0.64);
+  border: 1px solid rgba(79, 220, 131, 0.44);
   border-radius: 12px;
-  color: #ffffff;
-  background: linear-gradient(180deg, var(--brand-strong), var(--brand));
-  box-shadow: 0 8px 18px rgba(209, 15, 63, 0.18);
+  color: #04130b;
+  background: linear-gradient(180deg, var(--preview-green), var(--preview-green-strong));
+  box-shadow: 0 8px 18px rgba(36, 200, 111, 0.16);
   font-size: 12px;
 }
 
 .preview-topbar .update-button:not(:disabled):hover {
-  box-shadow: 0 10px 22px rgba(209, 15, 63, 0.24);
+  box-shadow: 0 10px 22px rgba(36, 200, 111, 0.24);
 }
 
 .preview-view {
