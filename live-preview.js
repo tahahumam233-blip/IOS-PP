@@ -136,7 +136,7 @@ function updatePendingMetric() {
   const pending = rows.filter((row) => !row.querySelector(".status-dot.uploaded")).length;
   const isPayments = document.querySelector("#paymentsTab")?.classList.contains("active");
   const label = isPayments ? "Pending payments" : "Pending withdrawals";
-  const value = pending === 0 ? `All ${isPayments ? "payments" : "withdrawals"} completed` : String(pending);
+  const value = pending === 0 ? `${isPayments ? "Payments" : "Withdrawals"} Completed` : String(pending);
   const isComplete = pending === 0;
 
   if (existing) {
