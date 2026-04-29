@@ -454,6 +454,14 @@ h1 {
   background: var(--red);
 }
 
+.task-row.failed {
+  grid-template-columns: 22px minmax(0, 1fr);
+}
+
+.task-row.failed .row-actions {
+  display: none;
+}
+
 .task-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -488,6 +496,13 @@ h1 {
   justify-content: flex-end;
 }
 
+.failed-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  width: 100%;
+}
+
 .upload,
 .retry {
   min-width: 54px;
@@ -504,6 +519,13 @@ h1 {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
+.failed-actions .upload,
+.failed-actions .retry {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 38px;
+}
+
 .task-row.posted .upload {
   color: var(--green);
   border-color: rgba(115, 230, 87, 0.7);
@@ -516,6 +538,18 @@ h1 {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent),
     rgba(255, 109, 134, 0.1);
+}
+
+.failed-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 9px;
+  border-radius: 999px;
+  color: var(--red);
+  background: rgba(255, 109, 134, 0.1);
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .activity-row {
@@ -718,5 +752,9 @@ h1 {
   .retry {
     min-width: 48px;
     padding-inline: 9px;
+  }
+
+  .failed-actions {
+    gap: 6px;
   }
 }

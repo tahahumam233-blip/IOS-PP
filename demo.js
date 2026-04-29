@@ -46,11 +46,16 @@ function renderTasks() {
             ${amountText("IQD", task.iqd)}
             ${amountText("USD", task.usd)}
           </div>
+          ${task.status === "failed"
+            ? `<div class="failed-actions">
+                <button class="upload" data-preview="${task.id}" type="button">Post</button>
+                <button class="retry" data-retry="${task.id}" type="button">Retry</button>
+              </div>`
+            : ""}
         </div>
         <div class="row-actions">
           ${task.status === "failed"
-            ? `<button class="upload" data-preview="${task.id}" type="button" aria-label="Post receipt"><span>Post</span></button>
-              <button class="retry" data-retry="${task.id}" type="button"><span>Retry</span></button>`
+            ? `<span class="failed-label">Failed</span>`
             : `<button class="upload" data-preview="${task.id}" type="button" aria-label="${task.status === "posted" ? "View receipt" : "Post receipt"}">
                 <span>${task.status === "posted" ? "View" : "Post"}</span>
               </button>`}
