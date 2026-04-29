@@ -287,13 +287,13 @@ label {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  min-height: 58px;
+  min-height: 82px;
 }
 
 .preview-topbar .brand-logo {
-  width: 62px;
-  height: 62px;
-  filter: drop-shadow(0 7px 16px rgba(209, 15, 63, 0.22));
+  width: 84px;
+  height: 84px;
+  filter: drop-shadow(0 8px 18px rgba(209, 15, 63, 0.24));
 }
 
 .updated-line,
@@ -959,8 +959,8 @@ label {
   }
 
   .preview-topbar .brand-logo {
-    width: 54px;
-    height: 54px;
+    width: 74px;
+    height: 74px;
   }
 
   .top-actions {
