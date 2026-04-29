@@ -68,15 +68,15 @@ select {
 
 .app[data-theme="light"] {
   color-scheme: light;
-  --bg: #fbf7f8;
+  --bg: #f7edf0;
   --panel: rgba(255, 255, 255, 0.95);
   --panel-strong: #ffffff;
-  --line: rgba(66, 12, 28, 0.14);
-  --line-strong: rgba(66, 12, 28, 0.24);
-  --ink: #1b1115;
-  --muted: #5e5156;
-  --soft: #82747a;
-  --shadow: 0 14px 30px rgba(80, 21, 38, 0.14);
+  --line: rgba(66, 12, 28, 0.18);
+  --line-strong: rgba(66, 12, 28, 0.28);
+  --ink: #160d11;
+  --muted: #4f4348;
+  --soft: #6c5e64;
+  --shadow: 0 14px 30px rgba(80, 21, 38, 0.16);
 }
 
 .login-screen {
@@ -393,6 +393,52 @@ h1 {
 .app[data-theme="light"] .close-card,
 .app[data-theme="light"] .filter-bar {
   background: #ffffff;
+}
+
+.app[data-theme="light"] .segment button,
+.app[data-theme="light"] .filter-bar button,
+.app[data-theme="light"] .theme-toggle button,
+.app[data-theme="light"] .bottom-nav button,
+.app[data-theme="light"] .activity-row strong,
+.app[data-theme="light"] .settings-card strong,
+.app[data-theme="light"] .close-card h2,
+.app[data-theme="light"] .close-grid b,
+.app[data-theme="light"] .receipt-card strong {
+  color: #160d11;
+}
+
+.app[data-theme="light"] .topbar p,
+.app[data-theme="light"] .totals span,
+.app[data-theme="light"] .amounts,
+.app[data-theme="light"] .activity-row span,
+.app[data-theme="light"] .settings-card span,
+.app[data-theme="light"] .close-card p,
+.app[data-theme="light"] .close-card.compact span,
+.app[data-theme="light"] .receipt-card p,
+.app[data-theme="light"] label,
+.app[data-theme="light"] .login-card p,
+.app[data-theme="light"] .login-card span {
+  color: #4f4348;
+}
+
+.app[data-theme="light"] .segment .active,
+.app[data-theme="light"] .filter-bar .active,
+.app[data-theme="light"] .theme-toggle .active {
+  color: #ffffff;
+}
+
+.app[data-theme="light"] input,
+.app[data-theme="light"] select {
+  color: #160d11;
+  background: #fff8fa;
+  border-color: rgba(66, 12, 28, 0.22);
+}
+
+.app[data-theme="light"] .login-card button.secondary,
+.app[data-theme="light"] .locked-action,
+.app[data-theme="light"] .receipt-card button {
+  color: #4f4348;
+  background: #fff8fa;
 }
 
 .progress-card {
