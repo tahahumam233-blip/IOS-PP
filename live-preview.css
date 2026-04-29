@@ -24,8 +24,8 @@
 html,
 body {
   width: 100%;
-  height: 100%;
-  min-height: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
   overflow: hidden;
   touch-action: manipulation;
   -webkit-text-size-adjust: 100%;
@@ -36,6 +36,7 @@ body {
 body {
   margin: 0;
   height: 100dvh;
+  min-height: 100dvh;
 }
 
 button,
@@ -46,16 +47,17 @@ textarea {
 }
 
 .app-preview {
-  width: 100%;
-  max-width: 430px;
-  height: 100dvh;
-  min-height: 100dvh;
-  margin: 0 auto;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  max-width: none;
+  height: auto;
+  min-height: 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
   overflow: hidden;
-  position: relative;
   padding: max(8px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
   color: var(--preview-ink);
   background:
@@ -852,10 +854,12 @@ label {
 
 .bottom-nav {
   position: fixed;
-  left: 50%;
+  left: 0;
+  right: 0;
   bottom: 0;
-  transform: translateX(-50%);
-  width: min(430px, 100%);
+  transform: none;
+  width: 100vw;
+  max-width: none;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   padding: 9px 10px max(10px, env(safe-area-inset-bottom));
@@ -868,8 +872,9 @@ label {
 @media (hover: none) and (pointer: coarse), (max-width: 520px) {
   .app-preview {
     max-width: none;
-    height: 100dvh;
-    min-height: 100dvh;
+    width: 100vw;
+    height: auto;
+    min-height: 0;
   }
 
   .bottom-nav {
