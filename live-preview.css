@@ -457,14 +457,17 @@ label {
 
 .task-grid tbody tr {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-  min-height: 82px;
+  grid-template-columns: 22px minmax(0, 1fr) 66px;
+  grid-template-rows: auto auto auto;
+  column-gap: 10px;
+  row-gap: 6px;
+  align-items: start;
+  min-height: 0;
   padding: 13px;
   border: 1px solid var(--preview-line);
   border-radius: 13px;
   background: var(--preview-panel);
+  overflow: visible;
 }
 
 .task-grid tbody tr td {
@@ -476,21 +479,38 @@ label {
 
 .task-grid td:nth-child(3),
 .task-grid td:nth-child(4) {
-  display: inline-block;
+  display: block;
   grid-column: 2;
   color: var(--preview-muted);
   font-size: 16px;
   font-weight: 850;
   line-height: 1.25;
+  min-width: 0;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.task-grid td:nth-child(3) {
+  grid-row: 2;
 }
 
 .task-grid td:nth-child(4) {
-  margin-left: 12px;
+  grid-row: 3;
+  margin-left: 0;
 }
 
 .task-grid td:last-child {
   grid-column: 3;
-  grid-row: 1 / span 2;
+  grid-row: 1 / span 3;
+  align-self: center;
+  justify-self: end;
+}
+
+.task-grid td:first-child {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  align-self: center;
 }
 
 .status-dot {
@@ -508,6 +528,7 @@ label {
 
 .task-grid .name-cell {
   grid-column: 2;
+  grid-row: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -538,7 +559,7 @@ label {
 
 .upload-control {
   width: auto;
-  min-width: 54px;
+  min-width: 58px;
   height: 36px;
   min-height: 36px;
   border-radius: 999px;
@@ -765,5 +786,9 @@ label {
   .task-grid td:nth-child(3),
   .task-grid td:nth-child(4) {
     font-size: 15px;
+  }
+
+  .task-grid tbody tr {
+    grid-template-columns: 18px minmax(0, 1fr) 60px;
   }
 }
