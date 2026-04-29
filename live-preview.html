@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" href="assets/logo-red.png" />
     <link rel="apple-touch-icon" href="assets/logo-white-red.png" />
     <link rel="stylesheet" href="styles.css?v=20260429-1" />
-    <link rel="stylesheet" href="live-preview.css?v=20260429-15" />
+    <link rel="stylesheet" href="live-preview.css?v=20260429-16" />
   </head>
   <body>
     <main class="app-preview" data-theme="dark" data-role="guest">
@@ -63,7 +63,6 @@
         <div>
           <img class="brand-logo logo-dark" src="assets/logo-white-red.png" alt="" />
           <img class="brand-logo logo-light" src="assets/logo-red.png" alt="" />
-          <p id="lastUpdated">Ready to connect</p>
         </div>
         <div class="top-actions">
           <span class="role-pill" id="previewRolePill">Guest</span>
@@ -79,6 +78,7 @@
 
       <section class="preview-view active" id="tasksView">
         <p class="sheet-name" id="sheetName" aria-hidden="true">Zaki Work List</p>
+        <p class="updated-line" id="lastUpdated">Ready to connect</p>
         <section class="metrics" id="metrics" aria-label="Key metrics"></section>
 
         <div class="task-tabs" role="tablist" aria-label="Task type">
@@ -247,6 +247,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js?v=20260429-1"></script>
-    <script src="live-preview.js?v=20260429-15"></script>
+    <script src="live-preview.js?v=20260429-16"></script>
   </body>
 </html>

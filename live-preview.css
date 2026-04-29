@@ -287,21 +287,27 @@ label {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  min-height: 44px;
+  min-height: 58px;
 }
 
 .preview-topbar .brand-logo {
-  width: 50px;
-  height: 50px;
-  filter: drop-shadow(0 6px 14px rgba(209, 15, 63, 0.2));
+  width: 62px;
+  height: 62px;
+  filter: drop-shadow(0 7px 16px rgba(209, 15, 63, 0.22));
 }
 
-#lastUpdated,
+.updated-line,
 .sheet-name {
   margin: 0;
   color: var(--preview-muted);
   font-size: 11px;
   font-weight: 750;
+}
+
+.updated-line {
+  flex: 0 0 auto;
+  margin: 1px 0 5px;
+  padding-left: 2px;
 }
 
 .sheet-name {
@@ -867,7 +873,7 @@ label {
 }
 
 .app-preview[data-theme="light"] .sheet-name,
-.app-preview[data-theme="light"] #lastUpdated,
+.app-preview[data-theme="light"] .updated-line,
 .app-preview[data-theme="light"] .metric-card b,
 .app-preview[data-theme="light"] .amount-label,
 .app-preview[data-theme="light"] .settings-card span,
@@ -953,8 +959,8 @@ label {
   }
 
   .preview-topbar .brand-logo {
-    width: 46px;
-    height: 46px;
+    width: 54px;
+    height: 54px;
   }
 
   .top-actions {
