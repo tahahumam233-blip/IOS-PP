@@ -48,8 +48,11 @@ function renderTasks() {
           </div>
         </div>
         <div class="row-actions">
-          <button class="upload" data-preview="${task.id}" type="button">${task.status === "posted" ? "View" : "Post"}</button>
-          ${task.status === "failed" ? `<button class="retry" data-retry="${task.id}" type="button">Retry</button>` : ""}
+          ${task.status === "failed"
+            ? `<button class="retry" data-retry="${task.id}" type="button"><span>Retry</span></button>`
+            : `<button class="upload" data-preview="${task.id}" type="button" aria-label="${task.status === "posted" ? "View receipt" : "Post receipt"}">
+                <span>${task.status === "posted" ? "View" : "Post"}</span>
+              </button>`}
         </div>
       </article>
     `)
