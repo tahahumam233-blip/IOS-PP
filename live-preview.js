@@ -126,22 +126,26 @@ function updatePendingMetric() {
 
   const rows = Array.from(document.querySelectorAll("#taskList tr[data-task-id]"));
   const pending = rows.filter((row) => !row.querySelector(".status-dot.uploaded")).length;
-  const label = document.querySelector("#paymentsTab")?.classList.contains("active") ? "Pending payments" : "Pending withdrawals";
+  const isPayments = document.querySelector("#paymentsTab")?.classList.contains("active");
+  const label = isPayments ? "Pending payments" : "Pending withdrawals";
+  const value = pending === 0 ? `All ${isPayments ? "payments" : "withdrawals"} completed` : String(pending);
+  const isComplete = pending === 0;
 
   if (existing) {
     const labelNode = existing.querySelector("b");
     const valueNode = existing.querySelector("strong");
     if (labelNode && labelNode.textContent !== label) labelNode.textContent = label;
-    if (valueNode && valueNode.textContent !== String(pending)) valueNode.textContent = String(pending);
+    if (valueNode && valueNode.textContent !== value) valueNode.textContent = value;
+    existing.classList.toggle("is-complete", isComplete);
     return;
   }
 
   const card = document.createElement("article");
-  card.className = "metric-card total-card preview-pending-card";
+  card.className = `metric-card total-card preview-pending-card${isComplete ? " is-complete" : ""}`;
   card.innerHTML = `
     <div>
       <b>${label}</b>
-      <strong>${pending}</strong>
+      <strong>${value}</strong>
     </div>
   `;
   metrics.appendChild(card);
