@@ -69,14 +69,14 @@ select {
 .app[data-theme="light"] {
   color-scheme: light;
   --bg: #fbf7f8;
-  --panel: rgba(255, 255, 255, 0.84);
-  --panel-strong: rgba(255, 255, 255, 0.96);
-  --line: rgba(66, 12, 28, 0.1);
-  --line-strong: rgba(66, 12, 28, 0.18);
-  --ink: #171014;
-  --muted: #6f6267;
-  --soft: #94868b;
-  --shadow: 0 16px 38px rgba(90, 22, 42, 0.12);
+  --panel: rgba(255, 255, 255, 0.95);
+  --panel-strong: #ffffff;
+  --line: rgba(66, 12, 28, 0.14);
+  --line-strong: rgba(66, 12, 28, 0.24);
+  --ink: #1b1115;
+  --muted: #5e5156;
+  --soft: #82747a;
+  --shadow: 0 14px 30px rgba(80, 21, 38, 0.14);
 }
 
 .login-screen {
@@ -292,8 +292,9 @@ button:disabled {
   flex: 0 0 auto;
   display: flex;
   justify-content: space-between;
-  gap: 18px;
-  padding-top: 12px;
+  align-items: flex-start;
+  gap: 14px;
+  padding-top: 8px;
 }
 
 .title-lockup {
@@ -303,8 +304,8 @@ button:disabled {
 }
 
 .title-lockup .brand-logo {
-  width: 38px;
-  height: 38px;
+  width: 86px;
+  height: 86px;
   flex: 0 0 auto;
   filter: drop-shadow(0 8px 18px rgba(214, 0, 58, 0.2));
 }
@@ -317,7 +318,7 @@ h1 {
 }
 
 .topbar p {
-  margin: 16px 0 0;
+  margin: 4px 0 0;
   color: var(--muted);
   font-size: 18px;
   font-weight: 650;
@@ -379,8 +380,19 @@ h1 {
 .close-card {
   border: 1px solid var(--line);
   background: var(--panel);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), var(--shadow);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), var(--shadow);
   backdrop-filter: blur(18px);
+}
+
+.app[data-theme="light"] .progress-card,
+.app[data-theme="light"] .segment,
+.app[data-theme="light"] .totals,
+.app[data-theme="light"] .task-row,
+.app[data-theme="light"] .settings-card,
+.app[data-theme="light"] .activity-row,
+.app[data-theme="light"] .close-card,
+.app[data-theme="light"] .filter-bar {
+  background: #ffffff;
 }
 
 .progress-card {
@@ -587,6 +599,17 @@ h1 {
   font-size: 18px;
   font-weight: 850;
   letter-spacing: -0.025em;
+  color: var(--ink);
+}
+
+.app[data-theme="light"] .task-name,
+.app[data-theme="light"] .totals strong,
+.app[data-theme="light"] .progress-card strong {
+  color: #1b1115;
+}
+
+.app[data-theme="light"] .task-row {
+  border-color: rgba(66, 12, 28, 0.16);
 }
 
 .amounts {
