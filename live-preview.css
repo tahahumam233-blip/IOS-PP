@@ -229,7 +229,7 @@ label {
 
 .login-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
@@ -251,6 +251,33 @@ label {
   color: var(--preview-muted);
   border-color: var(--preview-line-strong);
   background: rgba(255, 255, 255, 0.045);
+}
+
+.remember-login {
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 9px;
+  min-height: 32px;
+  margin: 0;
+  color: var(--preview-muted);
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.remember-login input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  accent-color: var(--preview-green-strong);
+}
+
+.remember-login span {
+  color: var(--preview-muted);
 }
 
 .login-error {

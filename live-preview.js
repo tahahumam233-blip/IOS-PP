@@ -5,6 +5,7 @@ const previewUsers = {
 };
 const PREVIEW_ACTIVITY_KEY = "payment-tracker-preview-activity";
 const PREVIEW_TASK_STATE_KEY = "zaki-payment-task-state";
+const REMEMBER_LOGIN_ID_KEY = "payment-tracker-remember-login-id";
 const PREVIEW_SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
 const PREVIEW_RECEIPTS_BUCKET = "IOS-PP- Receipts";
 let previewUser = { role: "guest", label: "Guest" };
@@ -305,7 +306,30 @@ function setPreviewAccess(user) {
     ? "Signed in as Admin. You can post, retry, review activity, and close the day."
     : user.role === "zaki"
       ? "Signed in as Zaki. You can upload receipts and post payments, withdrawals, and exchange records."
-      : "Guest mode is view-only. Sign in as Zaki or Admin to post.";
+    : "Guest mode is view-only. Sign in as Zaki or Admin to post.";
+}
+
+function resetLoginForm({ keepRememberedId = true } = {}) {
+  const loginScreen = document.querySelector("#previewLoginScreen");
+  const idInput = document.querySelector("#previewLoginId");
+  const passwordInput = document.querySelector("#previewLoginPassword");
+  const rememberInput = document.querySelector("#rememberLoginId");
+  const rememberedId = keepRememberedId ? localStorage.getItem(REMEMBER_LOGIN_ID_KEY) || "" : "";
+
+  previewUser = { role: "guest", label: "Guest" };
+  previewApp.dataset.role = "guest";
+  document.querySelector("#previewRolePill").textContent = "Guest";
+  document.querySelector("#updateButton").disabled = true;
+  document.querySelector("#refreshButton").disabled = true;
+  document.querySelector("#saveExchangeButton").disabled = true;
+  document.querySelector("#previewAccessText").textContent = "Login is required before posting, updating, or saving exchange records.";
+  idInput.value = rememberedId;
+  passwordInput.value = "";
+  rememberInput.checked = Boolean(rememberedId);
+  document.querySelector("#previewLoginError").hidden = true;
+  loginScreen.hidden = false;
+
+  window.setTimeout(() => (rememberedId ? passwordInput : idInput).focus(), 0);
 }
 
 document.addEventListener("gesturestart", (event) => event.preventDefault());
@@ -320,22 +344,32 @@ document.addEventListener("touchend", (event) => {
 document.querySelector("#previewLoginButton").addEventListener("click", () => {
   const id = document.querySelector("#previewLoginId").value.trim().toLowerCase();
   const password = document.querySelector("#previewLoginPassword").value;
+  const rememberInput = document.querySelector("#rememberLoginId");
   const user = previewUsers[id];
   if (!user || user.password !== password) {
     document.querySelector("#previewLoginError").hidden = false;
+    document.querySelector("#previewLoginPassword").value = "";
     return;
   }
+
+  if (rememberInput.checked) {
+    localStorage.setItem(REMEMBER_LOGIN_ID_KEY, id);
+  } else {
+    localStorage.removeItem(REMEMBER_LOGIN_ID_KEY);
+  }
+
+  document.querySelector("#previewLoginPassword").value = "";
   setPreviewAccess({ role: user.role, label: user.label });
 });
 
-document.querySelector("#previewGuestButton").addEventListener("click", () => {
-  setPreviewAccess({ role: "guest", label: "Guest" });
+document.querySelector("#previewLoginPassword").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    document.querySelector("#previewLoginButton").click();
+  }
 });
 
 document.querySelector("#previewSignOutButton").addEventListener("click", () => {
-  previewUser = { role: "guest", label: "Guest" };
-  setPreviewAccess(previewUser);
-  document.querySelector("#previewLoginScreen").hidden = false;
+  resetLoginForm();
 });
 
 document.querySelectorAll("[data-theme-choice]").forEach((button) => {
@@ -485,7 +519,7 @@ taskListObserver.observe(document.querySelector("#taskList"), {
   attributeFilter: ["class"],
 });
 
-setPreviewAccess(previewUser);
+resetLoginForm();
 renderActivity();
 window.requestAnimationFrame(() => {
   enhanceTaskRows();

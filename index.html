@@ -11,8 +11,8 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" type="image/png" href="assets/icon-192.png" />
     <link rel="apple-touch-icon" href="assets/icon-180.png" />
-    <link rel="stylesheet" href="styles.css?v=20260429-live-4" />
-    <link rel="stylesheet" href="live-preview.css?v=20260429-live-4" />
+    <link rel="stylesheet" href="styles.css?v=20260429-live-5" />
+    <link rel="stylesheet" href="live-preview.css?v=20260429-live-5" />
   </head>
   <body>
     <main class="app-preview" data-theme="dark" data-role="guest">
@@ -30,22 +30,25 @@
           <div class="field-stack">
             <label>
               User ID
-              <input id="previewLoginId" type="text" autocomplete="username" value="zaki" />
+              <input id="previewLoginId" type="text" autocomplete="username" placeholder="Enter user ID" />
             </label>
             <label>
               Password
-              <input id="previewLoginPassword" type="password" autocomplete="current-password" value="zaki2026" />
+              <input id="previewLoginPassword" type="password" autocomplete="current-password" placeholder="Enter password" />
+            </label>
+            <label class="remember-login">
+              <input id="rememberLoginId" type="checkbox" />
+              <span>Remember User ID on this device</span>
             </label>
           </div>
 
           <div class="login-actions">
             <button id="previewLoginButton" type="button">Login</button>
-            <button id="previewGuestButton" class="secondary" type="button">Continue as guest</button>
           </div>
           <b class="login-error" id="previewLoginError" hidden>Wrong ID or password.</b>
           <div class="login-hint">
             <strong>Secure access</strong>
-            <span>Zaki can post. Admin can retry and close the day. Guests are view-only.</span>
+            <span>Use iPhone Passwords to save the password and unlock it with Face ID. The app only remembers the User ID if you choose it.</span>
           </div>
         </div>
       </section>
@@ -246,7 +249,7 @@
     <a class="source-link" id="sheetLink" href="#" target="_blank" rel="noreferrer">Open source sheet</a>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=20260429-live-4"></script>
-    <script src="live-preview.js?v=20260429-live-4"></script>
+    <script src="app.js?v=20260429-live-5"></script>
+    <script src="live-preview.js?v=20260429-live-5"></script>
   </body>
 </html>
