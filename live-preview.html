@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" href="assets/logo-red.png" />
     <link rel="apple-touch-icon" href="assets/logo-white-red.png" />
     <link rel="stylesheet" href="styles.css?v=20260429-1" />
-    <link rel="stylesheet" href="live-preview.css?v=20260429-1" />
+    <link rel="stylesheet" href="live-preview.css?v=20260429-2" />
   </head>
   <body>
     <main class="app-preview" data-theme="dark" data-role="guest">
@@ -151,8 +151,7 @@
         <div class="preview-card">
           <p>Activity</p>
           <h2>Live posting history</h2>
-          <div class="activity-row"><strong>Slack posts</strong><span>Successful uploads will appear in Supabase and Slack.</span><b>Live</b></div>
-          <div class="activity-row"><strong>Retry queue</strong><span>Failed jobs stay visible at the top while they finish.</span><b>Ready</b></div>
+          <div class="activity-list" id="previewActivityList"></div>
         </div>
       </section>
 
@@ -227,10 +226,24 @@
       </div>
     </div>
 
+    <div class="modal-backdrop receipt-preview-backdrop" id="receiptPreviewModal" hidden>
+      <div class="upload-modal receipt-preview-dialog" role="dialog" aria-labelledby="receiptPreviewTitle">
+        <div class="modal-heading">
+          <div>
+            <p>Receipt Preview</p>
+            <h2 id="receiptPreviewTitle">Uploaded file</h2>
+          </div>
+          <button class="modal-close" id="closeReceiptPreview" type="button" aria-label="Close receipt preview">×</button>
+        </div>
+        <div class="receipt-preview-body" id="receiptPreviewBody"></div>
+        <a class="modal-save receipt-open-link" id="receiptOpenLink" href="#" target="_blank" rel="noreferrer">Open file</a>
+      </div>
+    </div>
+
     <a class="source-link" id="sheetLink" href="#" target="_blank" rel="noreferrer">Open source sheet</a>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js?v=20260429-1"></script>
-    <script src="live-preview.js?v=20260429-1"></script>
+    <script src="live-preview.js?v=20260429-2"></script>
   </body>
 </html>

@@ -475,7 +475,9 @@ label {
   display: inline-block;
   grid-column: 2;
   color: var(--preview-muted);
-  font-weight: 750;
+  font-size: 16px;
+  font-weight: 850;
+  line-height: 1.25;
 }
 
 .task-grid td:nth-child(4) {
@@ -520,6 +522,16 @@ label {
   color: var(--brand-strong);
 }
 
+.task-grid td:nth-child(3)::before {
+  content: "IQD ";
+  color: var(--preview-muted);
+}
+
+.task-grid td:nth-child(4)::before {
+  content: "USD ";
+  color: var(--preview-muted);
+}
+
 .upload-control {
   width: auto;
   min-width: 54px;
@@ -552,6 +564,11 @@ label {
   border-radius: 15px;
 }
 
+.activity-list {
+  display: grid;
+  gap: 10px;
+}
+
 .preview-card p {
   margin: 0;
   color: var(--preview-muted);
@@ -570,8 +587,21 @@ label {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
+  align-items: start;
   padding: 13px;
   border-radius: 13px;
+}
+
+.activity-row strong,
+.activity-row span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.activity-row span {
+  margin-top: 4px;
+  line-height: 1.35;
 }
 
 .activity-row span,
@@ -581,7 +611,32 @@ label {
 }
 
 .activity-row b {
+  align-self: start;
+  white-space: nowrap;
   color: var(--preview-green);
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: rgba(115, 230, 87, 0.1);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.activity-row b.failed {
+  color: var(--preview-red);
+  background: rgba(255, 93, 118, 0.1);
+}
+
+.activity-empty {
+  display: grid;
+  gap: 5px;
+  padding: 18px;
+  border: 1px dashed var(--preview-line);
+  border-radius: 14px;
+}
+
+.activity-empty span {
+  color: var(--preview-muted);
+  line-height: 1.4;
 }
 
 .close-grid {
@@ -639,6 +694,46 @@ label {
   background: var(--preview-panel-strong);
 }
 
+.receipt-preview-dialog {
+  max-height: min(760px, calc(100dvh - 28px));
+  display: flex;
+  flex-direction: column;
+}
+
+.receipt-preview-body {
+  min-height: 280px;
+  overflow: hidden auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--preview-line);
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.receipt-preview-body img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 12px;
+}
+
+.receipt-file-fallback {
+  display: grid;
+  gap: 6px;
+  text-align: center;
+  color: var(--preview-ink);
+}
+
+.receipt-file-fallback span {
+  color: var(--preview-muted);
+}
+
+.receipt-open-link {
+  display: grid;
+  place-items: center;
+  text-decoration: none;
+}
+
 .app-preview[data-theme="light"] .task-grid tbody tr,
 .app-preview[data-theme="light"] .metrics,
 .app-preview[data-theme="light"] .task-tabs,
@@ -661,5 +756,10 @@ label {
 
   .task-grid .name-cell {
     font-size: 16px;
+  }
+
+  .task-grid td:nth-child(3),
+  .task-grid td:nth-child(4) {
+    font-size: 15px;
   }
 }
