@@ -45,10 +45,10 @@ textarea {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   overflow: hidden;
   position: relative;
-  padding: max(12px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
+  padding: max(8px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
   color: var(--preview-ink);
   background:
     radial-gradient(circle at 18% 0%, rgba(214, 0, 58, 0.22), transparent 28%),
@@ -241,10 +241,14 @@ label {
 .status-bar {
   flex: 0 0 auto;
   height: auto;
-  min-height: 18px;
-  padding: 0 12px;
-  color: var(--preview-ink);
-  font-size: 13px;
+  min-height: 14px;
+  padding: 0 10px;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 12px;
+}
+
+.app-preview[data-theme="light"] .status-bar {
+  color: rgba(22, 13, 17, 0.72);
 }
 
 .preview-topbar {
@@ -253,26 +257,26 @@ label {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  min-height: 58px;
+  min-height: 44px;
 }
 
 .preview-topbar .brand-logo {
-  width: 52px;
-  height: 52px;
-  filter: drop-shadow(0 6px 14px rgba(214, 0, 58, 0.18));
+  width: 42px;
+  height: 42px;
+  filter: drop-shadow(0 5px 12px rgba(214, 0, 58, 0.18));
 }
 
 #lastUpdated,
 .sheet-name {
-  margin: 2px 0 0;
+  margin: 0;
   color: var(--preview-muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 750;
 }
 
 .sheet-name {
   margin-top: 0;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
 }
 
 .top-actions {
@@ -280,7 +284,7 @@ label {
   flex-wrap: wrap;
   justify-items: end;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 5px;
   max-width: 260px;
 }
 
@@ -289,10 +293,10 @@ label {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 30px;
-  padding: 0 9px;
+  min-height: 25px;
+  padding: 0 8px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
 }
 
@@ -314,23 +318,23 @@ label {
 }
 
 .live-pill b {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: currentColor;
 }
 
 .preview-topbar .update-button {
   width: auto;
-  min-height: 34px;
+  min-height: 30px;
   margin: 0;
-  padding: 0 13px;
+  padding: 0 11px;
   border: 1px solid rgba(214, 0, 58, 0.68);
   border-radius: 12px;
   color: var(--brand-strong);
   background: rgba(214, 0, 58, 0.1);
   box-shadow: none;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .preview-view {
@@ -838,8 +842,8 @@ label {
   }
 
   .preview-topbar .brand-logo {
-    width: 48px;
-    height: 48px;
+    width: 38px;
+    height: 38px;
   }
 
   .top-actions {
@@ -849,13 +853,13 @@ label {
 
   .role-pill,
   .live-pill {
-    min-height: 28px;
-    font-size: 11px;
+    min-height: 24px;
+    font-size: 10px;
   }
 
   .preview-topbar .update-button {
-    min-height: 32px;
-    font-size: 12px;
+    min-height: 29px;
+    font-size: 11px;
   }
 
   .metric-card strong {
