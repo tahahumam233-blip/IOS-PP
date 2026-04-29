@@ -192,6 +192,10 @@ function resetReplaceMode() {
 }
 
 async function correctSlackReceipt({ task, previous }) {
+  const oldFilePath = splitPreviewList(previous.filePaths || previous.filePath)[0] || "";
+  const oldFileName = splitPreviewList(previous.fileNames || previous.receiptName)[0] || "wrong-receipt";
+  if (!oldFilePath) throw new Error("No previous receipt file path was found.");
+
   const response = await fetch(SLACK_FUNCTION_URL, {
     method: "POST",
     headers: {
@@ -201,6 +205,8 @@ async function correctSlackReceipt({ task, previous }) {
     },
     body: JSON.stringify({
       action: "replace_receipt",
+      filePath: oldFilePath,
+      fileName: oldFileName,
       taskName: task.name,
       taskType: task.type,
       oldFilePaths: previous.filePaths || [],
