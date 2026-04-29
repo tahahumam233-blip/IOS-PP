@@ -1,9 +1,5 @@
-const CACHE_NAME = "payment-tracker-pwa-20260428-1";
-const APP_ASSETS = [
-  "./",
-  "./index.html",
-  "./styles.css",
-  "./app.js",
+const CACHE_NAME = "payment-tracker-pwa-20260429-1";
+const STATIC_ASSETS = [
   "./manifest.json",
   "./assets/icon-180.png",
   "./assets/icon-192.png",
@@ -12,7 +8,7 @@ const APP_ASSETS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_ASSETS))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
   );
   self.skipWaiting();
 });
@@ -22,8 +18,14 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) => Promise.all(keys.map((key) => (key === CACHE_NAME ? null : caches.delete(key)))))
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("fetch", (event) => {
@@ -34,13 +36,27 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (
+    request.mode === "navigate" ||
+    url.pathname.endsWith("/index.html") ||
+    url.pathname.endsWith("/app.js") ||
+    url.pathname.endsWith("/styles.css") ||
+    url.pathname.endsWith("/sw.js")
+  ) {
+    event.respondWith(
+      fetch(request, { cache: "no-store" }).catch(() => caches.match("./index.html"))
+    );
+    return;
+  }
+
   event.respondWith(
-    fetch(request)
-      .then((response) => {
+    caches.match(request).then((cached) => {
+      if (cached) return cached;
+      return fetch(request).then((response) => {
         const copy = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         return response;
-      })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match("./index.html")))
+      });
+    })
   );
 });
