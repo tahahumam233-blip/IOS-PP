@@ -791,6 +791,18 @@ label {
   text-decoration: none;
 }
 
+.receipt-preview-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.replace-receipt-button {
+  color: var(--preview-red);
+  border-color: rgba(255, 93, 118, 0.55);
+  background: rgba(255, 93, 118, 0.1);
+}
+
 .app-preview[data-theme="light"] .task-grid tbody tr,
 .app-preview[data-theme="light"] .metrics,
 .app-preview[data-theme="light"] .task-tabs,

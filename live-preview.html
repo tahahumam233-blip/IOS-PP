@@ -12,7 +12,7 @@
     <link rel="icon" type="image/png" href="assets/logo-red.png" />
     <link rel="apple-touch-icon" href="assets/logo-white-red.png" />
     <link rel="stylesheet" href="styles.css?v=20260429-1" />
-    <link rel="stylesheet" href="live-preview.css?v=20260429-6" />
+    <link rel="stylesheet" href="live-preview.css?v=20260429-7" />
   </head>
   <body>
     <main class="app-preview" data-theme="dark" data-role="guest">
@@ -236,7 +236,10 @@
           <button class="modal-close" id="closeReceiptPreview" type="button" aria-label="Close receipt preview">×</button>
         </div>
         <div class="receipt-preview-body" id="receiptPreviewBody"></div>
-        <a class="modal-save receipt-open-link" id="receiptOpenLink" href="#" target="_blank" rel="noreferrer">Open file</a>
+        <div class="receipt-preview-actions">
+          <a class="modal-save receipt-open-link" id="receiptOpenLink" href="#" target="_blank" rel="noreferrer">Open file</a>
+          <button class="modal-save replace-receipt-button" id="replaceReceiptButton" type="button">Replace</button>
+        </div>
       </div>
     </div>
 
@@ -244,6 +247,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js?v=20260429-1"></script>
-    <script src="live-preview.js?v=20260429-6"></script>
+    <script src="live-preview.js?v=20260429-7"></script>
   </body>
 </html>

@@ -9,6 +9,8 @@ const PREVIEW_SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
 const PREVIEW_RECEIPTS_BUCKET = "IOS-PP- Receipts";
 let previewUser = { role: "guest", label: "Guest" };
 let lastTouchEnd = 0;
+let previewReceiptTaskId = "";
+let previewReplaceTaskId = "";
 
 function previewCanPost() {
   return previewUser.role === "admin" || previewUser.role === "zaki";
@@ -159,12 +161,158 @@ function showReceiptPreview(taskId) {
 
   const url = getPreviewFileUrl(filePath);
   const lowerName = fileName.toLowerCase();
+  previewReceiptTaskId = taskId;
   document.querySelector("#receiptPreviewTitle").textContent = fileName;
   document.querySelector("#receiptOpenLink").href = url;
+  document.querySelector("#replaceReceiptButton").hidden = !previewCanPost();
   document.querySelector("#receiptPreviewBody").innerHTML = lowerName.endsWith(".pdf")
     ? `<div class="receipt-file-fallback"><strong>PDF receipt</strong><span>Open the file to view the uploaded PDF.</span></div>`
     : `<img src="${url}" alt="Uploaded receipt" />`;
   document.querySelector("#receiptPreviewModal").hidden = false;
+}
+
+function openReplaceUpload(taskId) {
+  const task = findTask(taskId);
+  if (!task) return;
+
+  previewReplaceTaskId = taskId;
+  document.querySelector("#receiptPreviewModal").hidden = true;
+  state.activeUploadTaskId = taskId;
+  els.uploadTaskName.textContent = `Replace ${task.name}`;
+  els.modalFileInput.value = "";
+  els.modalUploadNote.value = getSavedTask(taskId).uploadNote || "";
+  els.modalSaveButton.textContent = "Replace & Post";
+  els.uploadModal.hidden = false;
+  window.setTimeout(() => els.modalFileInput.focus(), 0);
+}
+
+function resetReplaceMode() {
+  previewReplaceTaskId = "";
+  els.modalSaveButton.textContent = "Save & Post";
+}
+
+async function correctSlackReceipt({ task, previous }) {
+  const response = await fetch(SLACK_FUNCTION_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify({
+      action: "replace_receipt",
+      taskName: task.name,
+      taskType: task.type,
+      oldFilePaths: previous.filePaths || [],
+      oldFileNames: previous.fileNames || [],
+      replacementText: ".",
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.error || `Slack correction failed: ${response.status}`);
+  }
+}
+
+async function runBackgroundReplace({ jobId, taskId, files, noteText }) {
+  const task = findTask(taskId);
+  const uploadedFiles = [];
+  const notePaths = [];
+
+  try {
+    if (!task) throw new Error("Task was not found.");
+    const previous = getSavedTask(taskId);
+    const oldPaths = [...previous.filePaths, ...previous.notePaths];
+    if (!oldPaths.length) throw new Error("No previous receipt was found to replace.");
+
+    updateUploadJob(jobId, { status: "Correcting Slack", percent: 5 });
+    await correctSlackReceipt({ task, previous });
+
+    updateUploadJob(jobId, { status: "Removing old receipt", percent: 12 });
+    await removeUploadedFiles(oldPaths);
+
+    state.taskState[taskId] = {
+      ...previous,
+      done: false,
+      receiptName: "",
+      fileName: "",
+      fileNames: [],
+      filePath: "",
+      filePaths: [],
+      notePath: "",
+      notePaths: [],
+      uploadNote: "",
+      receiptSavedAt: "",
+    };
+    saveTaskState();
+    await saveRemoteTaskState(taskId);
+
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      const filePath = await uploadTaskFile(taskId, file, (percent) => {
+        const totalPercent = Math.round(14 + ((index + percent / 100) / files.length) * 70);
+        updateUploadJob(jobId, {
+          status: `Uploading replacement ${index + 1}/${files.length}`,
+          percent: totalPercent,
+        });
+      });
+      uploadedFiles.push({ filePath, fileName: file.name });
+
+      const notePath = await uploadTaskNote(filePath, task, noteText);
+      if (notePath) notePaths.push(notePath);
+    }
+
+    updateUploadJob(jobId, { status: "Posting replacement", percent: 88 });
+    for (let index = 0; index < uploadedFiles.length; index += 1) {
+      const uploadedFile = uploadedFiles[index];
+      await postUploadToSlack({
+        filePath: uploadedFile.filePath,
+        fileName: uploadedFile.fileName,
+        task,
+        noteText,
+      });
+    }
+
+    const fileNames = uploadedFiles.map((file) => file.fileName);
+    const filePaths = uploadedFiles.map((file) => file.filePath);
+    state.taskState[taskId] = {
+      ...previous,
+      done: true,
+      receiptName: joinStoredList(fileNames),
+      fileName: fileNames[0] || "",
+      fileNames,
+      filePath: filePaths[0] || "",
+      filePaths,
+      notePath: notePaths[0] || "",
+      notePaths,
+      uploadNote: noteText,
+      receiptSavedAt: new Date().toISOString(),
+    };
+    saveTaskState();
+    await saveRemoteTaskState(taskId);
+
+    const fileWord = uploadedFiles.length === 1 ? "file" : "files";
+    els.lastUpdated.textContent = `Replaced ${task.name} receipt`;
+    finishUploadJob(jobId, { status: "Done", percent: 100 });
+    playNotificationSound("success");
+    showStatusMessage("Receipt Replaced", `${task.name}: ${uploadedFiles.length} replacement ${fileWord} posted.`);
+    addActivity({
+      title: "Receipt replaced",
+      message: `${task.name}: ${uploadedFiles.length} replacement ${fileWord} posted.`,
+      status: "posted",
+    });
+    render();
+  } catch (error) {
+    await removeUploadedFiles([...uploadedFiles.map((file) => file.filePath), ...notePaths]);
+    const message = error instanceof Error ? error.message : String(error);
+    els.lastUpdated.textContent = `Replace failed: ${message}`;
+    finishUploadJob(jobId, { status: "Failed", percent: 100, failed: true });
+    playNotificationSound("error");
+    showStatusMessage("Replace Failed", `${task?.name || "Receipt"} was not replaced. ${message}`);
+  } finally {
+    resetReplaceMode();
+  }
 }
 
 function setPreviewAccess(user) {
@@ -265,11 +413,34 @@ document.querySelector("#closeReceiptPreview").addEventListener("click", () => {
   document.querySelector("#receiptPreviewModal").hidden = true;
 });
 
+document.querySelector("#replaceReceiptButton").addEventListener("click", () => {
+  if (!previewCanPost()) return;
+  openReplaceUpload(previewReceiptTaskId);
+});
+
 document.querySelector("#receiptPreviewModal").addEventListener("click", (event) => {
   if (event.target.id === "receiptPreviewModal") {
     document.querySelector("#receiptPreviewModal").hidden = true;
   }
 });
+
+document.querySelector("#uploadForm").addEventListener("submit", (event) => {
+  if (!previewReplaceTaskId) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  unlockNotificationSound();
+
+  const taskId = previewReplaceTaskId;
+  const task = findTask(taskId);
+  const files = Array.from(els.modalFileInput.files || []);
+  if (!task || !files.length) return;
+
+  const jobId = createUploadJob(task);
+  const noteText = els.modalUploadNote.value.trim();
+  closeUploadModal();
+  els.lastUpdated.textContent = `Replacing ${task.name}`;
+  void runBackgroundReplace({ jobId, taskId, files, noteText });
+}, true);
 
 const statusObserver = new MutationObserver(() => {
   const modal = document.querySelector("#successModal");
