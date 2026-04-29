@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#090b0e" />
+    <title>Payment Tracker Demo</title>
+    <link rel="icon" type="image/png" href="assets/icon-192.png" />
+    <link rel="apple-touch-icon" href="assets/icon-180.png" />
+    <link rel="stylesheet" href="demo.css" />
+  </head>
+  <body>
+    <main class="demo-app">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Live from sheet</p>
+          <h1>Zaki Tasks</h1>
+        </div>
+        <div class="live-cluster">
+          <span class="live-pill"><span></span>Live</span>
+          <button type="button">Update</button>
+        </div>
+      </header>
+
+      <section class="sync-card" aria-label="Upload progress">
+        <div>
+          <strong>SFG IQD</strong>
+          <span>Posting 2/2</span>
+        </div>
+        <b>92%</b>
+        <i><span style="width: 92%"></span></i>
+      </section>
+
+      <nav class="tabs" aria-label="Task type">
+        <button class="active" type="button">Payments</button>
+        <button type="button">Withdrawals</button>
+        <button type="button">Exchange</button>
+      </nav>
+
+      <section class="summary-grid" aria-label="Totals">
+        <article>
+          <span>Total IQD</span>
+          <strong>84,000,007</strong>
+        </article>
+        <article>
+          <span>Total USD</span>
+          <strong>21,800</strong>
+        </article>
+        <article>
+          <span>Pending</span>
+          <strong>6</strong>
+        </article>
+      </section>
+
+      <section class="task-surface" aria-label="Supplier payment grid">
+        <div class="section-title">
+          <div>
+            <p>Supplier Payments</p>
+            <h2>Today</h2>
+          </div>
+          <input type="search" placeholder="Search" aria-label="Search" />
+        </div>
+
+        <div class="task-grid" id="taskGrid"></div>
+      </section>
+    </main>
+
+    <script src="demo.js"></script>
+  </body>
+</html>
