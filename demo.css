@@ -428,10 +428,10 @@ h1 {
 
 .task-row {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
+  grid-template-columns: 22px minmax(0, 1fr) 58px;
   gap: 10px;
   align-items: center;
-  min-height: 74px;
+  min-height: 82px;
   padding: 13px;
   border-radius: 13px;
 }
@@ -482,14 +482,15 @@ h1 {
 
 .row-actions {
   display: grid;
-  gap: 6px;
+  gap: 5px;
   justify-items: end;
+  align-content: center;
 }
 
 .upload,
 .retry {
-  min-width: 58px;
-  min-height: 34px;
+  width: 58px;
+  min-height: 30px;
   border: 1px solid var(--line-strong);
   border-radius: 11px;
   color: var(--cyan);
@@ -700,5 +701,14 @@ h1 {
 
   .task-name {
     font-size: 16px;
+  }
+
+  .task-row {
+    grid-template-columns: 18px minmax(0, 1fr) 54px;
+  }
+
+  .upload,
+  .retry {
+    width: 54px;
   }
 }

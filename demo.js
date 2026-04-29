@@ -25,7 +25,7 @@ let activeFilter = "all";
 
 function amountText(label, value) {
   if (!value) return "";
-  const amount = label === "USD" ? `$${formatter.format(value)}` : `${formatter.format(value)} IQD`;
+  const amount = formatter.format(value);
   return `<span>${label} <b>${amount}</b></span>`;
 }
 
