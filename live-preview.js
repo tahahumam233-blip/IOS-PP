@@ -14,10 +14,7 @@ let previewReceiptTaskId = "";
 let previewReplaceTaskId = "";
 
 function syncAppViewport() {
-  const viewport = window.visualViewport;
-  const height = Math.ceil(viewport?.height || window.innerHeight || document.documentElement.clientHeight);
-  document.documentElement.style.setProperty("--app-height", `${height}px`);
-  document.documentElement.style.setProperty("--app-width", `${Math.ceil(viewport?.width || window.innerWidth)}px`);
+  document.documentElement.style.setProperty("--app-width", `${Math.ceil(window.innerWidth || document.documentElement.clientWidth)}px`);
 }
 
 function previewCanPost() {
@@ -342,8 +339,6 @@ document.addEventListener("gesturechange", (event) => event.preventDefault());
 document.addEventListener("gestureend", (event) => event.preventDefault());
 window.addEventListener("resize", syncAppViewport);
 window.addEventListener("orientationchange", syncAppViewport);
-window.visualViewport?.addEventListener("resize", syncAppViewport);
-window.visualViewport?.addEventListener("scroll", syncAppViewport);
 document.addEventListener("touchend", (event) => {
   const now = Date.now();
   if (now - lastTouchEnd <= 300) event.preventDefault();
