@@ -247,7 +247,7 @@ label {
 
 .login-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
@@ -263,17 +263,6 @@ label {
   color: var(--brand-strong);
   background: var(--brand-soft);
   font-weight: 850;
-}
-
-.login-card button.secondary {
-  color: var(--preview-ink);
-  border-color: var(--preview-line-strong);
-  background: rgba(255, 255, 255, 0.055);
-}
-
-.app-preview[data-theme="light"] .login-card button.secondary {
-  color: #17191f;
-  background: #ffffff;
 }
 
 .remember-login {

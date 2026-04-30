@@ -430,13 +430,6 @@ document.querySelector("#previewLoginPassword").addEventListener("keydown", (eve
   }
 });
 
-document.querySelector("#useSavedPasswordButton").addEventListener("click", () => {
-  const idInput = document.querySelector("#previewLoginId");
-  const passwordInput = document.querySelector("#previewLoginPassword");
-  if (!idInput.value.trim()) idInput.focus();
-  else passwordInput.focus();
-});
-
 document.querySelector("#previewSignOutButton").addEventListener("click", () => {
   addActivity({
     title: "User signed out",
