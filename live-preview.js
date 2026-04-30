@@ -1,8 +1,19 @@
 const previewApp = document.querySelector(".app-preview");
-const previewUsers = {
-  admin: { password: "admin2026", role: "admin", label: "Admin" },
-  zaki: { password: "zaki2026", role: "zaki", label: "Zaki" },
+const defaultPreviewUsers = {
+  admin: {
+    password: "admin2026",
+    role: "admin",
+    label: "Admin",
+    permissions: { post: true, update: true, exchange: true, viewAllActivity: true, manageUsers: true },
+  },
+  zaki: {
+    password: "zaki2026",
+    role: "zaki",
+    label: "Zaki",
+    permissions: { post: true, update: true, exchange: true, viewAllActivity: false, manageUsers: false },
+  },
 };
+const previewUsers = window.PAYMENT_TRACKER_USERS || defaultPreviewUsers;
 const PREVIEW_ACTIVITY_KEY = "payment-tracker-preview-activity";
 const PREVIEW_TASK_STATE_KEY = "zaki-payment-task-state";
 const REMEMBER_LOGIN_ID_KEY = "payment-tracker-remember-login-id";
@@ -19,7 +30,35 @@ function syncAppViewport() {
 }
 
 function previewCanPost() {
-  return previewUser.role === "admin" || previewUser.role === "zaki";
+  return userCan("post");
+}
+
+function getRoleDefaultPermissions(role) {
+  if (role === "admin") {
+    return { post: true, update: true, exchange: true, viewAllActivity: true, manageUsers: true };
+  }
+  if (role === "zaki") {
+    return { post: true, update: true, exchange: true, viewAllActivity: false, manageUsers: false };
+  }
+  return { post: false, update: false, exchange: false, viewAllActivity: false, manageUsers: false };
+}
+
+function normalizeUser(id, user = {}) {
+  const role = user.role || "guest";
+  return {
+    id,
+    role,
+    label: user.label || id || "Guest",
+    password: user.password || "",
+    permissions: {
+      ...getRoleDefaultPermissions(role),
+      ...(user.permissions || {}),
+    },
+  };
+}
+
+function userCan(permission) {
+  return Boolean(previewUser?.permissions?.[permission]);
 }
 
 function readPreviewTaskState() {
@@ -190,7 +229,7 @@ async function loadRemoteActivity() {
     .order("activity_time", { ascending: false })
     .limit(100);
 
-  if (previewUser.role !== "admin") {
+  if (!userCan("viewAllActivity")) {
     query = query.eq("user_id", activityUserId());
   }
 
@@ -481,13 +520,13 @@ function setPreviewAccess(user) {
   document.querySelector("#previewRolePill").textContent = user.label;
   document.querySelector("#previewLoginScreen").hidden = true;
   document.querySelector("#previewLoginError").hidden = true;
-  document.querySelector("#updateButton").disabled = user.role === "guest";
-  document.querySelector("#saveExchangeButton").disabled = user.role === "guest";
-  document.querySelector("#previewAccessText").textContent = user.role === "admin"
-    ? "Signed in as Admin. You can post, retry, review activity, and close the day."
-    : user.role === "zaki"
-      ? "Signed in as Zaki. You can upload receipts and post payments, withdrawals, and exchange records."
-    : "Guest mode is view-only. Sign in as Zaki or Admin to post.";
+  document.querySelector("#updateButton").disabled = !userCan("update");
+  document.querySelector("#saveExchangeButton").disabled = !userCan("exchange");
+  document.querySelector("#previewAccessText").textContent = userCan("viewAllActivity")
+    ? `Signed in as ${user.label}. You can review all activity and manage daily posting.`
+    : previewCanPost()
+      ? `Signed in as ${user.label}. You can upload and post assigned work.`
+      : "Guest mode is view-only. Sign in with a posting account to make changes.";
   void loadRemoteActivity();
 }
 
@@ -498,7 +537,7 @@ function resetLoginForm({ keepRememberedId = true } = {}) {
   const rememberInput = document.querySelector("#rememberLoginId");
   const rememberedId = keepRememberedId ? localStorage.getItem(REMEMBER_LOGIN_ID_KEY) || "" : "";
 
-  previewUser = { role: "guest", label: "Guest" };
+  previewUser = normalizeUser("guest", { role: "guest", label: "Guest" });
   previewApp.dataset.role = "guest";
   document.querySelector("#previewRolePill").textContent = "Guest";
   document.querySelector("#updateButton").disabled = true;
@@ -528,7 +567,8 @@ document.querySelector("#previewLoginButton").addEventListener("click", () => {
   const id = document.querySelector("#previewLoginId").value.trim().toLowerCase();
   const password = document.querySelector("#previewLoginPassword").value;
   const rememberInput = document.querySelector("#rememberLoginId");
-  const user = previewUsers[id];
+  const rawUser = previewUsers[id];
+  const user = rawUser ? normalizeUser(id, rawUser) : null;
   if (!user || user.password !== password) {
     document.querySelector("#previewLoginError").hidden = false;
     document.querySelector("#previewLoginPassword").value = "";
@@ -542,7 +582,7 @@ document.querySelector("#previewLoginButton").addEventListener("click", () => {
   }
 
   document.querySelector("#previewLoginPassword").value = "";
-  setPreviewAccess({ id, role: user.role, label: user.label });
+  setPreviewAccess(user);
   addActivity({
     title: "User signed in",
     message: `${user.label} opened the app session.`,

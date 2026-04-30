@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Payment Tracker User Manager</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #08090d;
+        --panel: #14151b;
+        --line: rgba(255, 255, 255, 0.14);
+        --ink: #f8f7f8;
+        --muted: #a9a4ad;
+        --brand: #d10f3f;
+        --green: #37d57d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 10% 0%, rgba(209, 15, 63, 0.22), transparent 34%),
+          linear-gradient(180deg, #10070b, var(--bg) 340px);
+      }
+
+      main {
+        width: min(1060px, calc(100% - 28px));
+        margin: 0 auto;
+        padding: 28px 0 40px;
+      }
+
+      header,
+      section {
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: rgba(20, 21, 27, 0.86);
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+        backdrop-filter: blur(18px);
+      }
+
+      header {
+        padding: 22px;
+        margin-bottom: 16px;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(28px, 5vw, 48px);
+        letter-spacing: -0.04em;
+      }
+
+      p {
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: 16px;
+      }
+
+      section {
+        padding: 18px;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 16px 0;
+      }
+
+      button {
+        min-height: 42px;
+        border: 1px solid rgba(209, 15, 63, 0.72);
+        border-radius: 12px;
+        padding: 0 14px;
+        color: white;
+        background: linear-gradient(180deg, #ff3f6d, #d10f3f);
+        font: inherit;
+        font-weight: 850;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        border-color: var(--line);
+        color: var(--ink);
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      button.danger {
+        border-color: rgba(255, 95, 125, 0.52);
+        color: #ff8aa0;
+        background: rgba(255, 95, 125, 0.08);
+      }
+
+      .user-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .user-card {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.045);
+      }
+
+      .user-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 0 11px;
+        color: var(--ink);
+        background: rgba(0, 0, 0, 0.24);
+        font: inherit;
+      }
+
+      textarea {
+        min-height: 360px;
+        padding: 12px;
+        resize: vertical;
+        font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .permissions {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .permissions label {
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 10px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        color: var(--ink);
+        background: rgba(0, 0, 0, 0.14);
+        text-transform: none;
+        letter-spacing: 0;
+      }
+
+      .permissions input {
+        width: 16px;
+        min-height: 16px;
+        accent-color: var(--green);
+      }
+
+      .notice {
+        margin-top: 12px;
+        padding: 12px;
+        border: 1px solid rgba(55, 213, 125, 0.28);
+        border-radius: 14px;
+        color: #d9ffe8;
+        background: rgba(55, 213, 125, 0.08);
+      }
+
+      .output-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      @media (max-width: 860px) {
+        .layout,
+        .user-grid,
+        .permissions {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>User Manager</h1>
+        <p>Add users, change passwords, and set permissions for Payment Tracker.</p>
+        <div class="notice">
+          This tool generates a new <strong>users.js</strong>. Replace the existing file with the generated file, then commit and push to apply changes to the live app.
+        </div>
+      </header>
+
+      <div class="layout">
+        <section>
+          <h2>Users</h2>
+          <div class="toolbar">
+            <button id="addUserButton" type="button">Add User</button>
+            <button class="secondary" id="generateButton" type="button">Generate users.js</button>
+          </div>
+          <div class="user-list" id="userList"></div>
+        </section>
+
+        <section>
+          <h2>Generated File</h2>
+          <p>Review this before replacing <strong>users.js</strong>.</p>
+          <div class="toolbar">
+            <button id="copyButton" type="button">Copy</button>
+            <button class="secondary" id="downloadButton" type="button">Download</button>
+          </div>
+          <textarea id="output" spellcheck="false"></textarea>
+        </section>
+      </div>
+    </main>
+
+    <script src="users.js"></script>
+    <script>
+      const permissionLabels = {
+        post: "Post",
+        update: "Update",
+        exchange: "Exchange",
+        viewAllActivity: "All Activity",
+        manageUsers: "Manage Users",
+      };
+
+      const defaultPermissions = {
+        admin: { post: true, update: true, exchange: true, viewAllActivity: true, manageUsers: true },
+        zaki: { post: true, update: true, exchange: true, viewAllActivity: false, manageUsers: false },
+        viewer: { post: false, update: false, exchange: false, viewAllActivity: false, manageUsers: false },
+      };
+
+      let users = JSON.parse(JSON.stringify(window.PAYMENT_TRACKER_USERS || {}));
+
+      function normalizeId(value) {
+        return String(value || "")
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9_-]+/g, "-")
+          .replace(/(^-|-$)/g, "");
+      }
+
+      function normalizeUser(id, user) {
+        const role = user.role || "viewer";
+        return {
+          password: user.password || "",
+          role,
+          label: user.label || id,
+          permissions: {
+            ...(defaultPermissions[role] || defaultPermissions.viewer),
+            ...(user.permissions || {}),
+          },
+        };
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function renderUsers() {
+        const list = document.querySelector("#userList");
+        const entries = Object.entries(users);
+
+        if (!entries.length) {
+          list.innerHTML = "<p>No users yet.</p>";
+          return;
+        }
+
+        list.innerHTML = entries.map(([id, rawUser]) => {
+          const user = normalizeUser(id, rawUser);
+          const permissions = Object.keys(permissionLabels).map((permission) => `
+            <label>
+              <input type="checkbox" data-field="permission" data-permission="${permission}" ${user.permissions[permission] ? "checked" : ""} />
+              ${permissionLabels[permission]}
+            </label>
+          `).join("");
+
+          return `
+            <article class="user-card" data-user-id="${id}">
+              <div class="user-grid">
+                <label>User ID
+                  <input data-field="id" value="${escapeHtml(id)}" />
+                </label>
+                <label>Name
+                  <input data-field="label" value="${escapeHtml(user.label)}" />
+                </label>
+                <label>Password
+                  <input data-field="password" value="${escapeHtml(user.password)}" />
+                </label>
+                <label>Role
+                  <select data-field="role">
+                    <option value="admin" ${user.role === "admin" ? "selected" : ""}>Admin</option>
+                    <option value="zaki" ${user.role === "zaki" ? "selected" : ""}>User</option>
+                    <option value="viewer" ${user.role === "viewer" ? "selected" : ""}>Viewer</option>
+                  </select>
+                </label>
+              </div>
+              <div class="permissions">${permissions}</div>
+              <button class="danger" data-action="delete" type="button">Delete User</button>
+            </article>
+          `;
+        }).join("");
+      }
+
+      function collectUsers() {
+        const next = {};
+        document.querySelectorAll(".user-card").forEach((card) => {
+          const id = normalizeId(card.querySelector('[data-field="id"]').value);
+          if (!id) return;
+          const role = card.querySelector('[data-field="role"]').value;
+          const permissions = {};
+          card.querySelectorAll('[data-field="permission"]').forEach((input) => {
+            permissions[input.dataset.permission] = input.checked;
+          });
+          next[id] = {
+            password: card.querySelector('[data-field="password"]').value,
+            role,
+            label: card.querySelector('[data-field="label"]').value || id,
+            permissions,
+          };
+        });
+        users = next;
+      }
+
+      function generateUsersFile() {
+        collectUsers();
+        const content = `window.PAYMENT_TRACKER_USERS = ${JSON.stringify(users, null, 2)};\n`;
+        document.querySelector("#output").value = content;
+        return content;
+      }
+
+      document.querySelector("#addUserButton").addEventListener("click", () => {
+        collectUsers();
+        let index = Object.keys(users).length + 1;
+        let id = `user-${index}`;
+        while (users[id]) {
+          index += 1;
+          id = `user-${index}`;
+        }
+        users[id] = normalizeUser(id, { password: "", role: "viewer", label: "New User" });
+        renderUsers();
+        generateUsersFile();
+      });
+
+      document.querySelector("#generateButton").addEventListener("click", generateUsersFile);
+
+      document.querySelector("#copyButton").addEventListener("click", async () => {
+        const content = generateUsersFile();
+        await navigator.clipboard.writeText(content);
+      });
+
+      document.querySelector("#downloadButton").addEventListener("click", () => {
+        const content = generateUsersFile();
+        const blob = new Blob([content], { type: "text/javascript" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "users.js";
+        link.click();
+        URL.revokeObjectURL(url);
+      });
+
+      document.querySelector("#userList").addEventListener("input", (event) => {
+        const target = event.target;
+        if (target.matches('[data-field="role"]')) {
+          const card = target.closest(".user-card");
+          const defaults = defaultPermissions[target.value] || defaultPermissions.viewer;
+          card.querySelectorAll('[data-field="permission"]').forEach((input) => {
+            input.checked = defaults[input.dataset.permission];
+          });
+        }
+        generateUsersFile();
+      });
+
+      document.querySelector("#userList").addEventListener("click", (event) => {
+        if (!event.target.matches('[data-action="delete"]')) return;
+        event.target.closest(".user-card").remove();
+        generateUsersFile();
+      });
+
+      renderUsers();
+      generateUsersFile();
+    </script>
+  </body>
+</html>
