@@ -62,41 +62,6 @@ function userCan(permission) {
   return Boolean(previewUser?.permissions?.[permission]);
 }
 
-function openFaceIdPrompt() {
-  const prompt = document.querySelector("#faceIdPrompt");
-  if (!prompt) return;
-  prompt.hidden = false;
-  window.setTimeout(() => document.querySelector("#faceIdUseButton")?.focus(), 0);
-}
-
-function triggerSavedPasswordPrompt() {
-  const idInput = document.querySelector("#previewLoginId");
-  const passwordInput = document.querySelector("#previewLoginPassword");
-  if (!passwordInput) return;
-
-  document.activeElement?.blur?.();
-  passwordInput.value = "";
-  passwordInput.setAttribute("autocomplete", "current-password webauthn");
-  passwordInput.scrollIntoView({ block: "center", behavior: "smooth" });
-
-  window.setTimeout(() => {
-    passwordInput.focus({ preventScroll: true });
-    passwordInput.click();
-    passwordInput.dispatchEvent(new Event("input", { bubbles: true }));
-    if (idInput?.value) {
-      idInput.setAttribute("autocomplete", "username");
-    }
-  }, 160);
-}
-
-function closeFaceIdPrompt({ focusPassword = false } = {}) {
-  const prompt = document.querySelector("#faceIdPrompt");
-  if (prompt) prompt.hidden = true;
-  if (focusPassword) {
-    triggerSavedPasswordPrompt();
-  }
-}
-
 function usersFromRows(rows = []) {
   return rows.reduce((items, row) => {
     items[row.id] = {
@@ -613,7 +578,7 @@ function resetLoginForm({ keepRememberedId = true } = {}) {
 
   window.setTimeout(() => {
     if (rememberedId) {
-      openFaceIdPrompt();
+      passwordInput.focus();
     } else {
       idInput.focus();
     }
@@ -662,20 +627,6 @@ document.querySelector("#previewLoginButton").addEventListener("click", () => {
 document.querySelector("#previewLoginPassword").addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     document.querySelector("#previewLoginButton").click();
-  }
-});
-
-document.querySelector("#faceIdUseButton")?.addEventListener("click", () => {
-  closeFaceIdPrompt({ focusPassword: true });
-});
-
-document.querySelector("#faceIdLaterButton")?.addEventListener("click", () => {
-  closeFaceIdPrompt();
-});
-
-document.querySelector("#faceIdPrompt")?.addEventListener("click", (event) => {
-  if (event.target.id === "faceIdPrompt") {
-    closeFaceIdPrompt();
   }
 });
 
