@@ -401,23 +401,37 @@ function showReceiptPreview(taskId) {
   const taskState = readPreviewTaskState()[taskId] || {};
   const filePaths = splitPreviewList(taskState.filePaths || taskState.filePath);
   const fileNames = splitPreviewList(taskState.fileNames || taskState.receiptName);
-  const filePath = filePaths[0];
-  const fileName = fileNames[0] || "Uploaded receipt";
 
-  if (!filePath) {
+  if (!filePaths.length) {
     alert("No uploaded receipt was found for this task yet.");
     return;
   }
 
-  const url = getPreviewFileUrl(filePath);
-  const lowerName = fileName.toLowerCase();
+  const firstUrl = getPreviewFileUrl(filePaths[0]);
   previewReceiptTaskId = taskId;
-  document.querySelector("#receiptPreviewTitle").textContent = fileName;
-  document.querySelector("#receiptOpenLink").href = url;
+  document.querySelector("#receiptPreviewTitle").textContent = filePaths.length === 1
+    ? fileNames[0] || "Uploaded receipt"
+    : `${filePaths.length} uploaded receipts`;
+  document.querySelector("#receiptOpenLink").href = firstUrl;
   document.querySelector("#replaceReceiptButton").hidden = !previewCanPost();
-  document.querySelector("#receiptPreviewBody").innerHTML = lowerName.endsWith(".pdf")
-    ? `<div class="receipt-file-fallback"><strong>PDF receipt</strong><span>Open the file to view the uploaded PDF.</span></div>`
-    : `<img src="${url}" alt="Uploaded receipt" />`;
+  document.querySelector("#receiptPreviewBody").innerHTML = filePaths.map((filePath, index) => {
+    const fileName = fileNames[index] || `Receipt ${index + 1}`;
+    const url = getPreviewFileUrl(filePath);
+    const lowerName = fileName.toLowerCase();
+    const preview = lowerName.endsWith(".pdf")
+      ? `<div class="receipt-file-fallback"><strong>PDF receipt</strong><span>${escapeActivityText(fileName)}</span></div>`
+      : `<img src="${url}" alt="${escapeActivityText(fileName)}" />`;
+
+    return `
+      <article class="receipt-preview-item">
+        <div class="receipt-preview-item-heading">
+          <strong>${escapeActivityText(fileName)}</strong>
+          <a href="${url}" target="_blank" rel="noreferrer">Open</a>
+        </div>
+        ${preview}
+      </article>
+    `;
+  }).join("");
   document.querySelector("#receiptPreviewModal").hidden = false;
 }
 

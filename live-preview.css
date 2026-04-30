@@ -988,10 +988,40 @@ label {
   min-height: 280px;
   overflow: hidden auto;
   display: grid;
-  place-items: center;
+  align-content: start;
+  gap: 12px;
+  padding: 10px;
   border: 1px solid var(--preview-line);
   border-radius: 16px;
   background: rgba(0, 0, 0, 0.18);
+}
+
+.receipt-preview-item {
+  display: grid;
+  gap: 8px;
+}
+
+.receipt-preview-item-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  color: var(--preview-ink);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.receipt-preview-item-heading strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.receipt-preview-item-heading a {
+  color: var(--brand-strong);
+  text-decoration: none;
 }
 
 .receipt-preview-body img {
