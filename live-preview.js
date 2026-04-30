@@ -69,12 +69,31 @@ function openFaceIdPrompt() {
   window.setTimeout(() => document.querySelector("#faceIdUseButton")?.focus(), 0);
 }
 
+function triggerSavedPasswordPrompt() {
+  const idInput = document.querySelector("#previewLoginId");
+  const passwordInput = document.querySelector("#previewLoginPassword");
+  if (!passwordInput) return;
+
+  document.activeElement?.blur?.();
+  passwordInput.value = "";
+  passwordInput.setAttribute("autocomplete", "current-password webauthn");
+  passwordInput.scrollIntoView({ block: "center", behavior: "smooth" });
+
+  window.setTimeout(() => {
+    passwordInput.focus({ preventScroll: true });
+    passwordInput.click();
+    passwordInput.dispatchEvent(new Event("input", { bubbles: true }));
+    if (idInput?.value) {
+      idInput.setAttribute("autocomplete", "username");
+    }
+  }, 160);
+}
+
 function closeFaceIdPrompt({ focusPassword = false } = {}) {
   const prompt = document.querySelector("#faceIdPrompt");
-  const passwordInput = document.querySelector("#previewLoginPassword");
   if (prompt) prompt.hidden = true;
   if (focusPassword) {
-    window.setTimeout(() => passwordInput?.focus(), 80);
+    triggerSavedPasswordPrompt();
   }
 }
 
@@ -594,7 +613,6 @@ function resetLoginForm({ keepRememberedId = true } = {}) {
 
   window.setTimeout(() => {
     if (rememberedId) {
-      passwordInput.focus();
       openFaceIdPrompt();
     } else {
       idInput.focus();
