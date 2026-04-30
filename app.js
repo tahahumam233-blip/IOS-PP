@@ -8,6 +8,7 @@ const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhZXFubGNoZW56eWJrZnljZWxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyNzQ1OTUsImV4cCI6MjA5Mjg1MDU5NX0.2qHHPs2sx-WUjpTQGStbLKzjAI51NSv-xGl4wQvbU5Q";
 const RECEIPTS_BUCKET = "IOS-PP- Receipts";
 const SLACK_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/hyper-action`;
+const ZAPIER_DRAFT_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/27428129/uvk6wcr/";
 const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const demoPayments = [
@@ -75,6 +76,8 @@ const els = {
   searchInput: document.querySelector("#searchInput"),
   refreshButton: document.querySelector("#refreshButton"),
   sheetLink: document.querySelector("#sheetLink"),
+  createPaymentDraftButton: document.querySelector("#createPaymentDraftButton"),
+  createWithdrawalDraftButton: document.querySelector("#createWithdrawalDraftButton"),
 };
 
 function tickClock() {
@@ -666,6 +669,143 @@ function getTotals(tasks) {
   );
 }
 
+function getMonthTitle() {
+  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(new Date());
+}
+
+function getEmailDateTitle() {
+  return new Intl.DateTimeFormat("en-CA").format(new Date()).replaceAll("-", "/");
+}
+
+function formatEmailAmount(value, currency) {
+  const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+  return `${currency} ${amount}`;
+}
+
+function getEmailRows(type) {
+  const tasks = type === "withdrawal" ? state.withdrawals : state.payments;
+  return tasks.flatMap((task) => {
+    const rows = [];
+    if (task.iqd > 0) rows.push({ name: `${task.name} IQD`, amount: formatEmailAmount(task.iqd, "IQD") });
+    if (task.usd > 0) rows.push({ name: `${task.name} USD`, amount: formatEmailAmount(task.usd, "USD") });
+    return rows;
+  });
+}
+
+function buildEmailPayload(type) {
+  const isWithdrawal = type === "withdrawal";
+  const tasks = isWithdrawal ? state.withdrawals : state.payments;
+  const rows = getEmailRows(type);
+  const totals = getTotals(tasks);
+  const reportTitle = isWithdrawal ? "Withdrawals" : "Payments";
+  const intro = isWithdrawal
+    ? "Kindly process the following withdrawal today."
+    : "Kindly process the following payment today.";
+  const tableRows = rows
+    .map(
+      (row) => `
+        <tr>
+          <td style="border:1px solid #ffffff;padding:8px 10px;font-weight:700;background:#2a2a2a;color:#ffffff;">${escapeHtml(row.name)}</td>
+          <td style="border:1px solid #ffffff;padding:8px 10px;font-weight:800;background:#2a2a2a;color:#ffffff;">${escapeHtml(row.amount)}</td>
+        </tr>`
+    )
+    .join("");
+  const textRows = rows.map((row) => `${row.name}: ${row.amount}`).join("\n");
+  const htmlBody = `
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.45;color:#222222;">
+      <p>Dear Zaki,</p>
+      <p>${intro}</p>
+      <table style="border-collapse:collapse;width:400px;max-width:100%;margin:0 0 12px 0;">
+        ${tableRows}
+      </table>
+      <p style="margin:12px 0;">
+        <strong>Total USD: ${formatEmailAmount(totals.usd, "USD")}</strong><br>
+        <strong>Total IQD: ${formatEmailAmount(totals.iqd, "IQD")}</strong>
+      </p>
+      <p>Best regards,</p>
+      <table style="border-collapse:collapse;margin-top:26px;">
+        <tr>
+          <td style="padding-right:18px;vertical-align:middle;">
+            <img src="https://tahahumam233-blip.github.io/IOS-PP/assets/logo-red.png" alt="Sindibad" width="86" style="display:block;">
+          </td>
+          <td style="vertical-align:middle;font-size:13px;line-height:1.55;">
+            <strong style="font-size:15px;">Taha Humam</strong><br>
+            <span style="color:#d6003a;font-weight:700;">Accountant</span><br>
+            <a href="https://sindibad.iq" style="color:#d6003a;">Sindibad.iq</a><br>
+            <span style="color:#d6003a;font-weight:700;">+9647709983201</span>
+          </td>
+        </tr>
+      </table>
+    </div>`;
+  const textBody = `Dear Zaki,\n\n${intro}\n\n${textRows}\n\nTotal USD: ${formatEmailAmount(totals.usd, "USD")}\nTotal IQD: ${formatEmailAmount(totals.iqd, "IQD")}\n\nBest regards,\n\nTaha Humam\nAccountant\nSindibad.iq\n+9647709983201`;
+
+  return {
+    action: "create_outlook_draft",
+    reportType: type,
+    date: getEmailDateTitle(),
+    month: getMonthTitle(),
+    subject: `${reportTitle} - ${getMonthTitle()}`,
+    intro,
+    rows,
+    totals: {
+      iqd: totals.iqd,
+      usd: totals.usd,
+      iqdFormatted: formatEmailAmount(totals.iqd, "IQD"),
+      usdFormatted: formatEmailAmount(totals.usd, "USD"),
+    },
+    htmlBody,
+    textBody,
+  };
+}
+
+async function createZapierDraft(type) {
+  const appRole = document.querySelector(".app-preview")?.dataset.role || "guest";
+  if (appRole !== "admin") {
+    showStatusMessage("Admin Only", "Only Admin can create Outlook draft emails.");
+    return;
+  }
+
+  const button = type === "withdrawal" ? els.createWithdrawalDraftButton : els.createPaymentDraftButton;
+  const payload = buildEmailPayload(type);
+  if (!payload.rows.length) {
+    showStatusMessage("No Email Items", "There are no payments or withdrawals with amounts to include.");
+    return;
+  }
+
+  const originalText = button?.textContent || "";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Creating Draft...";
+  }
+
+  try {
+    const formBody = new URLSearchParams({
+      payload: JSON.stringify(payload),
+      reportType: payload.reportType,
+      subject: payload.subject,
+      htmlBody: payload.htmlBody,
+      textBody: payload.textBody,
+      date: payload.date,
+      month: payload.month,
+      iqdTotal: payload.totals.iqdFormatted,
+      usdTotal: payload.totals.usdFormatted,
+    });
+    await fetch(ZAPIER_DRAFT_WEBHOOK_URL, {
+      method: "POST",
+      mode: "no-cors",
+      body: formBody,
+    });
+    showStatusMessage("Draft Request Sent", `${payload.subject} was sent to Zapier for Outlook draft creation.`);
+  } catch (error) {
+    showStatusMessage("Draft Failed", error.message || "Zapier did not accept the draft request.");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+}
+
 function getSheetCsvUrl(range = RANGE) {
   const params = new URLSearchParams({
     tqx: "out:csv",
@@ -1037,6 +1177,8 @@ window.addEventListener("keydown", (event) => {
 els.paymentsTab.addEventListener("click", () => setActiveType("payment"));
 els.withdrawalsTab.addEventListener("click", () => setActiveType("withdrawal"));
 els.exchangeTab.addEventListener("click", () => setActiveType("exchange"));
+els.createPaymentDraftButton?.addEventListener("click", () => createZapierDraft("payment"));
+els.createWithdrawalDraftButton?.addEventListener("click", () => createZapierDraft("withdrawal"));
 els.exchangeAmountA.addEventListener("input", () => {
   formatExchangeInput(els.exchangeAmountA, "IQD");
   calculateExchange();

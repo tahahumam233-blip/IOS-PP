@@ -876,6 +876,24 @@ label {
   color: var(--preview-ink);
 }
 
+.email-actions {
+  display: none;
+  gap: 10px;
+}
+
+.app-preview[data-role="admin"] .email-actions {
+  display: grid;
+}
+
+.email-draft-button {
+  min-height: 44px;
+  border: 1px solid rgba(214, 0, 58, 0.74);
+  border-radius: 13px;
+  color: #ffffff;
+  background: linear-gradient(180deg, #ff3f6d, #d10f3f);
+  font-weight: 900;
+}
+
 .theme-toggle {
   grid-template-columns: 1fr 1fr;
   margin: 0;
