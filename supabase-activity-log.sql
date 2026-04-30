@@ -16,6 +16,9 @@ create table if not exists public.activity_log (
 
 alter table public.activity_log disable row level security;
 
+grant usage on schema public to anon;
+grant select, insert, update, delete on public.activity_log to anon;
+
 create index if not exists activity_log_date_time_idx
 on public.activity_log (activity_date, activity_time desc);
 

@@ -267,7 +267,9 @@ async function loadRemoteActivity() {
     return;
   }
 
-  saveActivity((data || []).map(rowToActivityItem));
+  if (data?.length) {
+    saveActivity(data.map(rowToActivityItem));
+  }
   renderActivity();
 }
 
