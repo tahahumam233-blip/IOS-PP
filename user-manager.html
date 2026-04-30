@@ -216,7 +216,7 @@
         <h1>User Manager</h1>
         <p>Add users, change passwords, and set permissions for Payment Tracker.</p>
         <div class="notice">
-          This tool generates a new <strong>users.js</strong>. Replace the existing file with the generated file, then commit and push to apply changes to the live app.
+          Click <strong>Save & Apply</strong> to update the live app login list. The generated <strong>users.js</strong> is kept as a backup file option.
         </div>
       </header>
 
@@ -225,8 +225,10 @@
           <h2>Users</h2>
           <div class="toolbar">
             <button id="addUserButton" type="button">Add User</button>
+            <button id="saveApplyButton" type="button">Save & Apply</button>
             <button class="secondary" id="generateButton" type="button">Generate users.js</button>
           </div>
+          <p class="notice" id="saveStatus" hidden></p>
           <div class="user-list" id="userList"></div>
         </section>
 
@@ -243,7 +245,14 @@
     </main>
 
     <script src="users.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+      const SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
+      const SUPABASE_ANON_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhZXFubGNoZW56eWJrZnljZWxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyNzQ1OTUsImV4cCI6MjA5Mjg1MDU5NX0.2qHHPs2sx-WUjpTQGStbLKzjAI51NSv-xGl4wQvbU5Q";
+      const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const USERS_TABLE = "app_users";
+
       const permissionLabels = {
         post: "Post",
         update: "Update",
@@ -259,6 +268,15 @@
       };
 
       let users = JSON.parse(JSON.stringify(window.PAYMENT_TRACKER_USERS || {}));
+
+      function setStatus(message, isError = false) {
+        const status = document.querySelector("#saveStatus");
+        status.hidden = false;
+        status.textContent = message;
+        status.style.borderColor = isError ? "rgba(255, 95, 125, 0.42)" : "rgba(55, 213, 125, 0.28)";
+        status.style.background = isError ? "rgba(255, 95, 125, 0.08)" : "rgba(55, 213, 125, 0.08)";
+        status.style.color = isError ? "#ff9aad" : "#d9ffe8";
+      }
 
       function normalizeId(value) {
         return String(value || "")
@@ -362,6 +380,72 @@
         return content;
       }
 
+      function usersToRows() {
+        collectUsers();
+        return Object.entries(users).map(([id, user]) => ({
+          id,
+          password: user.password || "",
+          role: user.role || "viewer",
+          label: user.label || id,
+          permissions: user.permissions || {},
+          updated_at: new Date().toISOString(),
+        }));
+      }
+
+      function makeSupabaseInList(ids) {
+        return `(${ids.map((id) => `"${String(id).replace(/"/g, '\\"')}"`).join(",")})`;
+      }
+
+      async function loadRemoteUsers() {
+        if (!supabaseClient) return;
+        const { data, error } = await supabaseClient.from(USERS_TABLE).select("*").order("id", { ascending: true });
+        if (error) {
+          setStatus(`Remote users not loaded: ${error.message}. Run the app_users SQL setup first.`, true);
+          return;
+        }
+        if (!data?.length) return;
+        users = data.reduce((items, row) => {
+          items[row.id] = normalizeUser(row.id, {
+            password: row.password,
+            role: row.role,
+            label: row.label,
+            permissions: row.permissions,
+          });
+          return items;
+        }, {});
+        renderUsers();
+        generateUsersFile();
+      }
+
+      async function saveAndApply() {
+        const rows = usersToRows();
+        if (!rows.length) {
+          setStatus("Add at least one user before saving.", true);
+          return;
+        }
+        if (!supabaseClient) {
+          setStatus("Supabase is not loaded. Check internet connection and try again.", true);
+          return;
+        }
+
+        const ids = rows.map((row) => row.id);
+        const { error: deleteError } = await supabaseClient.from(USERS_TABLE).delete().not("id", "in", makeSupabaseInList(ids));
+        if (deleteError) {
+          setStatus(`Could not remove deleted users: ${deleteError.message}`, true);
+          return;
+        }
+
+        const { error } = await supabaseClient.from(USERS_TABLE).upsert(rows, { onConflict: "id" });
+        if (error) {
+          setStatus(`Save failed: ${error.message}. Run the app_users SQL setup first.`, true);
+          return;
+        }
+
+        localStorage.setItem("payment-tracker-users-updated-at", Date.now().toString());
+        generateUsersFile();
+        setStatus("Saved and applied. The live app will use these users on the next login/open.");
+      }
+
       document.querySelector("#addUserButton").addEventListener("click", () => {
         collectUsers();
         let index = Object.keys(users).length + 1;
@@ -376,6 +460,7 @@
       });
 
       document.querySelector("#generateButton").addEventListener("click", generateUsersFile);
+      document.querySelector("#saveApplyButton").addEventListener("click", saveAndApply);
 
       document.querySelector("#copyButton").addEventListener("click", async () => {
         const content = generateUsersFile();
@@ -413,6 +498,7 @@
 
       renderUsers();
       generateUsersFile();
+      void loadRemoteUsers();
     </script>
   </body>
 </html>

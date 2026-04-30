@@ -13,13 +13,14 @@ const defaultPreviewUsers = {
     permissions: { post: true, update: true, exchange: true, viewAllActivity: false, manageUsers: false },
   },
 };
-const previewUsers = window.PAYMENT_TRACKER_USERS || defaultPreviewUsers;
+let previewUsers = window.PAYMENT_TRACKER_USERS || defaultPreviewUsers;
 const PREVIEW_ACTIVITY_KEY = "payment-tracker-preview-activity";
 const PREVIEW_TASK_STATE_KEY = "zaki-payment-task-state";
 const REMEMBER_LOGIN_ID_KEY = "payment-tracker-remember-login-id";
 const PREVIEW_SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
 const PREVIEW_RECEIPTS_BUCKET = "IOS-PP- Receipts";
 const ACTIVITY_TABLE = "activity_log";
+const USERS_TABLE = "app_users";
 let previewUser = { role: "guest", label: "Guest" };
 let lastTouchEnd = 0;
 let previewReceiptTaskId = "";
@@ -59,6 +60,32 @@ function normalizeUser(id, user = {}) {
 
 function userCan(permission) {
   return Boolean(previewUser?.permissions?.[permission]);
+}
+
+function usersFromRows(rows = []) {
+  return rows.reduce((items, row) => {
+    items[row.id] = {
+      password: row.password || "",
+      role: row.role || "viewer",
+      label: row.label || row.id,
+      permissions: row.permissions || {},
+    };
+    return items;
+  }, {});
+}
+
+async function loadRemoteUsers() {
+  if (!supabaseClient) return;
+
+  const { data, error } = await supabaseClient.from(USERS_TABLE).select("*").order("id", { ascending: true });
+  if (error) {
+    console.warn("User config load skipped:", error.message);
+    return;
+  }
+
+  if (data?.length) {
+    previewUsers = usersFromRows(data);
+  }
 }
 
 function readPreviewTaskState() {
@@ -769,11 +796,16 @@ taskListObserver.observe(document.querySelector("#taskList"), {
   attributeFilter: ["class"],
 });
 
-resetLoginForm();
-renderActivity();
-syncAppViewport();
-window.requestAnimationFrame(() => {
+async function bootApp() {
+  await loadRemoteUsers();
+  resetLoginForm();
+  renderActivity();
   syncAppViewport();
-  enhanceTaskRows();
-  updatePendingMetric();
-});
+  window.requestAnimationFrame(() => {
+    syncAppViewport();
+    enhanceTaskRows();
+    updatePendingMetric();
+  });
+}
+
+void bootApp();
