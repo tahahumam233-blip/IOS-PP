@@ -839,8 +839,8 @@ label {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   padding:
-    9px max(10px, env(safe-area-inset-right))
-    max(10px, env(safe-area-inset-bottom))
+    7px max(10px, env(safe-area-inset-right))
+    max(7px, calc(env(safe-area-inset-bottom) * 0.35))
     max(10px, env(safe-area-inset-left));
   border-top: 1px solid var(--preview-line);
   background: rgba(13, 7, 9, 0.9);
@@ -867,7 +867,7 @@ label {
 }
 
 .bottom-nav button {
-  min-height: 54px;
+  min-height: 44px;
   border: 0;
   color: var(--preview-muted);
   background: transparent;
