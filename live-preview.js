@@ -62,6 +62,22 @@ function userCan(permission) {
   return Boolean(previewUser?.permissions?.[permission]);
 }
 
+function openFaceIdPrompt() {
+  const prompt = document.querySelector("#faceIdPrompt");
+  if (!prompt) return;
+  prompt.hidden = false;
+  window.setTimeout(() => document.querySelector("#faceIdUseButton")?.focus(), 0);
+}
+
+function closeFaceIdPrompt({ focusPassword = false } = {}) {
+  const prompt = document.querySelector("#faceIdPrompt");
+  const passwordInput = document.querySelector("#previewLoginPassword");
+  if (prompt) prompt.hidden = true;
+  if (focusPassword) {
+    window.setTimeout(() => passwordInput?.focus(), 80);
+  }
+}
+
 function usersFromRows(rows = []) {
   return rows.reduce((items, row) => {
     items[row.id] = {
@@ -576,7 +592,14 @@ function resetLoginForm({ keepRememberedId = true } = {}) {
   document.querySelector("#previewLoginError").hidden = true;
   loginScreen.hidden = false;
 
-  window.setTimeout(() => (rememberedId ? passwordInput : idInput).focus(), 0);
+  window.setTimeout(() => {
+    if (rememberedId) {
+      passwordInput.focus();
+      openFaceIdPrompt();
+    } else {
+      idInput.focus();
+    }
+  }, 0);
 }
 
 document.addEventListener("gesturestart", (event) => event.preventDefault());
@@ -621,6 +644,20 @@ document.querySelector("#previewLoginButton").addEventListener("click", () => {
 document.querySelector("#previewLoginPassword").addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     document.querySelector("#previewLoginButton").click();
+  }
+});
+
+document.querySelector("#faceIdUseButton")?.addEventListener("click", () => {
+  closeFaceIdPrompt({ focusPassword: true });
+});
+
+document.querySelector("#faceIdLaterButton")?.addEventListener("click", () => {
+  closeFaceIdPrompt();
+});
+
+document.querySelector("#faceIdPrompt")?.addEventListener("click", (event) => {
+  if (event.target.id === "faceIdPrompt") {
+    closeFaceIdPrompt();
   }
 });
 

@@ -11,8 +11,8 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" type="image/png" href="assets/icon-192.png" />
     <link rel="apple-touch-icon" href="assets/icon-180.png" />
-    <link rel="stylesheet" href="styles.css?v=20260430-live-8" />
-    <link rel="stylesheet" href="live-preview.css?v=20260430-live-8" />
+    <link rel="stylesheet" href="styles.css?v=20260430-live-9" />
+    <link rel="stylesheet" href="live-preview.css?v=20260430-live-9" />
   </head>
   <body>
     <main class="app-preview" data-theme="dark" data-role="guest">
@@ -220,6 +220,18 @@
       </div>
     </div>
 
+    <div class="modal-backdrop faceid-backdrop" id="faceIdPrompt" hidden>
+      <div class="upload-modal faceid-dialog" role="dialog" aria-labelledby="faceIdTitle">
+        <div class="faceid-mark" aria-hidden="true">ID</div>
+        <h2 id="faceIdTitle">Use Face ID</h2>
+        <p>Use your saved iPhone password to sign in faster and more securely.</p>
+        <div class="faceid-actions">
+          <button class="modal-save" id="faceIdUseButton" type="button">Use Face ID</button>
+          <button class="modal-save faceid-later" id="faceIdLaterButton" type="button">Not Now</button>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-backdrop receipt-preview-backdrop" id="receiptPreviewModal" hidden>
       <div class="upload-modal receipt-preview-dialog" role="dialog" aria-labelledby="receiptPreviewTitle">
         <div class="modal-heading">
@@ -240,8 +252,8 @@
     <a class="source-link" id="sheetLink" href="#" target="_blank" rel="noreferrer">Open source sheet</a>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="users.js?v=20260430-live-8"></script>
-    <script src="app.js?v=20260430-live-8"></script>
-    <script src="live-preview.js?v=20260430-live-8"></script>
+    <script src="users.js?v=20260430-live-9"></script>
+    <script src="app.js?v=20260430-live-9"></script>
+    <script src="live-preview.js?v=20260430-live-9"></script>
   </body>
 </html>
