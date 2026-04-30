@@ -8,7 +8,7 @@ const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhZXFubGNoZW56eWJrZnljZWxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyNzQ1OTUsImV4cCI6MjA5Mjg1MDU5NX0.2qHHPs2sx-WUjpTQGStbLKzjAI51NSv-xGl4wQvbU5Q";
 const RECEIPTS_BUCKET = "IOS-PP- Receipts";
 const SLACK_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/hyper-action`;
-const ZAPIER_DRAFT_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/27428129/uvk6wcr/";
+const ZAPIER_DRAFT_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/22095219/uvk15pv/";
 const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const demoPayments = [
