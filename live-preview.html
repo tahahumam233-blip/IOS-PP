@@ -11,8 +11,8 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" type="image/png" href="assets/logo-red.png" />
     <link rel="apple-touch-icon" href="assets/logo-white-red.png" />
-    <link rel="stylesheet" href="styles.css?v=20260430-3" />
-    <link rel="stylesheet" href="live-preview.css?v=20260430-3" />
+    <link rel="stylesheet" href="styles.css?v=20260430-4" />
+    <link rel="stylesheet" href="live-preview.css?v=20260430-4" />
   </head>
   <body>
     <main class="app-preview" data-theme="dark" data-role="guest">
@@ -44,11 +44,12 @@
 
           <div class="login-actions">
             <button id="previewLoginButton" type="button">Login</button>
+            <button class="secondary" id="useSavedPasswordButton" type="button">Use Saved Password</button>
           </div>
           <b class="login-error" id="previewLoginError" hidden>Wrong ID or password.</b>
           <div class="login-hint">
-            <strong>Secure preview access</strong>
-            <span>Use iPhone Passwords to save the password and unlock it with Face ID. The app only remembers the User ID if you choose it.</span>
+            <strong>Face ID login</strong>
+            <span>Login once, then choose Save Password when iPhone asks. Next time, tap Use Saved Password and Face ID will fill it.</span>
           </div>
         </div>
       </section>
@@ -240,7 +241,7 @@
     <a class="source-link" id="sheetLink" href="#" target="_blank" rel="noreferrer">Open source sheet</a>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=20260430-3"></script>
-    <script src="live-preview.js?v=20260430-3"></script>
+    <script src="app.js?v=20260430-4"></script>
+    <script src="live-preview.js?v=20260430-4"></script>
   </body>
 </html>

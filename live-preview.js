@@ -55,12 +55,42 @@ function saveActivity(items) {
   localStorage.setItem(PREVIEW_ACTIVITY_KEY, JSON.stringify(items.slice(0, 80)));
 }
 
-function addActivity({ title, message, status }) {
+function activityUserLabel() {
+  return previewUser?.label || "Guest";
+}
+
+function activityStatusLabel(status) {
+  if (status === "failed") return "Failed";
+  if (status === "changed") return "Changed";
+  return "Posted";
+}
+
+function activityTitleFromStatus(status) {
+  if (status === "failed") return "Action failed";
+  if (status === "changed") return "App change";
+  return "Slack post";
+}
+
+function escapeActivityText(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function addActivity({ title, message, status = "posted", user, task, taskType, fileCount, note }) {
   const items = readActivity();
   items.unshift({
-    title,
+    title: title || activityTitleFromStatus(status),
     message,
     status,
+    user: user || activityUserLabel(),
+    task: task || "",
+    taskType: taskType || "",
+    fileCount: Number(fileCount || 0),
+    note: note || "",
     time: new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit" }).format(new Date()),
   });
   saveActivity(items);
@@ -80,15 +110,32 @@ function renderActivity() {
     return;
   }
 
-  list.innerHTML = items.map((item) => `
-    <article class="activity-row">
-      <div>
-        <strong>${item.title}</strong>
-        <span>${item.time} · ${item.message}</span>
-      </div>
-      <b class="${item.status === "failed" ? "failed" : ""}">${item.status === "failed" ? "Failed" : "Posted"}</b>
-    </article>
-  `).join("");
+  list.innerHTML = items.map((item) => {
+    const status = item.status || "posted";
+    const meta = [
+      item.user ? `User: ${item.user}` : "",
+      item.taskType ? item.taskType : "",
+      item.fileCount ? `${item.fileCount} ${item.fileCount === 1 ? "file" : "files"}` : "",
+      item.note ? "Text added" : "",
+      item.time,
+    ].filter(Boolean);
+
+    return `
+      <article class="activity-row report-row">
+        <div class="activity-report-main">
+          <div class="activity-report-top">
+            <strong>${escapeActivityText(item.title || activityTitleFromStatus(status))}</strong>
+            <b class="${status === "failed" ? "failed" : status === "changed" ? "changed" : ""}">${activityStatusLabel(status)}</b>
+          </div>
+          ${item.task ? `<h3>${escapeActivityText(item.task)}</h3>` : ""}
+          <span>${escapeActivityText(item.message || "No summary available.")}</span>
+          <div class="activity-meta">
+            ${meta.map((entry) => `<em>${escapeActivityText(entry)}</em>`).join("")}
+          </div>
+        </div>
+      </article>
+    `;
+  }).join("");
 }
 
 function enhanceTaskRows() {
@@ -283,6 +330,11 @@ async function runBackgroundReplace({ jobId, taskId, files, noteText }) {
       title: "Receipt replaced",
       message: `${task.name}: ${uploadedFiles.length} replacement ${fileWord} posted.`,
       status: "posted",
+      user: activityUserLabel(),
+      task: task.name,
+      taskType: task.type === "withdrawal" ? "Withdrawal" : "Payment",
+      fileCount: uploadedFiles.length,
+      note: noteText,
     });
     render();
   } catch (error) {
@@ -364,6 +416,12 @@ document.querySelector("#previewLoginButton").addEventListener("click", () => {
 
   document.querySelector("#previewLoginPassword").value = "";
   setPreviewAccess({ role: user.role, label: user.label });
+  addActivity({
+    title: "User signed in",
+    message: `${user.label} opened the app session.`,
+    status: "changed",
+    user: user.label,
+  });
 });
 
 document.querySelector("#previewLoginPassword").addEventListener("keydown", (event) => {
@@ -372,15 +430,35 @@ document.querySelector("#previewLoginPassword").addEventListener("keydown", (eve
   }
 });
 
+document.querySelector("#useSavedPasswordButton").addEventListener("click", () => {
+  const idInput = document.querySelector("#previewLoginId");
+  const passwordInput = document.querySelector("#previewLoginPassword");
+  if (!idInput.value.trim()) idInput.focus();
+  else passwordInput.focus();
+});
+
 document.querySelector("#previewSignOutButton").addEventListener("click", () => {
+  addActivity({
+    title: "User signed out",
+    message: `${activityUserLabel()} ended the app session.`,
+    status: "changed",
+    user: activityUserLabel(),
+  });
   resetLoginForm();
 });
 
 document.querySelectorAll("[data-theme-choice]").forEach((button) => {
   button.addEventListener("click", () => {
+    const themeLabel = button.dataset.themeChoice === "light" ? "Light mode" : "Dark mode";
     previewApp.dataset.theme = button.dataset.themeChoice;
     document.querySelectorAll("[data-theme-choice]").forEach((item) => item.classList.remove("active"));
     button.classList.add("active");
+    addActivity({
+      title: "Theme changed",
+      message: `${themeLabel} selected.`,
+      status: "changed",
+      user: activityUserLabel(),
+    });
   });
 });
 
@@ -469,6 +547,7 @@ const statusObserver = new MutationObserver(() => {
     title,
     message,
     status: title.toLowerCase().includes("failed") ? "failed" : "posted",
+    user: activityUserLabel(),
   });
 });
 
@@ -486,8 +565,11 @@ const lastUpdatedObserver = new MutationObserver(() => {
   lastUpdatedObserver.lastText = text;
   addActivity({
     title: "Exchange saved",
-    message: text,
+    message: text.replace(/^Saved\s+/i, ""),
     status: "posted",
+    user: activityUserLabel(),
+    task: "Exchange record",
+    taskType: "Exchange",
   });
 });
 

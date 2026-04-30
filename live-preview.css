@@ -247,7 +247,7 @@ label {
 
 .login-actions {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
 
@@ -266,9 +266,14 @@ label {
 }
 
 .login-card button.secondary {
-  color: var(--preview-muted);
+  color: var(--preview-ink);
   border-color: var(--preview-line-strong);
-  background: rgba(255, 255, 255, 0.045);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.app-preview[data-theme="light"] .login-card button.secondary {
+  color: #17191f;
+  background: #ffffff;
 }
 
 .remember-login {
@@ -309,11 +314,19 @@ label {
 
 .login-hint {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   padding: 12px;
-  border: 1px solid var(--preview-line);
+  border: 1px solid rgba(79, 220, 131, 0.28);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.035);
+  background: rgba(79, 220, 131, 0.075);
+}
+
+.login-hint strong {
+  color: var(--preview-green);
+}
+
+.app-preview[data-theme="light"] .login-hint strong {
+  color: var(--preview-green-deep);
 }
 
 .preview-topbar {
@@ -766,6 +779,52 @@ label {
   border-radius: 13px;
 }
 
+.activity-row.report-row {
+  grid-template-columns: 1fr;
+  padding: 12px;
+}
+
+.activity-report-main {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.activity-report-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.activity-row h3 {
+  margin: 0;
+  color: var(--preview-ink);
+  font-size: 16px;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+
+.activity-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.activity-meta em {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border: 1px solid var(--preview-line);
+  border-radius: 999px;
+  color: var(--preview-muted);
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
 .activity-row strong,
 .activity-row span {
   display: block;
@@ -798,6 +857,11 @@ label {
 .activity-row b.failed {
   color: var(--preview-red);
   background: rgba(255, 93, 118, 0.1);
+}
+
+.activity-row b.changed {
+  color: var(--preview-yellow);
+  background: rgba(244, 183, 64, 0.12);
 }
 
 .activity-empty {
