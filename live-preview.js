@@ -8,6 +8,7 @@ const PREVIEW_TASK_STATE_KEY = "zaki-payment-task-state";
 const REMEMBER_LOGIN_ID_KEY = "payment-tracker-remember-login-id";
 const PREVIEW_SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
 const PREVIEW_RECEIPTS_BUCKET = "IOS-PP- Receipts";
+const ACTIVITY_TABLE = "activity_log";
 let previewUser = { role: "guest", label: "Guest" };
 let lastTouchEnd = 0;
 let previewReceiptTaskId = "";
@@ -59,6 +60,10 @@ function activityUserLabel() {
   return previewUser?.label || "Guest";
 }
 
+function activityUserId() {
+  return previewUser?.id || previewUser?.role || "guest";
+}
+
 function activityStatusLabel(status) {
   if (status === "failed") return "Failed";
   if (status === "changed") return "Changed";
@@ -80,21 +85,142 @@ function escapeActivityText(value) {
     .replace(/'/g, "&#039;");
 }
 
+function makeActivityId() {
+  return globalThis.crypto?.randomUUID
+    ? globalThis.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function normalizeActivityItem(item = {}) {
+  return {
+    id: item.id || makeActivityId(),
+    date: item.date || todayKey(),
+    title: item.title || activityTitleFromStatus(item.status),
+    message: item.message || "",
+    status: item.status || "posted",
+    user: item.user || item.userLabel || activityUserLabel(),
+    userId: item.userId || activityUserId(),
+    userRole: item.userRole || previewUser?.role || "guest",
+    task: item.task || "",
+    taskType: item.taskType || "",
+    fileCount: Number(item.fileCount || 0),
+    note: item.note || "",
+    time: item.time || new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit" }).format(new Date()),
+    createdAt: item.createdAt || new Date().toISOString(),
+  };
+}
+
+function activityItemToRow(item) {
+  return {
+    id: item.id,
+    activity_date: item.date,
+    activity_time: item.createdAt,
+    user_id: item.userId,
+    user_label: item.user,
+    user_role: item.userRole,
+    title: item.title,
+    message: item.message,
+    status: item.status,
+    task_name: item.task || null,
+    task_type: item.taskType || null,
+    file_count: item.fileCount || 0,
+    has_note: Boolean(item.note),
+  };
+}
+
+function rowToActivityItem(row) {
+  return normalizeActivityItem({
+    id: row.id,
+    date: row.activity_date,
+    title: row.title,
+    message: row.message,
+    status: row.status,
+    user: row.user_label,
+    userId: row.user_id,
+    userRole: row.user_role,
+    task: row.task_name,
+    taskType: row.task_type,
+    fileCount: row.file_count,
+    note: row.has_note ? "Text added" : "",
+    time: new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit" }).format(new Date(row.activity_time || Date.now())),
+    createdAt: row.activity_time,
+  });
+}
+
+function getActivityTaskType(taskName) {
+  const task = typeof getAllTasks === "function"
+    ? getAllTasks().find((item) => item.name === taskName)
+    : null;
+  if (!task) return "";
+  if (task.type === "withdrawal") return "Withdrawal";
+  if (task.type === "payment") return "Payment";
+  return task.type;
+}
+
+function parseActivityMessage(message) {
+  const uploadMatch = String(message || "").match(/^(.+?):\s*(\d+)\s+files?\s+(?:posted|saved|uploaded)/i);
+  if (!uploadMatch) return {};
+
+  const task = uploadMatch[1].trim();
+  return {
+    task,
+    taskType: getActivityTaskType(task),
+    fileCount: Number(uploadMatch[2] || 0),
+  };
+}
+
+async function saveRemoteActivity(item) {
+  if (!supabaseClient || previewUser.role === "guest") return;
+  const { error } = await supabaseClient.from(ACTIVITY_TABLE).upsert(activityItemToRow(item), { onConflict: "id" });
+  if (error) {
+    console.warn("Activity log save skipped:", error.message);
+  }
+}
+
+async function loadRemoteActivity() {
+  if (!supabaseClient || previewUser.role === "guest") {
+    renderActivity();
+    return;
+  }
+
+  let query = supabaseClient
+    .from(ACTIVITY_TABLE)
+    .select("*")
+    .eq("activity_date", todayKey())
+    .order("activity_time", { ascending: false })
+    .limit(100);
+
+  if (previewUser.role !== "admin") {
+    query = query.eq("user_id", activityUserId());
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.warn("Activity log load skipped:", error.message);
+    renderActivity();
+    return;
+  }
+
+  saveActivity((data || []).map(rowToActivityItem));
+  renderActivity();
+}
+
 function addActivity({ title, message, status = "posted", user, task, taskType, fileCount, note }) {
   const items = readActivity();
-  items.unshift({
-    title: title || activityTitleFromStatus(status),
+  const item = normalizeActivityItem({
+    title,
     message,
     status,
-    user: user || activityUserLabel(),
-    task: task || "",
-    taskType: taskType || "",
-    fileCount: Number(fileCount || 0),
-    note: note || "",
-    time: new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit" }).format(new Date()),
+    user,
+    task,
+    taskType,
+    fileCount,
+    note,
   });
+  items.unshift(item);
   saveActivity(items);
   renderActivity();
+  void saveRemoteActivity(item);
 }
 
 function renderActivity() {
@@ -362,6 +488,7 @@ function setPreviewAccess(user) {
     : user.role === "zaki"
       ? "Signed in as Zaki. You can upload receipts and post payments, withdrawals, and exchange records."
     : "Guest mode is view-only. Sign in as Zaki or Admin to post.";
+  void loadRemoteActivity();
 }
 
 function resetLoginForm({ keepRememberedId = true } = {}) {
@@ -415,7 +542,7 @@ document.querySelector("#previewLoginButton").addEventListener("click", () => {
   }
 
   document.querySelector("#previewLoginPassword").value = "";
-  setPreviewAccess({ role: user.role, label: user.label });
+  setPreviewAccess({ id, role: user.role, label: user.label });
   addActivity({
     title: "User signed in",
     message: `${user.label} opened the app session.`,
@@ -466,6 +593,9 @@ document.querySelectorAll("[data-preview-view]").forEach((button) => {
     const view = document.querySelector(`#${button.dataset.previewView}`);
     view.hidden = false;
     view.classList.add("active");
+    if (button.dataset.previewView === "activityView") {
+      void loadRemoteActivity();
+    }
   });
 });
 
@@ -541,6 +671,7 @@ const statusObserver = new MutationObserver(() => {
     message,
     status: title.toLowerCase().includes("failed") ? "failed" : "posted",
     user: activityUserLabel(),
+    ...parseActivityMessage(message),
   });
 });
 
