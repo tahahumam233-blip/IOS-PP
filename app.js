@@ -293,6 +293,25 @@ function findTask(taskId) {
   return getAllTasks().find((task) => task.id === taskId);
 }
 
+function getTaskMatchKey(task) {
+  return `${todayKey()}|${task.type}|${slugify(task.name)}`;
+}
+
+function getTaskMatchKeyFromRow(row) {
+  return `${row.task_date || todayKey()}|${row.task_type}|${slugify(row.task_name)}`;
+}
+
+function normalizeTaskStatusRow(row) {
+  return {
+    done: Boolean(row.done),
+    receiptName: row.file_name || "",
+    filePath: row.file_path || "",
+    fileNames: splitStoredList(row.file_name),
+    filePaths: splitStoredList(row.file_path),
+    receiptSavedAt: row.updated_at || "",
+  };
+}
+
 function getSupabaseRow(task, saved = getSavedTask(task.id)) {
   return {
     id: task.id,
@@ -309,25 +328,30 @@ function getSupabaseRow(task, saved = getSavedTask(task.id)) {
 async function loadRemoteTaskState() {
   if (!supabaseClient) return;
 
-  const taskIds = getAllTasks().map((task) => task.id);
+  const tasks = getAllTasks();
+  const taskIds = tasks.map((task) => task.id);
   if (!taskIds.length) return;
 
   taskIds.forEach((taskId) => {
     delete state.taskState[taskId];
   });
 
-  const { data, error } = await supabaseClient.from("task_status").select("*").in("id", taskIds);
+  const { data, error } = await supabaseClient
+    .from("task_status")
+    .select("*")
+    .eq("task_date", todayKey())
+    .in("task_type", ["payment", "withdrawal"]);
   if (error) throw error;
 
-  data.forEach((row) => {
-    state.taskState[row.id] = {
-      done: Boolean(row.done),
-      receiptName: row.file_name || "",
-      filePath: row.file_path || "",
-      fileNames: splitStoredList(row.file_name),
-      filePaths: splitStoredList(row.file_path),
-      receiptSavedAt: row.updated_at || "",
-    };
+  const rows = [...(data || [])].sort((a, b) => new Date(a.updated_at || 0) - new Date(b.updated_at || 0));
+  const rowsByTaskId = new Map(rows.map((row) => [row.id, row]));
+  const rowsByMatchKey = new Map(rows.map((row) => [getTaskMatchKeyFromRow(row), row]));
+
+  tasks.forEach((task) => {
+    const row = rowsByTaskId.get(task.id) || rowsByMatchKey.get(getTaskMatchKey(task));
+    if (!row) return;
+
+    state.taskState[task.id] = normalizeTaskStatusRow(row);
   });
   saveTaskState();
 }
