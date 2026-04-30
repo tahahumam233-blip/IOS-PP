@@ -413,7 +413,7 @@ function showReceiptPreview(taskId) {
     ? fileNames[0] || "Uploaded receipt"
     : `${filePaths.length} uploaded receipts`;
   document.querySelector("#receiptOpenLink").href = firstUrl;
-  document.querySelector("#replaceReceiptButton").hidden = !previewCanPost();
+  document.querySelector("#addPostingButton").hidden = !previewCanPost();
   document.querySelector("#receiptPreviewBody").innerHTML = filePaths.map((filePath, index) => {
     const fileName = fileNames[index] || `Receipt ${index + 1}`;
     const url = getPreviewFileUrl(filePath);
@@ -435,17 +435,17 @@ function showReceiptPreview(taskId) {
   document.querySelector("#receiptPreviewModal").hidden = false;
 }
 
-function openReplaceUpload(taskId) {
+function openAdditionalPosting(taskId) {
   const task = findTask(taskId);
   if (!task) return;
 
-  previewReplaceTaskId = taskId;
+  previewReplaceTaskId = "";
   document.querySelector("#receiptPreviewModal").hidden = true;
   state.activeUploadTaskId = taskId;
-  els.uploadTaskName.textContent = `Replace ${task.name}`;
+  els.uploadTaskName.textContent = `Add posting for ${task.name}`;
   els.modalFileInput.value = "";
   els.modalUploadNote.value = getSavedTask(taskId).uploadNote || "";
-  els.modalSaveButton.textContent = "Replace & Post";
+  els.modalSaveButton.textContent = "Save & Post";
   els.uploadModal.hidden = false;
   window.setTimeout(() => els.modalFileInput.focus(), 0);
 }
@@ -718,9 +718,9 @@ document.querySelector("#closeReceiptPreview").addEventListener("click", () => {
   document.querySelector("#receiptPreviewModal").hidden = true;
 });
 
-document.querySelector("#replaceReceiptButton").addEventListener("click", () => {
+document.querySelector("#addPostingButton").addEventListener("click", () => {
   if (!previewCanPost()) return;
-  openReplaceUpload(previewReceiptTaskId);
+  openAdditionalPosting(previewReceiptTaskId);
 });
 
 document.querySelector("#receiptPreviewModal").addEventListener("click", (event) => {

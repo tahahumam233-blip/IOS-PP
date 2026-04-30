@@ -1072,10 +1072,10 @@ label {
   gap: 10px;
 }
 
-.replace-receipt-button {
-  color: var(--preview-red);
-  border-color: rgba(255, 93, 118, 0.55);
-  background: rgba(255, 93, 118, 0.1);
+.add-posting-button {
+  color: var(--preview-green);
+  border-color: rgba(103, 220, 115, 0.55);
+  background: rgba(103, 220, 115, 0.1);
 }
 
 .app-preview[data-theme="light"] .task-grid tbody tr,
