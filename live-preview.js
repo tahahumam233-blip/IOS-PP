@@ -24,7 +24,6 @@ const USERS_TABLE = "app_users";
 let previewUser = { role: "guest", label: "Guest" };
 let lastTouchEnd = 0;
 let previewReceiptTaskId = "";
-let previewReplaceTaskId = "";
 
 function syncAppViewport() {
   document.documentElement.style.setProperty("--app-width", `${Math.ceil(window.innerWidth || document.documentElement.clientWidth)}px`);
@@ -439,7 +438,6 @@ function openAdditionalPosting(taskId) {
   const task = findTask(taskId);
   if (!task) return;
 
-  previewReplaceTaskId = "";
   document.querySelector("#receiptPreviewModal").hidden = true;
   state.activeUploadTaskId = taskId;
   els.uploadTaskName.textContent = `Add posting for ${task.name}`;
@@ -448,113 +446,6 @@ function openAdditionalPosting(taskId) {
   els.modalSaveButton.textContent = "Save & Post";
   els.uploadModal.hidden = false;
   window.setTimeout(() => els.modalFileInput.focus(), 0);
-}
-
-function resetReplaceMode() {
-  previewReplaceTaskId = "";
-  els.modalSaveButton.textContent = "Save & Post";
-}
-
-async function runBackgroundReplace({ jobId, taskId, files, noteText }) {
-  const task = findTask(taskId);
-  const uploadedFiles = [];
-  const notePaths = [];
-
-  try {
-    if (!task) throw new Error("Task was not found.");
-    const previous = getSavedTask(taskId);
-    const oldPaths = [...previous.filePaths, ...previous.notePaths];
-    if (!oldPaths.length) throw new Error("No previous receipt was found to replace.");
-
-    updateUploadJob(jobId, { status: "Removing old receipt", percent: 8 });
-    await removeUploadedFiles(oldPaths);
-
-    state.taskState[taskId] = {
-      ...previous,
-      done: false,
-      receiptName: "",
-      fileName: "",
-      fileNames: [],
-      filePath: "",
-      filePaths: [],
-      notePath: "",
-      notePaths: [],
-      uploadNote: "",
-      receiptSavedAt: "",
-    };
-    saveTaskState();
-    await saveRemoteTaskState(taskId);
-
-    for (let index = 0; index < files.length; index += 1) {
-      const file = files[index];
-      const filePath = await uploadTaskFile(taskId, file, (percent) => {
-        const totalPercent = Math.round(12 + ((index + percent / 100) / files.length) * 72);
-        updateUploadJob(jobId, {
-          status: `Uploading replacement ${index + 1}/${files.length}`,
-          percent: totalPercent,
-        });
-      });
-      uploadedFiles.push({ filePath, fileName: file.name });
-
-      const notePath = await uploadTaskNote(filePath, task, noteText);
-      if (notePath) notePaths.push(notePath);
-    }
-
-    updateUploadJob(jobId, { status: "Posting replacement", percent: 88 });
-    for (let index = 0; index < uploadedFiles.length; index += 1) {
-      const uploadedFile = uploadedFiles[index];
-      await postUploadToSlack({
-        filePath: uploadedFile.filePath,
-        fileName: uploadedFile.fileName,
-        task,
-        noteText,
-      });
-    }
-
-    const fileNames = uploadedFiles.map((file) => file.fileName);
-    const filePaths = uploadedFiles.map((file) => file.filePath);
-    state.taskState[taskId] = {
-      ...previous,
-      done: true,
-      receiptName: joinStoredList(fileNames),
-      fileName: fileNames[0] || "",
-      fileNames,
-      filePath: filePaths[0] || "",
-      filePaths,
-      notePath: notePaths[0] || "",
-      notePaths,
-      uploadNote: noteText,
-      receiptSavedAt: new Date().toISOString(),
-    };
-    saveTaskState();
-    await saveRemoteTaskState(taskId);
-
-    const fileWord = uploadedFiles.length === 1 ? "file" : "files";
-    els.lastUpdated.textContent = `Replaced ${task.name} receipt`;
-    finishUploadJob(jobId, { status: "Done", percent: 100 });
-    playNotificationSound("success");
-    showStatusMessage("Receipt Replaced", `${task.name}: ${uploadedFiles.length} replacement ${fileWord} posted.`);
-    addActivity({
-      title: "Receipt replaced",
-      message: `${task.name}: ${uploadedFiles.length} replacement ${fileWord} posted.`,
-      status: "posted",
-      user: activityUserLabel(),
-      task: task.name,
-      taskType: task.type === "withdrawal" ? "Withdrawal" : "Payment",
-      fileCount: uploadedFiles.length,
-      note: noteText,
-    });
-    render();
-  } catch (error) {
-    await removeUploadedFiles([...uploadedFiles.map((file) => file.filePath), ...notePaths]);
-    const message = error instanceof Error ? error.message : String(error);
-    els.lastUpdated.textContent = `Replace failed: ${message}`;
-    finishUploadJob(jobId, { status: "Failed", percent: 100, failed: true });
-    playNotificationSound("error");
-    showStatusMessage("Replace Failed", `${task?.name || "Receipt"} was not replaced. ${message}`);
-  } finally {
-    resetReplaceMode();
-  }
 }
 
 function setPreviewAccess(user) {
@@ -728,24 +619,6 @@ document.querySelector("#receiptPreviewModal").addEventListener("click", (event)
     document.querySelector("#receiptPreviewModal").hidden = true;
   }
 });
-
-document.querySelector("#uploadForm").addEventListener("submit", (event) => {
-  if (!previewReplaceTaskId) return;
-  event.preventDefault();
-  event.stopImmediatePropagation();
-  unlockNotificationSound();
-
-  const taskId = previewReplaceTaskId;
-  const task = findTask(taskId);
-  const files = Array.from(els.modalFileInput.files || []);
-  if (!task || !files.length) return;
-
-  const jobId = createUploadJob(task);
-  const noteText = els.modalUploadNote.value.trim();
-  closeUploadModal();
-  els.lastUpdated.textContent = `Replacing ${task.name}`;
-  void runBackgroundReplace({ jobId, taskId, files, noteText });
-}, true);
 
 const statusObserver = new MutationObserver(() => {
   const modal = document.querySelector("#successModal");
