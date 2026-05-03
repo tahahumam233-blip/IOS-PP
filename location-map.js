@@ -242,6 +242,7 @@ async function loadLocations() {
 
   if (error) {
     els.status.textContent = `Location table not ready: ${error.message}`;
+    renderLocations([]);
     return;
   }
 

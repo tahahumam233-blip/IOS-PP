@@ -391,7 +391,6 @@ function addActivity({ title, message, status = "posted", user, task, taskType, 
   saveActivity(items);
   renderActivity();
   void saveRemoteActivity(item);
-  requestFreshLocation(title || message || "Activity");
 }
 
 function renderActivity() {
@@ -566,7 +565,6 @@ function setPreviewAccess(user) {
       ? `Signed in as ${user.label}. You can upload and post assigned work.`
       : "Guest mode is view-only. Sign in with a posting account to make changes.";
   void loadRemoteActivity();
-  startLocationTracking("Signed in");
 }
 
 function resetLoginForm({ keepRememberedId = true } = {}) {
@@ -583,7 +581,6 @@ function resetLoginForm({ keepRememberedId = true } = {}) {
   document.querySelector("#updateButton").disabled = true;
   document.querySelector("#saveExchangeButton").disabled = true;
   document.querySelector("#previewAccessText").textContent = "Login is required before posting, updating, or saving exchange records.";
-  setLocationStatus("Sign in, then enable location so admin can see your last seen location.");
   idInput.value = rememberedId;
   passwordInput.value = "";
   rememberInput.checked = Boolean(rememberedId);
@@ -605,7 +602,7 @@ document.addEventListener("gestureend", (event) => event.preventDefault());
 window.addEventListener("resize", syncAppViewport);
 window.addEventListener("orientationchange", syncAppViewport);
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && previewUser.role !== "guest") requestFreshLocation("App resumed");
+  if (!document.hidden) renderActivity();
 });
 document.addEventListener("touchend", (event) => {
   const now = Date.now();
@@ -655,14 +652,6 @@ document.querySelector("#previewSignOutButton").addEventListener("click", () => 
     user: activityUserLabel(),
   });
   resetLoginForm();
-});
-
-document.querySelector("#enableLocationButton")?.addEventListener("click", () => {
-  if (previewUser.role === "guest") {
-    setLocationStatus("Please sign in first.");
-    return;
-  }
-  startLocationTracking("Location enabled");
 });
 
 document.querySelectorAll("[data-theme-choice]").forEach((button) => {
