@@ -28,6 +28,7 @@ let previewReceiptTaskId = "";
 let locationWatchId = null;
 let lastLocationSaveAt = 0;
 let lastLocationCoords = null;
+let locationPermissionRetryArmed = false;
 const LOCATION_MIN_SAVE_MS = 10000;
 const LOCATION_MIN_DISTANCE_M = 15;
 
@@ -192,16 +193,28 @@ async function saveUserLocation(position, action = "App active") {
     return;
   }
 
+  locationPermissionRetryArmed = false;
   setLocationStatus(`Location shared ${new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit" }).format(new Date())}.`);
 }
 
-function requestFreshLocation(action = "App active") {
+function explainLocationPermission(error) {
+  if (error?.code === 1) {
+    return "Location permission was blocked. Allow location for this website in Safari settings, then reopen the app.";
+  }
+  if (error?.code === 2) return "Location is unavailable on this device right now.";
+  if (error?.code === 3) return "Location request timed out. Keep the app open and try again.";
+  return error?.message || "Location is not active.";
+}
+
+function requestFreshLocation(action = "App active", { alertOnBlock = false } = {}) {
   if (!navigator.geolocation || previewUser.role === "guest") return;
   navigator.geolocation.getCurrentPosition(
     (position) => void saveUserLocation(position, action),
     (error) => {
-      setLocationStatus(`Location is not active: ${error.message}`);
+      const message = explainLocationPermission(error);
+      setLocationStatus(message);
       console.warn("Location update skipped:", error.message);
+      if (alertOnBlock && error?.code === 1) window.alert(message);
     },
     { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
   );
@@ -214,18 +227,20 @@ function stopLocationTracking() {
   locationWatchId = null;
   lastLocationSaveAt = 0;
   lastLocationCoords = null;
+  locationPermissionRetryArmed = false;
 }
 
 function startLocationTracking(action = "Signed in") {
   stopLocationTracking();
   if (!navigator.geolocation || previewUser.role === "guest") return;
 
-  requestFreshLocation(action);
+  locationPermissionRetryArmed = true;
+  requestFreshLocation(action, { alertOnBlock: true });
   setLocationStatus("Location sharing is active while the app is open.");
   locationWatchId = navigator.geolocation.watchPosition(
     (position) => void saveUserLocation(position, "App open"),
     (error) => {
-      setLocationStatus(`Location is not active: ${error.message}`);
+      setLocationStatus(explainLocationPermission(error));
       console.warn("Live location skipped:", error.message);
     },
     { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
@@ -611,6 +626,10 @@ document.addEventListener("touchend", (event) => {
   const now = Date.now();
   if (now - lastTouchEnd <= 300) event.preventDefault();
   lastTouchEnd = now;
+  if (locationPermissionRetryArmed && previewUser.role !== "guest") {
+    locationPermissionRetryArmed = false;
+    window.setTimeout(() => requestFreshLocation("Permission retry", { alertOnBlock: true }), 0);
+  }
 }, { passive: false });
 
 document.querySelector("#previewLoginButton").addEventListener("click", () => {

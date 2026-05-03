@@ -50,7 +50,7 @@ const els = {
 };
 
 function setDebug(message) {
-  if (els.debug) els.debug.textContent = `v20260503-location-8 - ${message}`;
+  if (els.debug) els.debug.textContent = `v20260503-location-9 - ${message}`;
 }
 
 function escapeText(value) {
