@@ -27,6 +27,9 @@ let allowedUsers = fallbackUsers;
 let map;
 let markers = new Map();
 let latestRows = [];
+let latestLocationRows = [];
+let currentMapUser = null;
+let localAdminLocation = null;
 let realtimeChannel = null;
 let pollTimer = null;
 let lastRefreshAt = null;
@@ -47,7 +50,7 @@ const els = {
 };
 
 function setDebug(message) {
-  if (els.debug) els.debug.textContent = `v20260503-location-6 - ${message}`;
+  if (els.debug) els.debug.textContent = `v20260503-location-7 - ${message}`;
 }
 
 function escapeText(value) {
@@ -174,10 +177,10 @@ function configuredUserRows(locationRows = []) {
     allowedUsers = { ...fallbackUsers };
   }
 
-  const rowByUser = new Map(locationRows.map((row) => [row.user_id, row]));
+  const mergedLocationRows = localAdminLocation ? [localAdminLocation, ...locationRows] : locationRows;
+  const rowByUser = new Map(mergedLocationRows.map((row) => [row.user_id, row]));
   const configured = Object.entries(allowedUsers)
     .map(([id, user]) => normalizeUser(id, user))
-    .filter((user) => user.role !== "admin")
     .map((user) => ({
       user_id: user.id,
       user_label: user.label,
@@ -185,7 +188,7 @@ function configuredUserRows(locationRows = []) {
       ...(rowByUser.get(user.id) || {}),
     }));
 
-  const extraRows = locationRows.filter((row) => !configured.some((user) => user.user_id === row.user_id));
+  const extraRows = mergedLocationRows.filter((row) => !configured.some((user) => user.user_id === row.user_id));
   return [...configured, ...extraRows].sort((a, b) => {
     const aTime = new Date(a.updated_at || 0).getTime();
     const bTime = new Date(b.updated_at || 0).getTime();
@@ -193,11 +196,52 @@ function configuredUserRows(locationRows = []) {
   });
 }
 
+async function saveMapUserLocation(row) {
+  if (!mapSupabase) return;
+  const { error } = await mapSupabase.from(MAP_LOCATION_TABLE).upsert(row, { onConflict: "user_id" });
+  if (error) {
+    setDebug(`Admin location shown locally. Supabase save blocked: ${error.message}`);
+  }
+}
+
+function requestCurrentAdminLocation() {
+  if (!navigator.geolocation || !currentMapUser) {
+    setDebug("Admin location unavailable on this browser.");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const coords = position.coords || {};
+      localAdminLocation = {
+        user_id: currentMapUser.id,
+        user_label: currentMapUser.label,
+        user_role: currentMapUser.role,
+        latitude: Number(coords.latitude),
+        longitude: Number(coords.longitude),
+        accuracy_m: Number.isFinite(coords.accuracy) ? Math.round(coords.accuracy) : null,
+        heading: Number.isFinite(coords.heading) ? coords.heading : null,
+        speed_mps: Number.isFinite(coords.speed) ? coords.speed : null,
+        last_action: "Viewing admin map",
+        updated_at: new Date().toISOString(),
+      };
+      renderLocations(latestLocationRows);
+      void saveMapUserLocation(localAdminLocation);
+    },
+    (error) => {
+      setDebug(`Admin location not allowed: ${error.message}`);
+      renderLocations(latestLocationRows);
+    },
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+  );
+}
+
 function hasLocation(row) {
   return Number.isFinite(Number(row.latitude)) && Number.isFinite(Number(row.longitude));
 }
 
 function renderLocations(rows = []) {
+  latestLocationRows = rows;
   latestRows = configuredUserRows(rows);
   const locatedRows = latestRows.filter(hasLocation);
   lastRefreshAt = new Date();
@@ -312,6 +356,7 @@ function openAdminMap() {
   renderLocations([]);
   initMap();
   window.setTimeout(() => map?.invalidateSize(), 0);
+  requestCurrentAdminLocation();
   void loadLocations();
   subscribeLocations();
   pollTimer = window.setInterval(loadLocations, 5000);
@@ -330,6 +375,7 @@ els.form.addEventListener("submit", async (event) => {
 
   els.error.hidden = true;
   els.password.value = "";
+  currentMapUser = user;
   openAdminMap();
 });
 
@@ -351,6 +397,8 @@ els.signout.addEventListener("click", () => {
   realtimeChannel = null;
   els.shell.hidden = true;
   els.login.hidden = false;
+  currentMapUser = null;
+  localAdminLocation = null;
   els.id.value = "";
   els.password.value = "";
   els.id.focus();
