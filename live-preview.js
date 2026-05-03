@@ -21,9 +21,15 @@ const PREVIEW_SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
 const PREVIEW_RECEIPTS_BUCKET = "IOS-PP- Receipts";
 const ACTIVITY_TABLE = "activity_log";
 const USERS_TABLE = "app_users";
+const LOCATION_TABLE = "user_locations";
 let previewUser = { role: "guest", label: "Guest" };
 let lastTouchEnd = 0;
 let previewReceiptTaskId = "";
+let locationWatchId = null;
+let lastLocationSaveAt = 0;
+let lastLocationCoords = null;
+const LOCATION_MIN_SAVE_MS = 10000;
+const LOCATION_MIN_DISTANCE_M = 15;
 
 function syncAppViewport() {
   document.documentElement.style.setProperty("--app-width", `${Math.ceil(window.innerWidth || document.documentElement.clientWidth)}px`);
@@ -127,6 +133,85 @@ function activityUserLabel() {
 
 function activityUserId() {
   return previewUser?.id || previewUser?.role || "guest";
+}
+
+function distanceMeters(a, b) {
+  if (!a || !b) return Infinity;
+  const radius = 6371000;
+  const toRad = (value) => (value * Math.PI) / 180;
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLon = toRad(b.longitude - a.longitude);
+  const lat1 = toRad(a.latitude);
+  const lat2 = toRad(b.latitude);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return radius * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+async function saveUserLocation(position, action = "App active") {
+  if (!supabaseClient || previewUser.role === "guest") return;
+
+  const coords = position.coords || {};
+  const latitude = Number(coords.latitude);
+  const longitude = Number(coords.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+
+  const now = Date.now();
+  const currentCoords = { latitude, longitude };
+  const movedEnough = distanceMeters(lastLocationCoords, currentCoords) >= LOCATION_MIN_DISTANCE_M;
+  if (now - lastLocationSaveAt < LOCATION_MIN_SAVE_MS && !movedEnough) return;
+
+  lastLocationSaveAt = now;
+  lastLocationCoords = currentCoords;
+
+  const { error } = await supabaseClient.from(LOCATION_TABLE).upsert(
+    {
+      user_id: activityUserId(),
+      user_label: activityUserLabel(),
+      user_role: previewUser.role,
+      latitude,
+      longitude,
+      accuracy_m: Number.isFinite(coords.accuracy) ? Math.round(coords.accuracy) : null,
+      heading: Number.isFinite(coords.heading) ? coords.heading : null,
+      speed_mps: Number.isFinite(coords.speed) ? coords.speed : null,
+      last_action: action,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  );
+
+  if (error) console.warn("Location save skipped:", error.message);
+}
+
+function requestFreshLocation(action = "App active") {
+  if (!navigator.geolocation || previewUser.role === "guest") return;
+  navigator.geolocation.getCurrentPosition(
+    (position) => void saveUserLocation(position, action),
+    (error) => console.warn("Location update skipped:", error.message),
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+  );
+}
+
+function stopLocationTracking() {
+  if (locationWatchId !== null && navigator.geolocation) {
+    navigator.geolocation.clearWatch(locationWatchId);
+  }
+  locationWatchId = null;
+  lastLocationSaveAt = 0;
+  lastLocationCoords = null;
+}
+
+function startLocationTracking(action = "Signed in") {
+  stopLocationTracking();
+  if (!navigator.geolocation || previewUser.role === "guest") return;
+
+  requestFreshLocation(action);
+  locationWatchId = navigator.geolocation.watchPosition(
+    (position) => void saveUserLocation(position, "App open"),
+    (error) => console.warn("Live location skipped:", error.message),
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
+  );
 }
 
 function activityStatusLabel(status) {
@@ -288,6 +373,7 @@ function addActivity({ title, message, status = "posted", user, task, taskType, 
   saveActivity(items);
   renderActivity();
   void saveRemoteActivity(item);
+  requestFreshLocation(title || message || "Activity");
 }
 
 function renderActivity() {
@@ -462,6 +548,7 @@ function setPreviewAccess(user) {
       ? `Signed in as ${user.label}. You can upload and post assigned work.`
       : "Guest mode is view-only. Sign in with a posting account to make changes.";
   void loadRemoteActivity();
+  startLocationTracking("Signed in");
 }
 
 function resetLoginForm({ keepRememberedId = true } = {}) {
@@ -471,6 +558,7 @@ function resetLoginForm({ keepRememberedId = true } = {}) {
   const rememberInput = document.querySelector("#rememberLoginId");
   const rememberedId = keepRememberedId ? localStorage.getItem(REMEMBER_LOGIN_ID_KEY) || "" : "";
 
+  stopLocationTracking();
   previewUser = normalizeUser("guest", { role: "guest", label: "Guest" });
   previewApp.dataset.role = "guest";
   document.querySelector("#previewRolePill").textContent = "Guest";
@@ -497,6 +585,9 @@ document.addEventListener("gesturechange", (event) => event.preventDefault());
 document.addEventListener("gestureend", (event) => event.preventDefault());
 window.addEventListener("resize", syncAppViewport);
 window.addEventListener("orientationchange", syncAppViewport);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && previewUser.role !== "guest") requestFreshLocation("App resumed");
+});
 document.addEventListener("touchend", (event) => {
   const now = Date.now();
   if (now - lastTouchEnd <= 300) event.preventDefault();

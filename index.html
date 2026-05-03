@@ -11,8 +11,8 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" type="image/png" href="assets/icon-192.png" />
     <link rel="apple-touch-icon" href="assets/icon-180.png" />
-    <link rel="stylesheet" href="styles.css?v=20260503-activity-scroll-1" />
-    <link rel="stylesheet" href="live-preview.css?v=20260503-activity-scroll-1" />
+    <link rel="stylesheet" href="styles.css?v=20260503-location-1" />
+    <link rel="stylesheet" href="live-preview.css?v=20260503-location-1" />
   </head>
   <body>
     <main class="app-preview" data-theme="dark" data-role="guest">
@@ -184,6 +184,13 @@
           </div>
           <button class="signout" id="previewSignOutButton" type="button">Sign out</button>
         </div>
+        <div class="preview-card settings-card admin-location-card">
+          <div>
+            <strong>Live Location Map</strong>
+            <span>Admin-only map showing the latest app user locations.</span>
+          </div>
+          <a class="admin-map-link" href="location-map.html">Open Map</a>
+        </div>
       </section>
 
       <nav class="bottom-nav" aria-label="App navigation">
@@ -244,8 +251,8 @@
     <a class="source-link" id="sheetLink" href="#" target="_blank" rel="noreferrer">Open source sheet</a>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="users.js?v=20260503-activity-scroll-1"></script>
-    <script src="app.js?v=20260503-activity-scroll-1"></script>
-    <script src="live-preview.js?v=20260503-activity-scroll-1"></script>
+    <script src="users.js?v=20260503-location-1"></script>
+    <script src="app.js?v=20260503-location-1"></script>
+    <script src="live-preview.js?v=20260503-location-1"></script>
   </body>
 </html>

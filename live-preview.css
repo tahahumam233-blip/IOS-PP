@@ -896,6 +896,27 @@ label {
   display: grid;
 }
 
+.admin-location-card {
+  display: none;
+}
+
+.app-preview[data-role="admin"] .admin-location-card {
+  display: grid;
+}
+
+.admin-map-link {
+  display: inline-grid;
+  min-height: 42px;
+  place-items: center;
+  border: 1px solid rgba(79, 220, 131, 0.5);
+  border-radius: 13px;
+  color: #fff;
+  background: linear-gradient(180deg, #35d77d, #12985a);
+  font-weight: 900;
+  text-decoration: none;
+  box-shadow: 0 8px 18px rgba(36, 200, 111, 0.18);
+}
+
 .email-draft-button {
   min-height: 44px;
   border: 1px solid rgba(214, 0, 58, 0.74);

@@ -1,13 +1,16 @@
-const CACHE_NAME = "payment-tracker-pwa-20260503-activity-scroll-1";
+const CACHE_NAME = "payment-tracker-pwa-20260503-location-1";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
   "./manifest.json",
   "./styles.css",
   "./live-preview.css",
+  "./location-map.css",
   "./users.js",
   "./app.js",
   "./live-preview.js",
+  "./location-map.js",
+  "./location-map.html",
   "./assets/icon-180.png",
   "./assets/icon-192.png",
   "./assets/icon-512.png",
