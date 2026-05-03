@@ -4,7 +4,24 @@ const MAP_SUPABASE_ANON_KEY =
 const MAP_USERS_TABLE = "app_users";
 const MAP_LOCATION_TABLE = "user_locations";
 const mapSupabase = window.supabase?.createClient(MAP_SUPABASE_URL, MAP_SUPABASE_ANON_KEY);
-const fallbackUsers = window.PAYMENT_TRACKER_USERS || {};
+const builtInUsers = {
+  admin: {
+    password: "admin2026",
+    role: "admin",
+    label: "Admin",
+    permissions: { post: true, update: true, exchange: true, viewAllActivity: true, manageUsers: true },
+  },
+  zaki: {
+    password: "zaki2026",
+    role: "zaki",
+    label: "Zaki",
+    permissions: { post: true, update: true, exchange: true, viewAllActivity: false, manageUsers: false },
+  },
+};
+const fallbackUsers = {
+  ...builtInUsers,
+  ...(window.PAYMENT_TRACKER_USERS || {}),
+};
 
 let allowedUsers = fallbackUsers;
 let map;
@@ -60,7 +77,11 @@ function usersFromRows(rows = []) {
 }
 
 async function loadUsers() {
-  if (!mapSupabase) return;
+  if (!mapSupabase) {
+    allowedUsers = { ...fallbackUsers };
+    return;
+  }
+
   const { data, error } = await mapSupabase.from(MAP_USERS_TABLE).select("*").order("id", { ascending: true });
   if (error) {
     console.warn("Map user load skipped:", error.message);
@@ -109,6 +130,11 @@ function mapsLink(row) {
 
 function initMap() {
   if (map) return;
+  if (!window.L) {
+    els.status.textContent = "Map tiles are still loading. User list is available below.";
+    return;
+  }
+
   map = L.map("locationMap", {
     zoomControl: true,
     attributionControl: true,
@@ -136,6 +162,10 @@ function markerIcon(label) {
 }
 
 function configuredUserRows(locationRows = []) {
+  if (!Object.keys(allowedUsers || {}).length) {
+    allowedUsers = { ...fallbackUsers };
+  }
+
   const rowByUser = new Map(locationRows.map((row) => [row.user_id, row]));
   const configured = Object.entries(allowedUsers)
     .map(([id, user]) => normalizeUser(id, user))
@@ -201,6 +231,8 @@ function renderLocations(rows = []) {
     : "";
 
   const bounds = [];
+  if (!map) return;
+
   locatedRows.forEach((row) => {
     const latLng = [Number(row.latitude), Number(row.longitude)];
     if (!Number.isFinite(latLng[0]) || !Number.isFinite(latLng[1])) return;
@@ -234,7 +266,12 @@ function renderLocations(rows = []) {
 }
 
 async function loadLocations() {
-  if (!mapSupabase) return;
+  if (!mapSupabase) {
+    renderLocations([]);
+    return;
+  }
+
+  await loadUsers();
   const { data, error } = await mapSupabase
     .from(MAP_LOCATION_TABLE)
     .select("*")
@@ -262,8 +299,9 @@ function subscribeLocations() {
 function openAdminMap() {
   els.login.hidden = true;
   els.shell.hidden = false;
+  renderLocations([]);
   initMap();
-  window.setTimeout(() => map.invalidateSize(), 0);
+  window.setTimeout(() => map?.invalidateSize(), 0);
   void loadLocations();
   subscribeLocations();
   pollTimer = window.setInterval(loadLocations, 5000);
