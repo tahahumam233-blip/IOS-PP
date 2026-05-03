@@ -391,6 +391,7 @@ function addActivity({ title, message, status = "posted", user, task, taskType, 
   saveActivity(items);
   renderActivity();
   void saveRemoteActivity(item);
+  requestFreshLocation(title || message || "Activity");
 }
 
 function renderActivity() {
@@ -565,6 +566,7 @@ function setPreviewAccess(user) {
       ? `Signed in as ${user.label}. You can upload and post assigned work.`
       : "Guest mode is view-only. Sign in with a posting account to make changes.";
   void loadRemoteActivity();
+  startLocationTracking("Signed in");
 }
 
 function resetLoginForm({ keepRememberedId = true } = {}) {
@@ -602,6 +604,7 @@ document.addEventListener("gestureend", (event) => event.preventDefault());
 window.addEventListener("resize", syncAppViewport);
 window.addEventListener("orientationchange", syncAppViewport);
 document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && previewUser.role !== "guest") requestFreshLocation("App resumed");
   if (!document.hidden) renderActivity();
 });
 document.addEventListener("touchend", (event) => {
