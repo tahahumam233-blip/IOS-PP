@@ -175,6 +175,12 @@ input {
   font-weight: 800;
 }
 
+.map-refresh-note {
+  color: var(--soft);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .user-location-list {
   min-height: 0;
   display: grid;
@@ -209,6 +215,10 @@ input {
   font-size: 12px;
 }
 
+.user-card b.offline {
+  color: var(--soft);
+}
+
 .user-card span {
   color: var(--muted);
   font-size: 13px;
@@ -219,6 +229,10 @@ input {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+.user-card-actions.single {
+  grid-template-columns: 1fr;
 }
 
 .map-link {

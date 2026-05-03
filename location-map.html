@@ -8,7 +8,7 @@
     <link rel="icon" type="image/png" href="assets/icon-192.png" />
     <link rel="apple-touch-icon" href="assets/icon-180.png" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="location-map.css?v=20260503-location-1" />
+    <link rel="stylesheet" href="location-map.css?v=20260503-location-2" />
   </head>
   <body>
     <main class="location-app">
@@ -33,14 +33,15 @@
       <section class="map-shell" id="mapShell" hidden>
         <aside class="map-panel">
           <div class="map-panel-top">
-            <div>
-              <p>Payment Tracker</p>
-              <h1>Live user map</h1>
-            </div>
-            <button id="mapRefreshButton" type="button">Refresh</button>
+          <div>
+            <p>Payment Tracker</p>
+            <h1>Live user map</h1>
           </div>
-          <div class="map-status" id="mapStatus">Waiting for user locations...</div>
-          <div class="user-location-list" id="userLocationList"></div>
+          <button id="mapRefreshButton" type="button">Refresh</button>
+        </div>
+        <div class="map-status" id="mapStatus">Waiting for user locations...</div>
+        <div class="map-refresh-note" id="mapRefreshNote">Auto-refresh active.</div>
+        <div class="user-location-list" id="userLocationList"></div>
           <button class="map-signout" id="mapSignOutButton" type="button">Sign out</button>
         </aside>
         <section class="map-canvas-wrap">
@@ -51,7 +52,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="users.js?v=20260503-location-1"></script>
-    <script src="location-map.js?v=20260503-location-1"></script>
+    <script src="users.js?v=20260503-location-2"></script>
+    <script src="location-map.js?v=20260503-location-2"></script>
   </body>
 </html>

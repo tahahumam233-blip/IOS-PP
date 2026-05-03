@@ -31,6 +31,11 @@ let lastLocationCoords = null;
 const LOCATION_MIN_SAVE_MS = 10000;
 const LOCATION_MIN_DISTANCE_M = 15;
 
+function setLocationStatus(message) {
+  const status = document.querySelector("#locationStatusText");
+  if (status) status.textContent = message;
+}
+
 function syncAppViewport() {
   document.documentElement.style.setProperty("--app-width", `${Math.ceil(window.innerWidth || document.documentElement.clientWidth)}px`);
 }
@@ -181,14 +186,23 @@ async function saveUserLocation(position, action = "App active") {
     { onConflict: "user_id" },
   );
 
-  if (error) console.warn("Location save skipped:", error.message);
+  if (error) {
+    setLocationStatus(`Location could not save: ${error.message}`);
+    console.warn("Location save skipped:", error.message);
+    return;
+  }
+
+  setLocationStatus(`Location shared ${new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit" }).format(new Date())}.`);
 }
 
 function requestFreshLocation(action = "App active") {
   if (!navigator.geolocation || previewUser.role === "guest") return;
   navigator.geolocation.getCurrentPosition(
     (position) => void saveUserLocation(position, action),
-    (error) => console.warn("Location update skipped:", error.message),
+    (error) => {
+      setLocationStatus(`Location is not active: ${error.message}`);
+      console.warn("Location update skipped:", error.message);
+    },
     { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
   );
 }
@@ -207,9 +221,13 @@ function startLocationTracking(action = "Signed in") {
   if (!navigator.geolocation || previewUser.role === "guest") return;
 
   requestFreshLocation(action);
+  setLocationStatus("Location sharing is active while the app is open.");
   locationWatchId = navigator.geolocation.watchPosition(
     (position) => void saveUserLocation(position, "App open"),
-    (error) => console.warn("Live location skipped:", error.message),
+    (error) => {
+      setLocationStatus(`Location is not active: ${error.message}`);
+      console.warn("Live location skipped:", error.message);
+    },
     { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
   );
 }
@@ -565,6 +583,7 @@ function resetLoginForm({ keepRememberedId = true } = {}) {
   document.querySelector("#updateButton").disabled = true;
   document.querySelector("#saveExchangeButton").disabled = true;
   document.querySelector("#previewAccessText").textContent = "Login is required before posting, updating, or saving exchange records.";
+  setLocationStatus("Sign in, then enable location so admin can see your last seen location.");
   idInput.value = rememberedId;
   passwordInput.value = "";
   rememberInput.checked = Boolean(rememberedId);
@@ -636,6 +655,14 @@ document.querySelector("#previewSignOutButton").addEventListener("click", () => 
     user: activityUserLabel(),
   });
   resetLoginForm();
+});
+
+document.querySelector("#enableLocationButton")?.addEventListener("click", () => {
+  if (previewUser.role === "guest") {
+    setLocationStatus("Please sign in first.");
+    return;
+  }
+  startLocationTracking("Location enabled");
 });
 
 document.querySelectorAll("[data-theme-choice]").forEach((button) => {

@@ -12,6 +12,7 @@ let markers = new Map();
 let latestRows = [];
 let realtimeChannel = null;
 let pollTimer = null;
+let lastRefreshAt = null;
 
 const els = {
   login: document.querySelector("#mapLogin"),
@@ -21,6 +22,7 @@ const els = {
   error: document.querySelector("#mapLoginError"),
   shell: document.querySelector("#mapShell"),
   status: document.querySelector("#mapStatus"),
+  refreshNote: document.querySelector("#mapRefreshNote"),
   list: document.querySelector("#userLocationList"),
   refresh: document.querySelector("#mapRefreshButton"),
   signout: document.querySelector("#mapSignOutButton"),
@@ -80,6 +82,18 @@ function timeAgo(value) {
   return date.toLocaleString();
 }
 
+function fullDateTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not seen yet";
+  return new Intl.DateTimeFormat([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
+}
+
 function mapsLink(row) {
   return `https://www.google.com/maps?q=${encodeURIComponent(`${row.latitude},${row.longitude}`)}`;
 }
@@ -112,28 +126,62 @@ function markerIcon(label) {
   });
 }
 
-function renderLocations(rows = []) {
-  latestRows = rows;
-  els.status.textContent = rows.length
-    ? `${rows.length} user${rows.length === 1 ? "" : "s"} reporting location. Refreshes every few seconds while the app is open.`
-    : "No user locations yet. The user must allow location permission in the app.";
+function configuredUserRows(locationRows = []) {
+  const rowByUser = new Map(locationRows.map((row) => [row.user_id, row]));
+  const configured = Object.entries(allowedUsers)
+    .map(([id, user]) => normalizeUser(id, user))
+    .filter((user) => user.role !== "admin")
+    .map((user) => ({
+      user_id: user.id,
+      user_label: user.label,
+      user_role: user.role,
+      ...(rowByUser.get(user.id) || {}),
+    }));
 
-  els.list.innerHTML = rows.length
-    ? rows
+  const extraRows = locationRows.filter((row) => !configured.some((user) => user.user_id === row.user_id));
+  return [...configured, ...extraRows].sort((a, b) => {
+    const aTime = new Date(a.updated_at || 0).getTime();
+    const bTime = new Date(b.updated_at || 0).getTime();
+    return bTime - aTime;
+  });
+}
+
+function hasLocation(row) {
+  return Number.isFinite(Number(row.latitude)) && Number.isFinite(Number(row.longitude));
+}
+
+function renderLocations(rows = []) {
+  latestRows = configuredUserRows(rows);
+  const locatedRows = latestRows.filter(hasLocation);
+  lastRefreshAt = new Date();
+  els.status.textContent = locatedRows.length
+    ? `${locatedRows.length} user${locatedRows.length === 1 ? "" : "s"} reporting location.`
+    : "No GPS locations yet. Ask the user to open Settings in the app and tap Enable Location.";
+  els.refreshNote.textContent = `Auto-refresh on · Last checked ${fullDateTime(lastRefreshAt)}`;
+
+  els.list.innerHTML = latestRows.length
+    ? latestRows
         .map((row) => {
-          const updated = timeAgo(row.updated_at);
-          const accuracy = row.accuracy_m ? `Accuracy ${row.accuracy_m}m` : "Accuracy unknown";
+          const located = hasLocation(row);
+          const updated = located ? timeAgo(row.updated_at) : "Not seen";
+          const lastSeen = located ? fullDateTime(row.updated_at) : "Not seen yet";
+          const accuracy = located && row.accuracy_m ? `Accuracy ${row.accuracy_m}m` : "No GPS permission yet";
           return `
-            <article class="user-card">
+            <article class="user-card ${located ? "" : "not-seen"}">
               <div class="user-card-top">
                 <strong>${escapeText(row.user_label || row.user_id)}</strong>
-                <b>${escapeText(updated)}</b>
+                <b class="${located ? "" : "offline"}">${escapeText(updated)}</b>
               </div>
-              <span>${escapeText(row.last_action || "App active")} · ${escapeText(accuracy)}</span>
-              <span>${Number(row.latitude).toFixed(5)}, ${Number(row.longitude).toFixed(5)}</span>
-              <div class="user-card-actions">
-                <button class="center-user" type="button" data-user-id="${escapeText(row.user_id)}">Center</button>
-                <a class="map-link" href="${mapsLink(row)}" target="_blank" rel="noreferrer">Maps</a>
+              <span>Last seen: ${escapeText(lastSeen)}</span>
+              <span>${escapeText(row.last_action || "Waiting for location")} · ${escapeText(accuracy)}</span>
+              ${located ? `<span>${Number(row.latitude).toFixed(5)}, ${Number(row.longitude).toFixed(5)}</span>` : ""}
+              <div class="user-card-actions ${located ? "" : "single"}">
+                ${
+                  located
+                    ? `<button class="center-user" type="button" data-user-id="${escapeText(row.user_id)}">Center</button>
+                       <a class="map-link" href="${mapsLink(row)}" target="_blank" rel="noreferrer">Maps</a>`
+                    : `<button class="center-user" type="button" disabled>No location yet</button>`
+                }
               </div>
             </article>
           `;
@@ -142,7 +190,7 @@ function renderLocations(rows = []) {
     : "";
 
   const bounds = [];
-  rows.forEach((row) => {
+  locatedRows.forEach((row) => {
     const latLng = [Number(row.latitude), Number(row.longitude)];
     if (!Number.isFinite(latLng[0]) || !Number.isFinite(latLng[1])) return;
 
@@ -162,7 +210,7 @@ function renderLocations(rows = []) {
   });
 
   [...markers.keys()].forEach((userId) => {
-    if (!rows.some((row) => row.user_id === userId)) {
+    if (!locatedRows.some((row) => row.user_id === userId)) {
       map.removeLayer(markers.get(userId));
       markers.delete(userId);
     }

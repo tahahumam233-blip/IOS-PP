@@ -900,11 +900,20 @@ label {
   display: none;
 }
 
+.location-permission-card {
+  display: none;
+}
+
+.app-preview:not([data-role="guest"]) .location-permission-card {
+  display: grid;
+}
+
 .app-preview[data-role="admin"] .admin-location-card {
   display: grid;
 }
 
-.admin-map-link {
+.admin-map-link,
+.location-enable-button {
   display: inline-grid;
   min-height: 42px;
   place-items: center;
@@ -915,6 +924,11 @@ label {
   font-weight: 900;
   text-decoration: none;
   box-shadow: 0 8px 18px rgba(36, 200, 111, 0.18);
+}
+
+.location-enable-button {
+  width: 100%;
+  cursor: pointer;
 }
 
 .email-draft-button {
