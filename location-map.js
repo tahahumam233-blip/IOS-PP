@@ -62,7 +62,16 @@ function usersFromRows(rows = []) {
 async function loadUsers() {
   if (!mapSupabase) return;
   const { data, error } = await mapSupabase.from(MAP_USERS_TABLE).select("*").order("id", { ascending: true });
-  if (!error && data?.length) allowedUsers = usersFromRows(data);
+  if (error) {
+    console.warn("Map user load skipped:", error.message);
+    allowedUsers = { ...fallbackUsers };
+    return;
+  }
+
+  allowedUsers = {
+    ...fallbackUsers,
+    ...(data?.length ? usersFromRows(data) : {}),
+  };
 }
 
 function isAdmin(user) {
@@ -156,8 +165,10 @@ function renderLocations(rows = []) {
   lastRefreshAt = new Date();
   els.status.textContent = locatedRows.length
     ? `${locatedRows.length} user${locatedRows.length === 1 ? "" : "s"} reporting location.`
-    : "No GPS locations yet. Ask the user to open Settings in the app and tap Enable Location.";
-  els.refreshNote.textContent = `Auto-refresh on · Last checked ${fullDateTime(lastRefreshAt)}`;
+    : latestRows.length
+      ? "No GPS locations yet. Location permission has not been allowed from the app."
+      : "No users found. Check app_users or users.js.";
+  els.refreshNote.textContent = `Auto-refresh on - Last checked ${fullDateTime(lastRefreshAt)}`;
 
   els.list.innerHTML = latestRows.length
     ? latestRows
@@ -173,7 +184,7 @@ function renderLocations(rows = []) {
                 <b class="${located ? "" : "offline"}">${escapeText(updated)}</b>
               </div>
               <span>Last seen: ${escapeText(lastSeen)}</span>
-              <span>${escapeText(row.last_action || "Waiting for location")} · ${escapeText(accuracy)}</span>
+              <span>${escapeText(row.last_action || "Waiting for location")} - ${escapeText(accuracy)}</span>
               ${located ? `<span>${Number(row.latitude).toFixed(5)}, ${Number(row.longitude).toFixed(5)}</span>` : ""}
               <div class="user-card-actions ${located ? "" : "single"}">
                 ${
@@ -297,3 +308,4 @@ els.signout.addEventListener("click", () => {
 });
 
 void loadUsers();
+
