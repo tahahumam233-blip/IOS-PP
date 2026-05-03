@@ -494,6 +494,14 @@ function getNoteFilePath(filePath) {
   return `${filePath.slice(0, extensionIndex)}-note.txt`;
 }
 
+function getNoteOnlyFilePath(task) {
+  const uniqueId = globalThis.crypto?.randomUUID
+    ? globalThis.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const folder = task.type === "withdrawal" ? "withdrawals" : "payments";
+  return `${getTaskDateFromId(task.id)}/${folder}/${slugify(task.name)}-note-${uniqueId}.txt`;
+}
+
 async function uploadToStorage(filePath, body, contentType, onProgress = () => {}) {
   await new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
@@ -554,7 +562,7 @@ async function uploadTaskNote(filePath, task, noteText) {
   const cleanNote = noteText.trim();
   if (!cleanNote) return "";
 
-  const notePath = getNoteFilePath(filePath);
+  const notePath = filePath ? getNoteFilePath(filePath) : getNoteOnlyFilePath(task);
   const noteBody = [
     "Upload Note",
     `Date: ${new Date().toLocaleString()}`,
@@ -592,6 +600,8 @@ async function postUploadToSlack({ filePath, fileName, task, noteText }) {
       fileName,
       taskName: task.name,
       taskType: task.type,
+      hasFile: Boolean(filePath),
+      noteOnly: !filePath,
       iqd: task.iqd || 0,
       usd: task.usd || 0,
       exchangeSide: task.exchangeSide || "",
@@ -663,7 +673,7 @@ function getTotals(tasks) {
     (totals, task) => ({
       iqd: totals.iqd + task.iqd,
       usd: totals.usd + task.usd,
-      done: totals.done + (getSavedTask(task.id).fileNames.length ? 1 : 0),
+      done: totals.done + (getSavedTask(task.id).done ? 1 : 0),
     }),
     { iqd: 0, usd: 0, done: 0 }
   );
@@ -1021,12 +1031,15 @@ function renderTaskList() {
       const saved = getSavedTask(task.id);
       const uploadLabel = task.type === "withdrawal" ? "Upload invoice" : "Upload receipt";
       const uploadCount = saved.fileNames.length;
-      const isUploaded = uploadCount > 0;
-      const status = isUploaded ? "Uploaded" : "Pending";
+      const isUploaded = saved.done;
+      const isNoteOnly = isUploaded && uploadCount === 1 && saved.fileNames[0] === "Note only.txt";
+      const status = isNoteOnly ? "Posted note" : isUploaded ? "Uploaded" : "Pending";
       const uploadState = isUploaded ? "uploaded" : "idle";
       const uploadTitle = uploadCount
         ? `Uploaded ${uploadCount} ${uploadCount === 1 ? "file" : "files"}: ${saved.fileNames.join(", ")}`
-        : uploadLabel;
+        : isNoteOnly
+          ? "Posted with note only"
+          : uploadLabel;
       return `
         <tr class="${isUploaded ? "done" : ""}" data-task-id="${escapeHtml(task.id)}">
           <td class="status-cell" data-label="Status">
@@ -1076,6 +1089,44 @@ async function runBackgroundUpload({ jobId, taskId, files, noteText }) {
 
   try {
     if (!task) throw new Error("Task was not found.");
+
+    if (!files.length) {
+      updateUploadJob(jobId, { status: "Saving note", percent: 28 });
+      const notePath = await uploadTaskNote("", task, noteText);
+      if (notePath) notePaths.push(notePath);
+
+      updateUploadJob(jobId, { status: "Posting note to Slack", percent: 88 });
+      await postUploadToSlack({
+        filePath: "",
+        fileName: "",
+        task,
+        noteText,
+      });
+
+      const previous = getSavedTask(taskId);
+      state.taskState[taskId] = {
+        ...previous,
+        done: true,
+        receiptName: notePath ? "Note only.txt" : previous.receiptName,
+        fileName: notePath ? "Note only.txt" : previous.fileName,
+        fileNames: notePath ? ["Note only.txt"] : previous.fileNames,
+        filePath: notePath || previous.filePath,
+        filePaths: notePath ? [notePath] : previous.filePaths,
+        notePath: notePath || previous.notePath,
+        notePaths: mergeStoredList(previous.notePaths, notePaths),
+        uploadNote: noteText,
+        receiptSavedAt: new Date().toISOString(),
+      };
+      saveTaskState();
+      await saveRemoteTaskState(taskId);
+
+      els.lastUpdated.textContent = `Posted ${task.name} note to Slack`;
+      finishUploadJob(jobId, { status: "Done", percent: 100 });
+      playNotificationSound("success");
+      showStatusMessage("Posted to Slack", `${task.name}: note posted without picture.`);
+      render();
+      return;
+    }
 
     for (let index = 0; index < files.length; index += 1) {
       const file = files[index];
@@ -1150,12 +1201,22 @@ els.uploadForm.addEventListener("submit", async (event) => {
   const taskId = state.activeUploadTaskId;
   const task = findTask(taskId);
   const files = Array.from(els.modalFileInput.files || []);
-  if (!task || !files.length) return;
+  const noteText = els.modalUploadNote.value.trim();
+  if (!task) return;
+
+  if (!files.length) {
+    if (!noteText) {
+      showStatusMessage("Nothing to Post", "Add a picture/PDF or write a note before posting.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Post ${task.name} to Slack with note only and no picture?`);
+    if (!confirmed) return;
+  }
 
   const jobId = createUploadJob(task);
-  const noteText = els.modalUploadNote.value.trim();
   closeUploadModal();
-  els.lastUpdated.textContent = `Uploading ${task.name}`;
+  els.lastUpdated.textContent = files.length ? `Uploading ${task.name}` : `Posting note for ${task.name}`;
   void runBackgroundUpload({ jobId, taskId, files, noteText });
 });
 

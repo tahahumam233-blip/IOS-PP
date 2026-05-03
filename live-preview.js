@@ -525,9 +525,27 @@ function showReceiptPreview(taskId) {
   const taskState = readPreviewTaskState()[taskId] || {};
   const filePaths = splitPreviewList(taskState.filePaths || taskState.filePath);
   const fileNames = splitPreviewList(taskState.fileNames || taskState.receiptName);
+  const noteText = String(taskState.uploadNote || "").trim();
 
   if (!filePaths.length) {
-    alert("No uploaded receipt was found for this task yet.");
+    if (!noteText) {
+      alert("No uploaded receipt was found for this task yet.");
+      return;
+    }
+
+    previewReceiptTaskId = taskId;
+    document.querySelector("#receiptPreviewTitle").textContent = "Posted note";
+    document.querySelector("#receiptOpenLink").hidden = true;
+    document.querySelector("#addPostingButton").hidden = !previewCanPost();
+    document.querySelector("#receiptPreviewBody").innerHTML = `
+      <article class="receipt-preview-item">
+        <div class="receipt-file-fallback">
+          <strong>Note-only Slack post</strong>
+          <span>${escapeActivityText(noteText)}</span>
+        </div>
+      </article>
+    `;
+    document.querySelector("#receiptPreviewModal").hidden = false;
     return;
   }
 
@@ -536,14 +554,15 @@ function showReceiptPreview(taskId) {
   document.querySelector("#receiptPreviewTitle").textContent = filePaths.length === 1
     ? fileNames[0] || "Uploaded receipt"
     : `${filePaths.length} uploaded receipts`;
+  document.querySelector("#receiptOpenLink").hidden = false;
   document.querySelector("#receiptOpenLink").href = firstUrl;
   document.querySelector("#addPostingButton").hidden = !previewCanPost();
   document.querySelector("#receiptPreviewBody").innerHTML = filePaths.map((filePath, index) => {
     const fileName = fileNames[index] || `Receipt ${index + 1}`;
     const url = getPreviewFileUrl(filePath);
     const lowerName = fileName.toLowerCase();
-    const preview = lowerName.endsWith(".pdf")
-      ? `<div class="receipt-file-fallback"><strong>PDF receipt</strong><span>${escapeActivityText(fileName)}</span></div>`
+    const preview = lowerName.endsWith(".pdf") || lowerName.endsWith(".txt")
+      ? `<div class="receipt-file-fallback"><strong>${lowerName.endsWith(".txt") ? "Posted note" : "PDF receipt"}</strong><span>${escapeActivityText(fileName)}</span></div>`
       : `<img src="${url}" alt="${escapeActivityText(fileName)}" />`;
 
     return `
