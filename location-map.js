@@ -39,11 +39,16 @@ const els = {
   error: document.querySelector("#mapLoginError"),
   shell: document.querySelector("#mapShell"),
   status: document.querySelector("#mapStatus"),
+  debug: document.querySelector("#mapDebug"),
   refreshNote: document.querySelector("#mapRefreshNote"),
   list: document.querySelector("#userLocationList"),
   refresh: document.querySelector("#mapRefreshButton"),
   signout: document.querySelector("#mapSignOutButton"),
 };
+
+function setDebug(message) {
+  if (els.debug) els.debug.textContent = `v20260503-location-6 - ${message}`;
+}
 
 function escapeText(value) {
   return String(value ?? "")
@@ -79,6 +84,7 @@ function usersFromRows(rows = []) {
 async function loadUsers() {
   if (!mapSupabase) {
     allowedUsers = { ...fallbackUsers };
+    setDebug(`Supabase unavailable. Loaded ${Object.keys(allowedUsers).length} fallback users.`);
     return;
   }
 
@@ -86,6 +92,7 @@ async function loadUsers() {
   if (error) {
     console.warn("Map user load skipped:", error.message);
     allowedUsers = { ...fallbackUsers };
+    setDebug(`User table blocked. Loaded ${Object.keys(allowedUsers).length} fallback users.`);
     return;
   }
 
@@ -93,6 +100,7 @@ async function loadUsers() {
     ...fallbackUsers,
     ...(data?.length ? usersFromRows(data) : {}),
   };
+  setDebug(`Loaded ${Object.keys(allowedUsers).length} users. Location rows pending.`);
 }
 
 function isAdmin(user) {
@@ -193,6 +201,7 @@ function renderLocations(rows = []) {
   latestRows = configuredUserRows(rows);
   const locatedRows = latestRows.filter(hasLocation);
   lastRefreshAt = new Date();
+  setDebug(`Rendered ${latestRows.length} users, ${locatedRows.length} with location.`);
   els.status.textContent = locatedRows.length
     ? `${locatedRows.length} user${locatedRows.length === 1 ? "" : "s"} reporting location.`
     : latestRows.length
@@ -279,6 +288,7 @@ async function loadLocations() {
 
   if (error) {
     els.status.textContent = `Location table not ready: ${error.message}`;
+    setDebug(`Location table error: ${error.message}`);
     renderLocations([]);
     return;
   }
