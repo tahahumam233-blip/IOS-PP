@@ -418,6 +418,15 @@ label {
   flex-direction: column;
 }
 
+#activityView.preview-view.active,
+#summaryView.preview-view.active,
+#settingsView.preview-view.active {
+  overflow: hidden auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-bottom: calc(74px + env(safe-area-inset-bottom));
+}
+
 .metrics {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
@@ -743,6 +752,8 @@ label {
 .activity-list {
   display: grid;
   gap: 10px;
+  min-height: 0;
+  padding-bottom: 6px;
 }
 
 .preview-card p {
