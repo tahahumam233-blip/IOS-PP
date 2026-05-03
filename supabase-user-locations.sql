@@ -11,9 +11,10 @@ create table if not exists public.user_locations (
   updated_at timestamptz not null default now()
 );
 
-alter table public.user_locations disable row level security;
-
+grant usage on schema public to anon;
 grant select, insert, update, delete on public.user_locations to anon;
+
+alter table public.user_locations enable row level security;
 
 drop policy if exists "Allow anon reads user locations" on public.user_locations;
 drop policy if exists "Allow anon inserts user locations" on public.user_locations;
