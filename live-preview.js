@@ -22,6 +22,7 @@ const PREVIEW_RECEIPTS_BUCKET = "IOS-PP- Receipts";
 const ACTIVITY_TABLE = "activity_log";
 const USERS_TABLE = "app_users";
 const LOCATION_TABLE = "user_locations";
+const LOCATION_HISTORY_TABLE = "user_location_history";
 let previewUser = { role: "guest", label: "Guest" };
 let lastTouchEnd = 0;
 let previewReceiptTaskId = "";
@@ -171,27 +172,32 @@ async function saveUserLocation(position, action = "App active") {
   lastLocationSaveAt = now;
   lastLocationCoords = currentCoords;
 
-  const { error } = await supabaseClient.from(LOCATION_TABLE).upsert(
-    {
-      user_id: activityUserId(),
-      user_label: activityUserLabel(),
-      user_role: previewUser.role,
-      latitude,
-      longitude,
-      accuracy_m: Number.isFinite(coords.accuracy) ? Math.round(coords.accuracy) : null,
-      heading: Number.isFinite(coords.heading) ? coords.heading : null,
-      speed_mps: Number.isFinite(coords.speed) ? coords.speed : null,
-      last_action: action,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id" },
-  );
+  const locationRow = {
+    user_id: activityUserId(),
+    user_label: activityUserLabel(),
+    user_role: previewUser.role,
+    latitude,
+    longitude,
+    accuracy_m: Number.isFinite(coords.accuracy) ? Math.round(coords.accuracy) : null,
+    heading: Number.isFinite(coords.heading) ? coords.heading : null,
+    speed_mps: Number.isFinite(coords.speed) ? coords.speed : null,
+    last_action: action,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabaseClient.from(LOCATION_TABLE).upsert(locationRow, { onConflict: "user_id" });
 
   if (error) {
     setLocationStatus(`Location could not save: ${error.message}`);
     console.warn("Location save skipped:", error.message);
     return;
   }
+
+  const { error: historyError } = await supabaseClient.from(LOCATION_HISTORY_TABLE).insert({
+    ...locationRow,
+    recorded_at: locationRow.updated_at,
+  });
+  if (historyError) console.warn("Location history save skipped:", historyError.message);
 
   locationPermissionRetryArmed = false;
   setLocationStatus(`Location shared ${new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit" }).format(new Date())}.`);

@@ -188,6 +188,17 @@ input {
   word-break: break-word;
 }
 
+.history-toolbar {
+  display: grid;
+}
+
+.history-toolbar button {
+  min-height: 36px;
+  color: var(--green);
+  border-color: rgba(79, 220, 131, 0.44);
+  background: rgba(79, 220, 131, 0.09);
+}
+
 .user-location-list {
   min-height: 0;
   display: grid;
@@ -240,6 +251,50 @@ input {
 
 .user-card-actions.single {
   grid-template-columns: 1fr;
+}
+
+.history-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.history-point {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.history-point b {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--brand);
+  font-size: 11px;
+}
+
+.history-marker {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  color: #fff;
+  background: #ff9f1a;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  font-size: 11px;
+  font-weight: 950;
 }
 
 .map-link {
