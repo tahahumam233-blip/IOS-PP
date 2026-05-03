@@ -56,7 +56,7 @@ const els = {
 };
 
 function setDebug(message) {
-  if (els.debug) els.debug.textContent = `v20260503-location-10 - ${message}`;
+  if (els.debug) els.debug.textContent = `v20260503-map-history-1 - ${message}`;
 }
 
 function escapeText(value) {
@@ -138,6 +138,15 @@ function fullDateTime(value) {
     hour: "numeric",
     minute: "2-digit",
     second: "2-digit",
+  }).format(date);
+}
+
+function shortTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--:--";
+  return new Intl.DateTimeFormat([], {
+    hour: "numeric",
+    minute: "2-digit",
   }).format(date);
 }
 
@@ -266,8 +275,22 @@ function historyForUser(userId, historyRows = latestHistoryRows) {
 }
 
 function historyColor(index) {
-  const colors = ["#ff3f6d", "#4fdc83", "#63d4ff", "#ffc247", "#c58bff", "#ff8a4c"];
+  const colors = ["#8d8a92", "#a6a1aa", "#76717c", "#b8b2bd", "#6d6874"];
   return colors[index % colors.length];
+}
+
+function historyIcon(row, index) {
+  return L.divIcon({
+    html: `
+      <div class="history-map-marker">
+        <span>${index + 1}</span>
+        <b>${escapeText(shortTime(row.recorded_at || row.updated_at))}</b>
+      </div>
+    `,
+    className: "",
+    iconSize: [72, 28],
+    iconAnchor: [36, 14],
+  });
 }
 
 function clearHistoryLayers() {
@@ -305,12 +328,9 @@ function renderHistoryLayers(historyRows = latestHistoryRows) {
     }
 
     ordered.forEach((row, pointIndex) => {
-      const marker = L.circleMarker([Number(row.latitude), Number(row.longitude)], {
-        radius: pointIndex === ordered.length - 1 ? 6 : 4,
-        color: "#fff",
-        weight: 2,
-        fillColor: color,
-        fillOpacity: 0.88,
+      const marker = L.marker([Number(row.latitude), Number(row.longitude)], {
+        icon: historyIcon(row, pointIndex),
+        zIndexOffset: 50,
       })
         .addTo(map)
         .bindPopup(`
