@@ -56,7 +56,7 @@ const els = {
 };
 
 function setDebug(message) {
-  if (els.debug) els.debug.textContent = `v20260504-map-ui-1 - ${message}`;
+  if (els.debug) els.debug.textContent = `v20260504-map-ui-2 - ${message}`;
 }
 
 function escapeText(value) {
