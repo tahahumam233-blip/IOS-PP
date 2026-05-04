@@ -1,4 +1,4 @@
-const CACHE_NAME = "payment-tracker-pwa-20260504-payment-columns-110";
+const CACHE_NAME = "payment-tracker-pwa-20260504-withdrawal-range-26";
 const STATIC_ASSETS = [
   "./",
   "./index.html",

@@ -2,7 +2,8 @@ const SHEET_ID = "1K14ioxhRa-oCNOQ9T3DodnpNIyimkfQvsOPHP59rCbw";
 const SHEET_GID = "0";
 const PAYMENT_START_ROW = 7;
 const RANGE = "A7:J110";
-const WITHDRAWAL_RANGE = "L25:N38";
+const WITHDRAWAL_START_ROW = 26;
+const WITHDRAWAL_RANGE = "L26:N38";
 const STORAGE_KEY = "zaki-payment-task-state";
 const SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
 const SUPABASE_ANON_KEY =
@@ -161,7 +162,7 @@ function normalizeWithdrawalRows(csvRows) {
       const name = (row[0] || "").trim();
       const iqd = parseAmount(row[1]);
       const usd = parseAmount(row[2]);
-      const rowNumber = 25 + index;
+      const rowNumber = WITHDRAWAL_START_ROW + index;
       return { id: makeTaskId("withdrawal", rowNumber, name, iqd, usd), type: "withdrawal", name, iqd, usd };
     })
     .filter((task) => task.name && (task.iqd > 0 || task.usd > 0));
