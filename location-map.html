@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#10070b" />
+    <meta name="theme-color" content="#09070b" />
     <title>Payment Tracker Location Map</title>
     <link rel="icon" type="image/png" href="assets/icon-192.png" />
     <link rel="apple-touch-icon" href="assets/icon-180.png" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="location-map.css?v=20260503-map-history-1" />
+    <link rel="stylesheet" href="location-map.css?v=20260504-map-ui-1" />
   </head>
   <body>
     <main class="location-app">
@@ -33,19 +33,22 @@
       <section class="map-shell" id="mapShell" hidden>
         <aside class="map-panel">
           <div class="map-panel-top">
-          <div>
-            <p>Payment Tracker</p>
-            <h1>Live user map</h1>
+            <div class="map-title-lockup">
+              <img src="assets/logo-white-red.png" alt="" />
+              <div>
+                <p>Payment Tracker</p>
+                <h1>Live Map</h1>
+              </div>
+            </div>
+            <button id="mapRefreshButton" type="button">Refresh</button>
           </div>
-          <button id="mapRefreshButton" type="button">Refresh</button>
-        </div>
-        <div class="map-status" id="mapStatus">Waiting for user locations...</div>
-        <div class="map-debug" id="mapDebug">Map script loading...</div>
-        <div class="map-refresh-note" id="mapRefreshNote">Auto-refresh active.</div>
-        <div class="history-toolbar">
-          <button id="historyToggleButton" type="button">Hide History</button>
-        </div>
-        <div class="user-location-list" id="userLocationList"></div>
+          <div class="map-status" id="mapStatus">Waiting for user locations...</div>
+          <div class="map-meta-row">
+            <div class="map-refresh-note" id="mapRefreshNote">Auto-refresh active.</div>
+            <button id="historyToggleButton" type="button">Hide History</button>
+          </div>
+          <div class="map-debug" id="mapDebug">Map script loading...</div>
+          <div class="user-location-list" id="userLocationList"></div>
           <button class="map-signout" id="mapSignOutButton" type="button">Sign out</button>
         </aside>
         <section class="map-canvas-wrap">
@@ -56,7 +59,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="users.js?v=20260503-map-history-1"></script>
-    <script src="location-map.js?v=20260503-map-history-1"></script>
+    <script src="users.js?v=20260504-map-ui-1"></script>
+    <script src="location-map.js?v=20260504-map-ui-1"></script>
   </body>
 </html>
