@@ -1,6 +1,7 @@
 const SHEET_ID = "1K14ioxhRa-oCNOQ9T3DodnpNIyimkfQvsOPHP59rCbw";
 const SHEET_GID = "0";
-const RANGE = "A1:N110";
+const PAYMENT_START_ROW = 7;
+const RANGE = "A7:J110";
 const WITHDRAWAL_RANGE = "L25:N38";
 const STORAGE_KEY = "zaki-payment-task-state";
 const SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
@@ -175,12 +176,12 @@ function normalizeTasks(csvRows, withdrawalRows = []) {
   const paymentStartIndex = providerHeaderIndex >= 0 ? providerHeaderIndex + 1 : 0;
 
   const payments = csvRows
-    .slice(paymentStartIndex, 110)
+    .slice(paymentStartIndex)
     .map((row, index) => {
       const name = (row[0] || "").trim();
       const iqd = parseAmount(row[8]);
       const usd = parseAmount(row[9]);
-      const rowNumber = paymentStartIndex + index + 1;
+      const rowNumber = PAYMENT_START_ROW + paymentStartIndex + index;
       return { id: makeTaskId("payment", rowNumber, name, iqd, usd), type: "payment", name, iqd, usd };
     })
     .filter((task) => task.name && (task.iqd > 0 || task.usd > 0));
