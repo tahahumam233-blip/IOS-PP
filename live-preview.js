@@ -30,6 +30,7 @@ let locationWatchId = null;
 let lastLocationSaveAt = 0;
 let lastLocationCoords = null;
 let locationPermissionRetryArmed = false;
+const LOCATION_PROMPT_KEY = "payment-tracker-location-permission-requested";
 const LOCATION_MIN_SAVE_MS = 10000;
 const LOCATION_MIN_DISTANCE_M = 15;
 
@@ -212,8 +213,46 @@ function explainLocationPermission(error) {
   return error?.message || "Location is not active.";
 }
 
-function requestFreshLocation(action = "App active", { alertOnBlock = false } = {}) {
+async function getLocationPermissionState() {
+  if (!navigator.permissions?.query) return "unknown";
+  try {
+    const permission = await navigator.permissions.query({ name: "geolocation" });
+    return permission.state || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+function locationPromptWasRequested() {
+  return localStorage.getItem(LOCATION_PROMPT_KEY) === "true";
+}
+
+function rememberLocationPromptRequest() {
+  localStorage.setItem(LOCATION_PROMPT_KEY, "true");
+}
+
+async function shouldRequestLocation() {
+  if (!navigator.geolocation || previewUser.role === "guest") return false;
+
+  const permissionState = await getLocationPermissionState();
+  if (permissionState === "granted") return true;
+  if (permissionState === "denied") {
+    setLocationStatus("Location permission is blocked for this device.");
+    return false;
+  }
+  if (locationPromptWasRequested()) {
+    setLocationStatus("Location permission was already requested on this device.");
+    return false;
+  }
+
+  return true;
+}
+
+async function requestFreshLocation(action = "App active", { alertOnBlock = false } = {}) {
   if (!navigator.geolocation || previewUser.role === "guest") return;
+  if (!(await shouldRequestLocation())) return;
+
+  rememberLocationPromptRequest();
   navigator.geolocation.getCurrentPosition(
     (position) => void saveUserLocation(position, action),
     (error) => {
@@ -236,21 +275,12 @@ function stopLocationTracking() {
   locationPermissionRetryArmed = false;
 }
 
-function startLocationTracking(action = "Signed in") {
+async function startLocationTracking(action = "Signed in") {
   stopLocationTracking();
   if (!navigator.geolocation || previewUser.role === "guest") return;
 
-  locationPermissionRetryArmed = true;
-  requestFreshLocation(action, { alertOnBlock: true });
-  setLocationStatus("Location sharing is active while the app is open.");
-  locationWatchId = navigator.geolocation.watchPosition(
-    (position) => void saveUserLocation(position, "App open"),
-    (error) => {
-      setLocationStatus(explainLocationPermission(error));
-      console.warn("Live location skipped:", error.message);
-    },
-    { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
-  );
+  locationPermissionRetryArmed = !locationPromptWasRequested();
+  await requestFreshLocation(action, { alertOnBlock: true });
 }
 
 function activityStatusLabel(status) {
