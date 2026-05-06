@@ -156,6 +156,18 @@ function makeTaskId(type, rowNumber, name, iqd, usd) {
   return `${todayKey()}-${type}-${rowNumber}-${cleanName}-${iqd}-${usd}`;
 }
 
+function isSheetSummaryRow(name) {
+  const cleanName = String(name || "").trim().toLowerCase();
+  return (
+    !cleanName ||
+    cleanName === "total" ||
+    cleanName.startsWith("total ") ||
+    cleanName.includes("total iqd") ||
+    cleanName.includes("total usd") ||
+    cleanName.startsWith("updated")
+  );
+}
+
 function normalizeWithdrawalRows(csvRows) {
   return csvRows
     .map((row, index) => {
@@ -165,7 +177,7 @@ function normalizeWithdrawalRows(csvRows) {
       const rowNumber = WITHDRAWAL_START_ROW + index;
       return { id: makeTaskId("withdrawal", rowNumber, name, iqd, usd), type: "withdrawal", name, iqd, usd };
     })
-    .filter((task) => task.name && (task.iqd > 0 || task.usd > 0));
+    .filter((task) => !isSheetSummaryRow(task.name) && (task.iqd > 0 || task.usd > 0));
 }
 
 function normalizeTasks(csvRows, withdrawalRows = []) {
