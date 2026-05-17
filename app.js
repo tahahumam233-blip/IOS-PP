@@ -1184,20 +1184,21 @@ async function saveTaskPriority() {
   const adminNote = els.priorityNote.value.trim();
   const updatedAt = new Date().toISOString();
   const roleLabel = document.querySelector("#previewRolePill")?.textContent?.trim() || "Admin";
-  state.taskState[taskId] = {
+  const nextSaved = {
     ...saved,
     priority,
     adminNote,
     priorityUpdatedBy: roleLabel,
     priorityUpdatedAt: updatedAt,
   };
-  saveTaskState();
 
   const originalText = els.prioritySaveButton.textContent;
   els.prioritySaveButton.disabled = true;
   els.prioritySaveButton.textContent = "Saving...";
   try {
+    state.taskState[taskId] = nextSaved;
     await saveRemoteTaskState(taskId, { requirePriority: true });
+    saveTaskState();
     if (typeof addActivity === "function") {
       const label = priority === "urgent" ? "Urgent" : priority === "priority" ? "Priority" : "Normal";
       addActivity({
@@ -1212,7 +1213,12 @@ async function saveTaskPriority() {
     closePriorityModal();
     showStatusMessage("Priority Saved", `${task.name} priority was updated for Zaki.`);
   } catch (error) {
-    showStatusMessage("Priority Not Saved", error.message || "Could not save priority to Supabase.");
+    state.taskState[taskId] = saved;
+    saveTaskState();
+    const message = /priority|admin_note/i.test(error.message || "")
+      ? "Priority database columns are missing. Run supabase-priority.sql in Supabase, then try again."
+      : error.message || "Could not save priority to Supabase.";
+    showStatusMessage("Priority Not Saved", message);
   } finally {
     els.prioritySaveButton.disabled = false;
     els.prioritySaveButton.textContent = originalText;
