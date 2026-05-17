@@ -11,8 +11,8 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" type="image/png" href="assets/icon-192.png" />
     <link rel="apple-touch-icon" href="assets/icon-180.png" />
-    <link rel="stylesheet" href="styles.css?v=20260506-withdrawal-total-filter-1" />
-    <link rel="stylesheet" href="live-preview.css?v=20260506-withdrawal-total-filter-1" />
+    <link rel="stylesheet" href="styles.css?v=20260517-priority-1" />
+    <link rel="stylesheet" href="live-preview.css?v=20260517-priority-1" />
   </head>
   <body>
     <main class="app-preview" data-theme="dark" data-role="guest">
@@ -241,11 +241,36 @@
       </div>
     </div>
 
+    <div class="modal-backdrop" id="priorityModal" hidden>
+      <div class="upload-modal priority-dialog" role="dialog" aria-labelledby="priorityTaskName">
+        <div class="modal-heading">
+          <div>
+            <p>Admin Priority</p>
+            <h2 id="priorityTaskName">Payment task</h2>
+          </div>
+          <button class="modal-close" id="closePriorityModal" type="button" aria-label="Close priority window">×</button>
+        </div>
+        <label class="modal-field">
+          <span>Priority level</span>
+          <select id="priorityLevel">
+            <option value="normal">Normal</option>
+            <option value="priority">Priority</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </label>
+        <label class="modal-field">
+          <span>Instruction for Zaki</span>
+          <textarea id="priorityNote" rows="4" placeholder="Example: Pay before 12 PM or call before paying"></textarea>
+        </label>
+        <button class="modal-save" id="prioritySaveButton" type="button">Save Priority</button>
+      </div>
+    </div>
+
     <a class="source-link" id="sheetLink" href="#" target="_blank" rel="noreferrer">Open source sheet</a>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="users.js?v=20260506-withdrawal-total-filter-1"></script>
-    <script src="app.js?v=20260506-withdrawal-total-filter-1"></script>
-    <script src="live-preview.js?v=20260506-withdrawal-total-filter-1"></script>
+    <script src="users.js?v=20260517-priority-1"></script>
+    <script src="app.js?v=20260517-priority-1"></script>
+    <script src="live-preview.js?v=20260517-priority-1"></script>
   </body>
 </html>

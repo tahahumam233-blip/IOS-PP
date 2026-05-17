@@ -80,6 +80,12 @@ const els = {
   sheetLink: document.querySelector("#sheetLink"),
   createPaymentDraftButton: document.querySelector("#createPaymentDraftButton"),
   createWithdrawalDraftButton: document.querySelector("#createWithdrawalDraftButton"),
+  priorityModal: document.querySelector("#priorityModal"),
+  priorityTaskName: document.querySelector("#priorityTaskName"),
+  priorityLevel: document.querySelector("#priorityLevel"),
+  priorityNote: document.querySelector("#priorityNote"),
+  closePriorityModal: document.querySelector("#closePriorityModal"),
+  prioritySaveButton: document.querySelector("#prioritySaveButton"),
 };
 
 function tickClock() {
@@ -248,6 +254,14 @@ function getTasks(type = state.activeType) {
   return type === "withdrawal" ? state.withdrawals : state.payments;
 }
 
+function getAppRole() {
+  return document.querySelector(".app-preview")?.dataset.role || "guest";
+}
+
+function isAdminUser() {
+  return getAppRole() === "admin";
+}
+
 function splitStoredList(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
   return String(value || "")
@@ -267,6 +281,7 @@ function mergeStoredList(...lists) {
 function normalizeSavedTask(saved = {}) {
   const fileNames = splitStoredList(saved.fileNames || saved.receiptName);
   const filePaths = splitStoredList(saved.filePaths || saved.filePath);
+  const priority = ["priority", "urgent"].includes(saved.priority) ? saved.priority : "normal";
   return {
     done: Boolean(saved.done),
     receiptName: joinStoredList(fileNames),
@@ -278,6 +293,10 @@ function normalizeSavedTask(saved = {}) {
     notePaths: splitStoredList(saved.notePaths || saved.notePath),
     uploadNote: saved.uploadNote || "",
     receiptSavedAt: saved.receiptSavedAt || "",
+    priority,
+    adminNote: saved.adminNote || "",
+    priorityUpdatedBy: saved.priorityUpdatedBy || "",
+    priorityUpdatedAt: saved.priorityUpdatedAt || "",
   };
 }
 
@@ -326,10 +345,31 @@ function normalizeTaskStatusRow(row) {
     fileNames: splitStoredList(row.file_name),
     filePaths: splitStoredList(row.file_path),
     receiptSavedAt: row.updated_at || "",
+    priority: row.priority || "normal",
+    adminNote: row.admin_note || "",
+    priorityUpdatedBy: row.priority_updated_by || "",
+    priorityUpdatedAt: row.priority_updated_at || "",
   };
 }
 
 function getSupabaseRow(task, saved = getSavedTask(task.id)) {
+  return {
+    id: task.id,
+    task_type: task.type,
+    task_date: getTaskDateFromId(task.id),
+    task_name: task.name,
+    done: Boolean(saved.done),
+    file_path: joinStoredList(saved.filePaths) || null,
+    file_name: joinStoredList(saved.fileNames) || null,
+    priority: saved.priority || "normal",
+    admin_note: saved.adminNote || null,
+    priority_updated_by: saved.priorityUpdatedBy || null,
+    priority_updated_at: saved.priorityUpdatedAt || null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function getBasicSupabaseRow(task, saved = getSavedTask(task.id)) {
   return {
     id: task.id,
     task_type: task.type,
@@ -373,14 +413,21 @@ async function loadRemoteTaskState() {
   saveTaskState();
 }
 
-async function saveRemoteTaskState(taskId) {
+async function saveRemoteTaskState(taskId, options = {}) {
   if (!supabaseClient) return;
 
   const task = findTask(taskId);
   if (!task) return;
 
   const { error } = await supabaseClient.from("task_status").upsert(getSupabaseRow(task), { onConflict: "id" });
-  if (error) throw error;
+  if (!error) return;
+
+  const needsPriorityColumns = /priority|admin_note/i.test(error.message || "");
+  if (!needsPriorityColumns) throw error;
+  if (options.requirePriority) throw error;
+
+  const fallback = await supabaseClient.from("task_status").upsert(getBasicSupabaseRow(task), { onConflict: "id" });
+  if (fallback.error) throw fallback.error;
 }
 
 function setUploadProgress(percent, isVisible = true) {
@@ -679,7 +726,15 @@ function closeSuccessMessage() {
 function getVisibleTasks() {
   const query = els.searchInput.value.trim().toLowerCase();
   const tasks = getTasks();
-  return query ? tasks.filter((task) => task.name.toLowerCase().includes(query)) : tasks;
+  const visibleTasks = query ? tasks.filter((task) => task.name.toLowerCase().includes(query)) : tasks;
+  const priorityWeight = { urgent: 0, priority: 1, normal: 2 };
+  return [...visibleTasks].sort((a, b) => {
+    const aSaved = getSavedTask(a.id);
+    const bSaved = getSavedTask(b.id);
+    const priorityDiff = (priorityWeight[aSaved.priority] ?? 2) - (priorityWeight[bSaved.priority] ?? 2);
+    if (priorityDiff) return priorityDiff;
+    return tasks.indexOf(a) - tasks.indexOf(b);
+  });
 }
 
 function getTotals(tasks) {
@@ -1054,15 +1109,30 @@ function renderTaskList() {
         : isNoteOnly
           ? "Posted with note only"
           : uploadLabel;
+      const priority = saved.priority || "normal";
+      const priorityLabel = priority === "urgent" ? "Urgent" : priority === "priority" ? "Priority" : "";
+      const priorityNote = saved.adminNote ? `
+        <span class="admin-note">${escapeHtml(saved.adminNote)}</span>
+      ` : "";
+      const adminPriorityButton = isAdminUser()
+        ? `<button class="priority-edit-button" type="button" data-action="edit-priority" title="Set priority for ${escapeHtml(task.name)}">Priority</button>`
+        : "";
       return `
-        <tr class="${isUploaded ? "done" : ""}" data-task-id="${escapeHtml(task.id)}">
+        <tr class="${isUploaded ? "done" : ""} priority-${escapeHtml(priority)}" data-task-id="${escapeHtml(task.id)}">
           <td class="status-cell" data-label="Status">
             <span class="status-dot ${isUploaded ? "uploaded" : "pending"}" title="${escapeHtml(status)}" aria-label="${escapeHtml(status)}"></span>
           </td>
-          <td class="name-cell">${escapeHtml(task.name)}</td>
+          <td class="name-cell">
+            <span class="task-title-line">
+              <span class="task-name-text">${escapeHtml(task.name)}</span>
+              ${priorityLabel ? `<span class="priority-badge ${escapeHtml(priority)}">${priorityLabel}</span>` : ""}
+            </span>
+            ${priorityNote}
+          </td>
           <td class="amount-cell" data-label="IQD">${escapeHtml(formatCompactAmount(task.iqd, "IQD"))}</td>
           <td class="amount-cell" data-label="USD">${escapeHtml(formatCompactAmount(task.usd, "USD"))}</td>
           <td class="file-cell" data-label="File">
+            ${adminPriorityButton}
             <button class="upload-control ${uploadState}" type="button" data-action="open-upload" title="${escapeHtml(uploadTitle)}" aria-label="${escapeHtml(uploadTitle)}">
               <span class="invoice-icon" aria-hidden="true"></span>
             </button>
@@ -1082,6 +1152,74 @@ function setActiveType(type) {
   render();
 }
 
+function openPriorityModal(taskId) {
+  if (!isAdminUser()) {
+    showStatusMessage("Admin Only", "Only Admin can set payment priorities.");
+    return;
+  }
+
+  const task = findTask(taskId);
+  if (!task) return;
+  const saved = getSavedTask(taskId);
+  state.activePriorityTaskId = taskId;
+  els.priorityTaskName.textContent = task.name;
+  els.priorityLevel.value = saved.priority || "normal";
+  els.priorityNote.value = saved.adminNote || "";
+  els.priorityModal.hidden = false;
+  window.setTimeout(() => els.priorityLevel.focus(), 0);
+}
+
+function closePriorityModal() {
+  state.activePriorityTaskId = "";
+  els.priorityModal.hidden = true;
+}
+
+async function saveTaskPriority() {
+  const taskId = state.activePriorityTaskId;
+  const task = findTask(taskId);
+  if (!task || !isAdminUser()) return;
+
+  const saved = getSavedTask(taskId);
+  const priority = els.priorityLevel.value;
+  const adminNote = els.priorityNote.value.trim();
+  const updatedAt = new Date().toISOString();
+  const roleLabel = document.querySelector("#previewRolePill")?.textContent?.trim() || "Admin";
+  state.taskState[taskId] = {
+    ...saved,
+    priority,
+    adminNote,
+    priorityUpdatedBy: roleLabel,
+    priorityUpdatedAt: updatedAt,
+  };
+  saveTaskState();
+
+  const originalText = els.prioritySaveButton.textContent;
+  els.prioritySaveButton.disabled = true;
+  els.prioritySaveButton.textContent = "Saving...";
+  try {
+    await saveRemoteTaskState(taskId, { requirePriority: true });
+    if (typeof addActivity === "function") {
+      const label = priority === "urgent" ? "Urgent" : priority === "priority" ? "Priority" : "Normal";
+      addActivity({
+        title: "Priority updated",
+        message: `${task.name} set to ${label}${adminNote ? `: ${adminNote}` : "."}`,
+        status: "changed",
+        user: roleLabel,
+        task: task.name,
+        taskType: task.type === "withdrawal" ? "Withdrawal" : "Payment",
+      });
+    }
+    closePriorityModal();
+    showStatusMessage("Priority Saved", `${task.name} priority was updated for Zaki.`);
+  } catch (error) {
+    showStatusMessage("Priority Not Saved", error.message || "Could not save priority to Supabase.");
+  } finally {
+    els.prioritySaveButton.disabled = false;
+    els.prioritySaveButton.textContent = originalText;
+    render();
+  }
+}
+
 function render() {
   els.connectionLabel.textContent = state.source;
   renderMetrics();
@@ -1089,6 +1227,13 @@ function render() {
 }
 
 els.taskList.addEventListener("click", (event) => {
+  const priorityButton = event.target.closest('[data-action="edit-priority"]');
+  if (priorityButton) {
+    const card = priorityButton.closest("[data-task-id]");
+    if (card) openPriorityModal(card.dataset.taskId);
+    return;
+  }
+
   const uploadButton = event.target.closest('[data-action="open-upload"]');
   if (!uploadButton) return;
 
@@ -1241,6 +1386,11 @@ els.closeUploadModal.addEventListener("click", closeUploadModal);
 els.uploadModal.addEventListener("click", (event) => {
   if (event.target === els.uploadModal) closeUploadModal();
 });
+els.closePriorityModal?.addEventListener("click", closePriorityModal);
+els.priorityModal?.addEventListener("click", (event) => {
+  if (event.target === els.priorityModal) closePriorityModal();
+});
+els.prioritySaveButton?.addEventListener("click", saveTaskPriority);
 els.successOkButton.addEventListener("click", closeSuccessMessage);
 els.successModal.addEventListener("click", (event) => {
   if (event.target === els.successModal) closeSuccessMessage();

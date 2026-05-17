@@ -635,6 +635,7 @@ function setPreviewAccess(user) {
     : previewCanPost()
       ? `Signed in as ${user.label}. You can upload and post assigned work.`
       : "Guest mode is view-only. Sign in with a posting account to make changes.";
+  if (typeof render === "function") render();
   void loadRemoteActivity();
   startLocationTracking("Signed in");
 }
@@ -658,6 +659,7 @@ function resetLoginForm({ keepRememberedId = true } = {}) {
   rememberInput.checked = Boolean(rememberedId);
   document.querySelector("#previewLoginError").hidden = true;
   loginScreen.hidden = false;
+  if (typeof render === "function") render();
 
   window.setTimeout(() => {
     if (rememberedId) {

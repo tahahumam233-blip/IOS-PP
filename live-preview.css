@@ -596,6 +596,21 @@ label {
   animation: rowIn 240ms var(--preview-ease) both;
 }
 
+.task-grid tbody tr.priority-priority,
+.task-grid tbody tr.priority-urgent {
+  border-color: rgba(255, 190, 46, 0.34);
+  background:
+    linear-gradient(90deg, rgba(255, 190, 46, 0.1), transparent 44%),
+    var(--preview-panel);
+}
+
+.task-grid tbody tr.priority-urgent {
+  border-color: rgba(255, 76, 104, 0.44);
+  background:
+    linear-gradient(90deg, rgba(255, 76, 104, 0.13), transparent 46%),
+    var(--preview-panel);
+}
+
 @keyframes rowIn {
   from {
     opacity: 0;
@@ -653,6 +668,8 @@ label {
   grid-row: 1 / span 3;
   align-self: center;
   justify-self: end;
+  display: grid !important;
+  gap: 6px;
 }
 
 .task-grid td:first-child {
@@ -677,13 +694,54 @@ label {
 .task-grid .name-cell {
   grid-column: 2;
   grid-row: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: grid;
+  gap: 5px;
+  overflow: visible;
+  white-space: normal;
   color: var(--preview-ink);
   font-size: 18px;
   line-height: 1.15;
   font-weight: 850;
+}
+
+.task-title-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.task-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.priority-badge {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 190, 46, 0.4);
+  color: #ffc34a;
+  background: rgba(255, 190, 46, 0.12);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.01em;
+}
+
+.priority-badge.urgent {
+  border-color: rgba(255, 76, 104, 0.5);
+  color: #ff5a7b;
+  background: rgba(255, 76, 104, 0.13);
+}
+
+.admin-note {
+  color: var(--preview-muted);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.25;
+  white-space: normal;
 }
 
 .task-grid tr.done .name-cell {
@@ -736,6 +794,23 @@ label {
 .upload-control.uploaded {
   border-color: rgba(103, 220, 115, 0.42);
   background: rgba(103, 220, 115, 0.1);
+}
+
+.priority-edit-button {
+  display: none;
+  min-width: 56px;
+  height: 28px;
+  border: 1px solid rgba(255, 190, 46, 0.38);
+  border-radius: 999px;
+  color: #ffc34a;
+  background: rgba(255, 190, 46, 0.1);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.app-preview[data-role="admin"] .priority-edit-button {
+  display: inline-grid;
+  place-items: center;
 }
 
 .invoice-icon {
