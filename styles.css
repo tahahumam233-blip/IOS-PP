@@ -520,6 +520,34 @@ button:disabled {
   font-weight: 800;
 }
 
+.panel-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-tools input {
+  min-width: 170px;
+}
+
+.copy-email-button {
+  min-height: 38px;
+  border: 1px solid rgba(119, 228, 255, 0.48);
+  border-radius: 12px;
+  padding: 0 12px;
+  color: #071012;
+  background: var(--cyan);
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+  box-shadow: 0 8px 20px rgba(119, 228, 255, 0.16);
+}
+
+.copy-email-button:hover {
+  border-color: rgba(119, 228, 255, 0.86);
+  box-shadow: 0 10px 24px rgba(119, 228, 255, 0.24);
+}
+
 select,
 input {
   min-height: 38px;
@@ -1285,6 +1313,23 @@ label {
   .panel-heading input {
     width: min(34vw, 132px);
     min-height: 34px;
+  }
+
+  .panel-tools {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: 100%;
+  }
+
+  .panel-tools input {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .copy-email-button {
+    min-height: 34px;
+    padding: 0 9px;
+    font-size: 11px;
   }
 
   .panel {

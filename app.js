@@ -79,6 +79,7 @@ const els = {
   refreshButton: document.querySelector("#refreshButton"),
   sheetLink: document.querySelector("#sheetLink"),
   createPaymentDraftButton: document.querySelector("#createPaymentDraftButton"),
+  copyPaymentEmailTopButton: document.querySelector("#copyPaymentEmailTopButton"),
   copyPaymentEmailButton: document.querySelector("#copyPaymentEmailButton"),
   createWithdrawalDraftButton: document.querySelector("#createWithdrawalDraftButton"),
   priorityModal: document.querySelector("#priorityModal"),
@@ -906,24 +907,20 @@ async function writeClipboardText(text) {
 }
 
 async function copyEmailText(type) {
-  const appRole = document.querySelector(".app-preview")?.dataset.role || "guest";
-  if (appRole !== "admin") {
-    showStatusMessage("Admin Only", "Only Admin can copy email text.");
-    return;
-  }
-
   const payload = buildEmailPayload(type);
   if (!payload.rows.length) {
     showStatusMessage("No Email Items", "There are no payments with amounts to copy.");
     return;
   }
 
-  const button = type === "payment" ? els.copyPaymentEmailButton : null;
-  const originalText = button?.textContent || "";
-  if (button) {
+  const buttons = type === "payment"
+    ? [els.copyPaymentEmailTopButton, els.copyPaymentEmailButton].filter(Boolean)
+    : [];
+  const originalTexts = new Map(buttons.map((button) => [button, button.textContent]));
+  buttons.forEach((button) => {
     button.disabled = true;
     button.textContent = "Copying...";
-  }
+  });
 
   try {
     await writeClipboardText(payload.textBody);
@@ -934,10 +931,10 @@ async function copyEmailText(type) {
   } catch (error) {
     showStatusMessage("Copy Failed", error.message || "The browser did not allow clipboard copy.");
   } finally {
-    if (button) {
+    buttons.forEach((button) => {
       button.disabled = false;
-      button.textContent = originalText;
-    }
+      button.textContent = originalTexts.get(button) || "Copy Email";
+    });
   }
 }
 
@@ -1126,6 +1123,7 @@ function renderTaskList() {
     els.taskTypeLabel.textContent = "Exchange Entry";
     els.rowCount.textContent = "Calculator";
     els.searchInput.hidden = true;
+    if (els.copyPaymentEmailTopButton) els.copyPaymentEmailTopButton.hidden = true;
     els.gridWrap.hidden = true;
     els.exchangePanel.hidden = false;
     return;
@@ -1135,6 +1133,7 @@ function renderTaskList() {
   const typeLabel = state.activeType === "withdrawal" ? "Withdrawals" : "Supplier Payments";
 
   els.searchInput.hidden = false;
+  if (els.copyPaymentEmailTopButton) els.copyPaymentEmailTopButton.hidden = state.activeType !== "payment";
   els.gridWrap.hidden = false;
   els.exchangePanel.hidden = true;
   els.taskTypeLabel.textContent = typeLabel;
@@ -1465,6 +1464,7 @@ els.paymentsTab.addEventListener("click", () => setActiveType("payment"));
 els.withdrawalsTab.addEventListener("click", () => setActiveType("withdrawal"));
 els.exchangeTab.addEventListener("click", () => setActiveType("exchange"));
 els.createPaymentDraftButton?.addEventListener("click", () => createZapierDraft("payment"));
+els.copyPaymentEmailTopButton?.addEventListener("click", () => copyEmailText("payment"));
 els.copyPaymentEmailButton?.addEventListener("click", () => copyEmailText("payment"));
 els.createWithdrawalDraftButton?.addEventListener("click", () => createZapierDraft("withdrawal"));
 els.exchangeAmountA.addEventListener("input", () => {
