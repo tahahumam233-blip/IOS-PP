@@ -1,9 +1,9 @@
 const SHEET_ID = "1K14ioxhRa-oCNOQ9T3DodnpNIyimkfQvsOPHP59rCbw";
 const SHEET_GID = "0";
 const PAYMENT_START_ROW = 7;
-const RANGE = "A7:J110";
+const RANGE = "A7:J200";
 const WITHDRAWAL_START_ROW = 26;
-const WITHDRAWAL_RANGE = "L26:N36";
+const WITHDRAWAL_RANGE = "L26:N38";
 const STORAGE_KEY = "zaki-payment-task-state";
 const SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
 const SUPABASE_ANON_KEY =
@@ -79,6 +79,7 @@ const els = {
   refreshButton: document.querySelector("#refreshButton"),
   sheetLink: document.querySelector("#sheetLink"),
   createPaymentDraftButton: document.querySelector("#createPaymentDraftButton"),
+  copyPaymentEmailButton: document.querySelector("#copyPaymentEmailButton"),
   createWithdrawalDraftButton: document.querySelector("#createWithdrawalDraftButton"),
   priorityModal: document.querySelector("#priorityModal"),
   priorityTaskName: document.querySelector("#priorityTaskName"),
@@ -885,6 +886,61 @@ async function createZapierDraft(type) {
   }
 }
 
+async function writeClipboardText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  textarea.style.top = "0";
+  document.body.append(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  if (!copied) throw new Error("Clipboard copy was blocked.");
+}
+
+async function copyEmailText(type) {
+  const appRole = document.querySelector(".app-preview")?.dataset.role || "guest";
+  if (appRole !== "admin") {
+    showStatusMessage("Admin Only", "Only Admin can copy email text.");
+    return;
+  }
+
+  const payload = buildEmailPayload(type);
+  if (!payload.rows.length) {
+    showStatusMessage("No Email Items", "There are no payments with amounts to copy.");
+    return;
+  }
+
+  const button = type === "payment" ? els.copyPaymentEmailButton : null;
+  const originalText = button?.textContent || "";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Copying...";
+  }
+
+  try {
+    await writeClipboardText(payload.textBody);
+    showStatusMessage(
+      "Payment Email Copied",
+      `${payload.rows.length} payment lines copied. Total USD: ${payload.totals.usdFormatted}. Total IQD: ${payload.totals.iqdFormatted}.`
+    );
+  } catch (error) {
+    showStatusMessage("Copy Failed", error.message || "The browser did not allow clipboard copy.");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+}
+
 function getSheetCsvUrl(range = RANGE) {
   const params = new URLSearchParams({
     tqx: "out:csv",
@@ -1409,6 +1465,7 @@ els.paymentsTab.addEventListener("click", () => setActiveType("payment"));
 els.withdrawalsTab.addEventListener("click", () => setActiveType("withdrawal"));
 els.exchangeTab.addEventListener("click", () => setActiveType("exchange"));
 els.createPaymentDraftButton?.addEventListener("click", () => createZapierDraft("payment"));
+els.copyPaymentEmailButton?.addEventListener("click", () => copyEmailText("payment"));
 els.createWithdrawalDraftButton?.addEventListener("click", () => createZapierDraft("withdrawal"));
 els.exchangeAmountA.addEventListener("input", () => {
   formatExchangeInput(els.exchangeAmountA, "IQD");
