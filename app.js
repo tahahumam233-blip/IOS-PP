@@ -1327,8 +1327,8 @@ async function runBackgroundUpload({ jobId, taskId, files, noteText }) {
 
       updateUploadJob(jobId, { status: "Posting note to Slack", percent: 88 });
       await postUploadToSlack({
-        filePath: "",
-        fileName: "",
+        filePath: notePath,
+        fileName: "Note only.txt",
         task,
         noteText,
       });
