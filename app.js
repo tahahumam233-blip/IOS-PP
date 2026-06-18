@@ -70,7 +70,6 @@ const els = {
   modalFileInput: document.querySelector("#modalFileInput"),
   modalUploadNote: document.querySelector("#modalUploadNote"),
   modalSaveButton: document.querySelector("#modalSaveButton"),
-  modalTextOnlyButton: document.querySelector("#modalTextOnlyButton"),
   successModal: document.querySelector("#successModal"),
   successTitle: document.querySelector("#successTitle"),
   successMessage: document.querySelector("#successMessage"),
@@ -688,7 +687,6 @@ function openUploadModal(taskId) {
   els.uploadTaskName.textContent = task.name;
   els.modalFileInput.value = "";
   els.modalUploadNote.value = getSavedTask(taskId).uploadNote || "";
-  updateTextOnlyButtonState();
   els.uploadModal.hidden = false;
   window.setTimeout(() => els.modalFileInput.focus(), 0);
 }
@@ -698,14 +696,6 @@ function closeUploadModal() {
   els.uploadModal.hidden = true;
   els.modalFileInput.value = "";
   els.modalUploadNote.value = "";
-  updateTextOnlyButtonState();
-}
-
-function updateTextOnlyButtonState() {
-  if (!els.modalTextOnlyButton) return;
-  const hasFiles = Boolean(els.modalFileInput?.files?.length);
-  const hasNote = Boolean(els.modalUploadNote?.value.trim());
-  els.modalTextOnlyButton.disabled = hasFiles || !hasNote;
 }
 
 function showStatusMessage(title, message) {
@@ -1448,29 +1438,6 @@ els.uploadForm.addEventListener("submit", async (event) => {
   closeUploadModal();
   els.lastUpdated.textContent = files.length ? `Uploading ${task.name}` : `Posting note for ${task.name}`;
   void runBackgroundUpload({ jobId, taskId, files, noteText });
-});
-
-els.modalFileInput?.addEventListener("change", updateTextOnlyButtonState);
-els.modalUploadNote?.addEventListener("input", updateTextOnlyButtonState);
-els.modalTextOnlyButton?.addEventListener("click", () => {
-  unlockNotificationSound();
-  const taskId = state.activeUploadTaskId;
-  const task = findTask(taskId);
-  const noteText = els.modalUploadNote.value.trim();
-  if (!task) return;
-
-  if (!noteText) {
-    showStatusMessage("Nothing to Post", "Write a note before posting text only.");
-    return;
-  }
-
-  const confirmed = window.confirm(`Post ${task.name} to Slack with text only and no picture?`);
-  if (!confirmed) return;
-
-  const jobId = createUploadJob(task);
-  closeUploadModal();
-  els.lastUpdated.textContent = `Posting note for ${task.name}`;
-  void runBackgroundUpload({ jobId, taskId, files: [], noteText });
 });
 
 els.updateButton.addEventListener("click", loadSheet);

@@ -618,7 +618,6 @@ function openAdditionalPosting(taskId) {
   els.modalFileInput.value = "";
   els.modalUploadNote.value = getSavedTask(taskId).uploadNote || "";
   els.modalSaveButton.textContent = "Save & Post";
-  if (typeof updateTextOnlyButtonState === "function") updateTextOnlyButtonState();
   els.uploadModal.hidden = false;
   window.setTimeout(() => els.modalFileInput.focus(), 0);
 }
