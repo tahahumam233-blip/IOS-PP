@@ -650,7 +650,7 @@ async function removeUploadedFiles(paths) {
   }
 }
 
-async function postUploadToSlack({ filePath, fileName, task, noteText }) {
+async function postUploadToSlack({ filePath, fileName, task, noteText, noteOnly = false }) {
   const response = await fetch(SLACK_FUNCTION_URL, {
     method: "POST",
     headers: {
@@ -663,8 +663,8 @@ async function postUploadToSlack({ filePath, fileName, task, noteText }) {
       fileName,
       taskName: task.name,
       taskType: task.type,
-      hasFile: Boolean(filePath),
-      noteOnly: !filePath,
+      hasFile: Boolean(filePath) && !noteOnly,
+      noteOnly,
       iqd: task.iqd || 0,
       usd: task.usd || 0,
       exchangeSide: task.exchangeSide || "",
@@ -1321,6 +1321,7 @@ async function runBackgroundUpload({ jobId, taskId, files, noteText }) {
         fileName: "Note only.txt",
         task,
         noteText,
+        noteOnly: true,
       });
 
       const previous = getSavedTask(taskId);
