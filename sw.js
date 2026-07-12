@@ -1,4 +1,4 @@
-const CACHE_NAME = "payment-tracker-pwa-20260618-text-only-4";
+const CACHE_NAME = "payment-tracker-pwa-20260712-sheet-snapshot-1";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -53,6 +53,7 @@ self.addEventListener("fetch", (event) => {
     url.pathname.endsWith("/index.html") ||
     url.pathname.endsWith("/users.js") ||
     url.pathname.endsWith("/app.js") ||
+    url.pathname.endsWith("/sheet-data.json") ||
     url.pathname.endsWith("/styles.css") ||
     url.pathname.endsWith("/live-preview.css") ||
     url.pathname.endsWith("/location-map.html") ||

@@ -3,7 +3,8 @@ const SHEET_GID = "0";
 const PAYMENT_START_ROW = 7;
 const RANGE = "A7:J200";
 const WITHDRAWAL_START_ROW = 26;
-const WITHDRAWAL_RANGE = "L26:N38";
+const WITHDRAWAL_RANGE = "L26:N200";
+const SHEET_DATA_URL = "sheet-data.json";
 const STORAGE_KEY = "zaki-payment-task-state";
 const SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
 const SUPABASE_ANON_KEY =
@@ -948,6 +949,39 @@ function getSheetCsvUrl(range = RANGE) {
   return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?${params.toString()}`;
 }
 
+async function loadSheetSnapshot() {
+  const response = await fetch(`${SHEET_DATA_URL}?cache=${Date.now()}`, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Sheet snapshot returned ${response.status}`);
+  const snapshot = await response.json();
+  if (!Array.isArray(snapshot.paymentsRows) || !Array.isArray(snapshot.withdrawalRows)) {
+    throw new Error("Sheet snapshot is missing payment or withdrawal rows.");
+  }
+  return snapshot;
+}
+
+async function loadSheetFromGoogleCsv() {
+  const [response, withdrawalResponse] = await Promise.all([
+    fetch(getSheetCsvUrl(RANGE), { cache: "no-store" }),
+    fetch(getSheetCsvUrl(WITHDRAWAL_RANGE), { cache: "no-store" }),
+  ]);
+  if (!response.ok) throw new Error(`Google Sheets returned ${response.status}`);
+  if (!withdrawalResponse.ok) throw new Error(`Google Sheets withdrawals returned ${withdrawalResponse.status}`);
+  const text = await response.text();
+  const withdrawalText = await withdrawalResponse.text();
+  if (text.trim().startsWith("<")) {
+    throw new Error("Google returned an HTML page. Publish the sheet to the web or make it accessible to fetch.");
+  }
+  if (withdrawalText.trim().startsWith("<")) {
+    throw new Error("Google returned an HTML page for withdrawals. Publish the sheet to the web or make it accessible to fetch.");
+  }
+  return {
+    generatedAt: new Date().toISOString(),
+    paymentsRows: parseCsvRows(text),
+    withdrawalRows: parseCsvRows(withdrawalText),
+    source: "Live Google Sheet",
+  };
+}
+
 function setLoading(isLoading) {
   state.loading = isLoading;
   els.updateButton.disabled = isLoading;
@@ -959,34 +993,28 @@ function setLoading(isLoading) {
 async function loadSheet() {
   setLoading(true);
   try {
-    const [response, withdrawalResponse] = await Promise.all([
-      fetch(getSheetCsvUrl(RANGE), { cache: "no-store" }),
-      fetch(getSheetCsvUrl(WITHDRAWAL_RANGE), { cache: "no-store" }),
-    ]);
-    if (!response.ok) throw new Error(`Google Sheets returned ${response.status}`);
-    if (!withdrawalResponse.ok) throw new Error(`Google Sheets withdrawals returned ${withdrawalResponse.status}`);
-    const text = await response.text();
-    const withdrawalText = await withdrawalResponse.text();
-    if (text.trim().startsWith("<")) {
-      throw new Error("Google returned an HTML page. Publish the sheet to the web or make it accessible to fetch.");
+    let snapshot;
+    try {
+      snapshot = await loadSheetSnapshot();
+    } catch (snapshotError) {
+      snapshot = await loadSheetFromGoogleCsv();
     }
-    if (withdrawalText.trim().startsWith("<")) {
-      throw new Error("Google returned an HTML page for withdrawals. Publish the sheet to the web or make it accessible to fetch.");
-    }
-
-    const { payments, withdrawals } = normalizeTasks(parseCsvRows(text), parseCsvRows(withdrawalText));
+    const { payments, withdrawals } = normalizeTasks(snapshot.paymentsRows, snapshot.withdrawalRows);
     if (!payments.length && !withdrawals.length) throw new Error("No payment or withdrawal tasks were found.");
 
     state.payments = payments;
     state.withdrawals = withdrawals;
     await loadRemoteTaskState();
-    state.source = "Live sheet";
+    state.source = snapshot.source || "Live sheet";
     els.sheetName.textContent = "Zaki Work List";
+    const snapshotTime = snapshot.generatedAt
+      ? ` from snapshot ${new Date(snapshot.generatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+      : "";
     els.lastUpdated.textContent = `Updated ${new Intl.DateTimeFormat([], {
       hour: "numeric",
       minute: "2-digit",
       second: "2-digit",
-    }).format(new Date())}`;
+    }).format(new Date())}${snapshotTime}`;
     render();
   } catch (error) {
     state.source = "Demo preview";
