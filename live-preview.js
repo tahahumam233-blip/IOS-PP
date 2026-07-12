@@ -17,6 +17,8 @@ let previewUsers = window.PAYMENT_TRACKER_USERS || defaultPreviewUsers;
 const PREVIEW_ACTIVITY_KEY = "payment-tracker-preview-activity";
 const PREVIEW_TASK_STATE_KEY = "zaki-payment-task-state";
 const REMEMBER_LOGIN_ID_KEY = "payment-tracker-remember-login-id";
+const FACE_ID_LOGIN_KEY = "payment-tracker-face-id-login-v1";
+const FACE_ID_TIMEOUT_MS = 60000;
 const PREVIEW_SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
 const PREVIEW_RECEIPTS_BUCKET = "IOS-PP- Receipts";
 const ACTIVITY_TABLE = "activity_log";
@@ -30,6 +32,10 @@ let locationWatchId = null;
 let lastLocationSaveAt = 0;
 let lastLocationCoords = null;
 let locationPermissionRetryArmed = false;
+let faceIdAvailable = false;
+let faceIdAvailabilityChecked = false;
+let faceIdBusyMode = "";
+let faceIdNotice = "";
 const LOCATION_PROMPT_KEY = "payment-tracker-location-permission-requested";
 const LOCATION_MIN_SAVE_MS = 10000;
 const LOCATION_MIN_DISTANCE_M = 15;
@@ -69,6 +75,253 @@ function normalizeUser(id, user = {}) {
       ...(user.permissions || {}),
     },
   };
+}
+
+function getFaceIdRecord() {
+  try {
+    const record = JSON.parse(localStorage.getItem(FACE_ID_LOGIN_KEY) || "null");
+    if (!record?.userId || !record?.credentialId) return null;
+    return record;
+  } catch {
+    return null;
+  }
+}
+
+function saveFaceIdRecord(record) {
+  localStorage.setItem(FACE_ID_LOGIN_KEY, JSON.stringify(record));
+}
+
+function getFaceIdUser(record = getFaceIdRecord()) {
+  const rawUser = record?.userId ? previewUsers[record.userId] : null;
+  return rawUser ? normalizeUser(record.userId, rawUser) : null;
+}
+
+function isFaceIdRecordEnabled(record) {
+  return Boolean(record && record.enabled !== false);
+}
+
+function randomCredentialBytes(length = 32) {
+  return crypto.getRandomValues(new Uint8Array(length));
+}
+
+function encodeBase64Url(buffer) {
+  let binary = "";
+  new Uint8Array(buffer).forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function decodeBase64Url(value) {
+  const normalized = String(value).replace(/-/g, "+").replace(/_/g, "/");
+  const binary = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "="));
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+function setLoginError(message = "") {
+  const error = document.querySelector("#previewLoginError");
+  error.textContent = message;
+  error.hidden = !message;
+}
+
+function faceIdErrorMessage(error, action) {
+  if (error?.name === "NotAllowedError") {
+    return action === "setup" ? "Face ID setup was cancelled." : "Face ID was cancelled. Try again or use your password.";
+  }
+  if (error?.name === "InvalidStateError") {
+    return "Face ID is already registered. Sign in with your password and replace it in Settings.";
+  }
+  if (error?.name === "SecurityError") {
+    return "Face ID requires the secure app or Safari page.";
+  }
+  return action === "setup"
+    ? "Face ID could not be set up. Password login still works."
+    : "Face ID could not sign you in. Use your password and try again.";
+}
+
+async function detectFaceIdSupport() {
+  if (!window.isSecureContext || !window.PublicKeyCredential || !navigator.credentials) return false;
+  if (typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== "function") return true;
+
+  try {
+    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch {
+    return false;
+  }
+}
+
+function updateFaceIdUi() {
+  const record = getFaceIdRecord();
+  const faceIdUser = getFaceIdUser(record);
+  const enabled = isFaceIdRecordEnabled(record);
+  const loginButton = document.querySelector("#previewFaceIdButton");
+  const loginStatus = document.querySelector("#faceIdLoginStatus");
+  const setupRow = document.querySelector("#setupFaceIdRow");
+  const setupCheckbox = document.querySelector("#setupFaceIdOnLogin");
+  const settingsStatus = document.querySelector("#faceIdSettingsStatus");
+  const settingsButton = document.querySelector("#faceIdSettingsButton");
+
+  loginButton.hidden = !(faceIdAvailable && enabled && faceIdUser);
+  loginButton.disabled = Boolean(faceIdBusyMode);
+  loginButton.textContent = faceIdBusyMode === "login" ? "Checking Face ID..." : "Use Face ID";
+  setupRow.hidden = !faceIdAvailable || Boolean(enabled && faceIdUser);
+
+  if (!faceIdAvailabilityChecked) {
+    loginStatus.textContent = "Checking this device...";
+  } else if (!faceIdAvailable) {
+    loginStatus.textContent = "Face ID is unavailable here. Password login still works.";
+  } else if (enabled && faceIdUser) {
+    loginStatus.textContent = `Ready for ${faceIdUser.label} on this device.`;
+  } else if (record && !faceIdUser) {
+    loginStatus.textContent = "The saved Face ID account is unavailable. Sign in with your password.";
+  } else if (record && !enabled) {
+    loginStatus.textContent = "Face ID is off on this device.";
+  } else {
+    loginStatus.textContent = "Not set up on this device.";
+  }
+
+  if (!faceIdAvailabilityChecked) {
+    settingsStatus.textContent = "Checking this device...";
+    settingsButton.textContent = "Enable";
+    settingsButton.disabled = true;
+    return;
+  }
+
+  if (!faceIdAvailable) {
+    settingsStatus.textContent = "Face ID is unavailable in this browser.";
+    settingsButton.textContent = "Unavailable";
+    settingsButton.disabled = true;
+    return;
+  }
+
+  if (faceIdNotice) {
+    settingsStatus.textContent = faceIdNotice;
+  } else if (previewUser.role === "guest") {
+    settingsStatus.textContent = "Sign in to manage Face ID for this device.";
+  } else if (record?.userId === previewUser.id && enabled) {
+    settingsStatus.textContent = `Enabled for ${previewUser.label} on this device.`;
+  } else if (record?.userId === previewUser.id) {
+    settingsStatus.textContent = `Disabled for ${previewUser.label} on this device.`;
+  } else if (faceIdUser && enabled) {
+    settingsStatus.textContent = `Currently enabled for ${faceIdUser.label}.`;
+  } else {
+    settingsStatus.textContent = `Not set up for ${previewUser.label}.`;
+  }
+
+  if (faceIdBusyMode === "setup") {
+    settingsButton.textContent = "Setting up...";
+  } else if (record?.userId === previewUser.id && enabled) {
+    settingsButton.textContent = "Disable";
+  } else if (record?.userId === previewUser.id) {
+    settingsButton.textContent = "Enable";
+  } else if (record) {
+    settingsButton.textContent = "Replace";
+  } else {
+    settingsButton.textContent = "Enable";
+  }
+  settingsButton.disabled = previewUser.role === "guest" || Boolean(faceIdBusyMode);
+
+  if (!setupRow.hidden && record?.userId === document.querySelector("#previewLoginId").value.trim().toLowerCase()) {
+    setupCheckbox.checked = true;
+  }
+}
+
+async function enrollFaceId(user) {
+  if (!faceIdAvailable || faceIdBusyMode) return false;
+
+  faceIdBusyMode = "setup";
+  faceIdNotice = "";
+  updateFaceIdUi();
+
+  try {
+    const credential = await navigator.credentials.create({
+      publicKey: {
+        challenge: randomCredentialBytes(),
+        rp: { name: "Payment Tracker" },
+        user: {
+          id: randomCredentialBytes(),
+          name: user.id,
+          displayName: user.label,
+        },
+        pubKeyCredParams: [
+          { type: "public-key", alg: -7 },
+          { type: "public-key", alg: -257 },
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: "platform",
+          residentKey: "preferred",
+          userVerification: "required",
+        },
+        timeout: FACE_ID_TIMEOUT_MS,
+        attestation: "none",
+      },
+    });
+
+    if (!credential?.rawId) throw new Error("Missing Face ID credential");
+
+    saveFaceIdRecord({
+      version: 1,
+      userId: user.id,
+      credentialId: encodeBase64Url(credential.rawId),
+      enabled: true,
+      createdAt: new Date().toISOString(),
+    });
+    localStorage.setItem(REMEMBER_LOGIN_ID_KEY, user.id);
+    faceIdNotice = `Face ID is ready for ${user.label}.`;
+    return true;
+  } catch (error) {
+    faceIdNotice = faceIdErrorMessage(error, "setup");
+    return false;
+  } finally {
+    faceIdBusyMode = "";
+    updateFaceIdUi();
+  }
+}
+
+async function authenticateWithFaceId() {
+  const record = getFaceIdRecord();
+  const user = getFaceIdUser(record);
+  if (!faceIdAvailable || !isFaceIdRecordEnabled(record) || !user || faceIdBusyMode) return;
+
+  faceIdBusyMode = "login";
+  faceIdNotice = "";
+  setLoginError();
+  updateFaceIdUi();
+
+  try {
+    const credential = await navigator.credentials.get({
+      publicKey: {
+        challenge: randomCredentialBytes(),
+        allowCredentials: [{
+          type: "public-key",
+          id: decodeBase64Url(record.credentialId),
+          transports: ["internal"],
+        }],
+        userVerification: "required",
+        timeout: FACE_ID_TIMEOUT_MS,
+      },
+    });
+
+    if (!credential?.rawId || encodeBase64Url(credential.rawId) !== record.credentialId) {
+      throw new Error("Face ID credential did not match");
+    }
+
+    setPreviewAccess(user);
+    addActivity({
+      title: "User signed in with Face ID",
+      message: `${user.label} opened the app session with Face ID.`,
+      status: "changed",
+      user: user.label,
+    });
+  } catch (error) {
+    setLoginError(faceIdErrorMessage(error, "login"));
+  } finally {
+    faceIdBusyMode = "";
+    updateFaceIdUi();
+  }
 }
 
 function userCan(permission) {
@@ -636,6 +889,7 @@ function setPreviewAccess(user) {
       ? `Signed in as ${user.label}. You can upload and post assigned work.`
       : "Guest mode is view-only. Sign in with a posting account to make changes.";
   if (typeof render === "function") render();
+  updateFaceIdUi();
   void loadRemoteActivity();
   startLocationTracking("Signed in");
 }
@@ -645,7 +899,11 @@ function resetLoginForm({ keepRememberedId = true } = {}) {
   const idInput = document.querySelector("#previewLoginId");
   const passwordInput = document.querySelector("#previewLoginPassword");
   const rememberInput = document.querySelector("#rememberLoginId");
-  const rememberedId = keepRememberedId ? localStorage.getItem(REMEMBER_LOGIN_ID_KEY) || "" : "";
+  const setupFaceIdInput = document.querySelector("#setupFaceIdOnLogin");
+  const faceIdRecord = getFaceIdRecord();
+  const rememberedId = keepRememberedId
+    ? localStorage.getItem(REMEMBER_LOGIN_ID_KEY) || (isFaceIdRecordEnabled(faceIdRecord) ? faceIdRecord.userId : "")
+    : "";
 
   stopLocationTracking();
   previewUser = normalizeUser("guest", { role: "guest", label: "Guest" });
@@ -657,11 +915,15 @@ function resetLoginForm({ keepRememberedId = true } = {}) {
   idInput.value = rememberedId;
   passwordInput.value = "";
   rememberInput.checked = Boolean(rememberedId);
-  document.querySelector("#previewLoginError").hidden = true;
+  setupFaceIdInput.checked = true;
+  setLoginError();
   loginScreen.hidden = false;
+  faceIdNotice = "";
+  updateFaceIdUi();
   if (typeof render === "function") render();
 
   window.setTimeout(() => {
+    if (!window.matchMedia("(pointer: fine)").matches || isFaceIdRecordEnabled(faceIdRecord)) return;
     if (rememberedId) {
       passwordInput.focus();
     } else {
@@ -689,17 +951,24 @@ document.addEventListener("touchend", (event) => {
   }
 }, { passive: false });
 
-document.querySelector("#previewLoginButton").addEventListener("click", () => {
+document.querySelector("#previewLoginForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
   const id = document.querySelector("#previewLoginId").value.trim().toLowerCase();
   const password = document.querySelector("#previewLoginPassword").value;
   const rememberInput = document.querySelector("#rememberLoginId");
+  const setupFaceIdInput = document.querySelector("#setupFaceIdOnLogin");
+  const loginButton = document.querySelector("#previewLoginButton");
   const rawUser = previewUsers[id];
   const user = rawUser ? normalizeUser(id, rawUser) : null;
   if (!user || user.password !== password) {
-    document.querySelector("#previewLoginError").hidden = false;
+    setLoginError("Wrong ID or password.");
     document.querySelector("#previewLoginPassword").value = "";
     return;
   }
+
+  setLoginError();
+  loginButton.disabled = true;
+  loginButton.textContent = "Signing in...";
 
   if (rememberInput.checked) {
     localStorage.setItem(REMEMBER_LOGIN_ID_KEY, id);
@@ -707,7 +976,13 @@ document.querySelector("#previewLoginButton").addEventListener("click", () => {
     localStorage.removeItem(REMEMBER_LOGIN_ID_KEY);
   }
 
+  if (!document.querySelector("#setupFaceIdRow").hidden && setupFaceIdInput.checked) {
+    await enrollFaceId(user);
+  }
+
   document.querySelector("#previewLoginPassword").value = "";
+  loginButton.disabled = false;
+  loginButton.textContent = "Login";
   setPreviewAccess(user);
   addActivity({
     title: "User signed in",
@@ -717,10 +992,23 @@ document.querySelector("#previewLoginButton").addEventListener("click", () => {
   });
 });
 
-document.querySelector("#previewLoginPassword").addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    document.querySelector("#previewLoginButton").click();
+document.querySelector("#previewFaceIdButton").addEventListener("click", () => {
+  void authenticateWithFaceId();
+});
+
+document.querySelector("#faceIdSettingsButton").addEventListener("click", async () => {
+  if (previewUser.role === "guest" || !faceIdAvailable || faceIdBusyMode) return;
+
+  const record = getFaceIdRecord();
+  faceIdNotice = "";
+  if (record?.userId === previewUser.id && isFaceIdRecordEnabled(record)) {
+    saveFaceIdRecord({ ...record, enabled: false });
+    faceIdNotice = `Face ID is disabled for ${previewUser.label}.`;
+    updateFaceIdUi();
+    return;
   }
+
+  await enrollFaceId(previewUser);
 });
 
 document.querySelector("#previewSignOutButton").addEventListener("click", () => {
@@ -878,8 +1166,13 @@ taskListObserver.observe(document.querySelector("#taskList"), {
 });
 
 async function bootApp() {
-  await loadRemoteUsers();
   resetLoginForm();
+  const remoteUsersPromise = loadRemoteUsers();
+  faceIdAvailable = await detectFaceIdSupport();
+  faceIdAvailabilityChecked = true;
+  updateFaceIdUi();
+  await remoteUsersPromise;
+  updateFaceIdUi();
   renderActivity();
   syncAppViewport();
   window.requestAnimationFrame(() => {

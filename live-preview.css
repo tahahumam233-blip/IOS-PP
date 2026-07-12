@@ -255,7 +255,8 @@ label {
 .preview-topbar button,
 .exchange-save,
 .modal-save,
-.signout {
+.signout,
+.face-id-settings-button {
   min-height: 42px;
   border: 1px solid rgba(214, 0, 58, 0.74);
   border-radius: 12px;
@@ -263,6 +264,24 @@ label {
   color: var(--brand-strong);
   background: var(--brand-soft);
   font-weight: 850;
+}
+
+.login-card .face-id-button,
+.face-id-settings-button {
+  border-color: rgba(79, 220, 131, 0.52);
+  color: #ffffff;
+  background: linear-gradient(180deg, #35d77d, #12985a);
+  box-shadow: 0 8px 18px rgba(36, 200, 111, 0.18);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.22);
+}
+
+.face-id-button[hidden],
+#setupFaceIdRow[hidden] {
+  display: none;
+}
+
+.face-id-settings-button {
+  width: 100%;
 }
 
 .remember-login {

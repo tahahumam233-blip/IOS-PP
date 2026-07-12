@@ -11,13 +11,13 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" type="image/png" href="assets/icon-192.png" />
     <link rel="apple-touch-icon" href="assets/icon-180.png" />
-    <link rel="stylesheet" href="styles.css?v=20260712-sheet-snapshot-1" />
-    <link rel="stylesheet" href="live-preview.css?v=20260712-sheet-snapshot-1" />
+    <link rel="stylesheet" href="styles.css?v=20260712-face-id-1" />
+    <link rel="stylesheet" href="live-preview.css?v=20260712-face-id-1" />
   </head>
   <body>
     <main class="app-preview" data-theme="dark" data-role="guest">
       <section class="login-screen" id="previewLoginScreen">
-        <div class="login-card">
+        <form class="login-card" id="previewLoginForm">
           <div class="login-brand">
             <img class="brand-logo logo-dark" src="assets/logo-white-red.png" alt="" />
             <img class="brand-logo logo-light" src="assets/logo-red.png" alt="" />
@@ -30,27 +30,32 @@
           <div class="field-stack">
             <label>
               User ID
-              <input id="previewLoginId" type="text" autocomplete="username" placeholder="Enter user ID" />
+              <input id="previewLoginId" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Enter user ID" />
             </label>
             <label>
               Password
-              <input id="previewLoginPassword" type="password" autocomplete="current-password" enterkeyhint="go" placeholder="Enter password" />
+              <input id="previewLoginPassword" name="password" type="password" autocomplete="current-password" enterkeyhint="go" placeholder="Enter password" />
             </label>
             <label class="remember-login">
               <input id="rememberLoginId" type="checkbox" />
               <span>Remember User ID on this device</span>
             </label>
+            <label class="remember-login" id="setupFaceIdRow" hidden>
+              <input id="setupFaceIdOnLogin" type="checkbox" checked />
+              <span>Set up Face ID on this device</span>
+            </label>
           </div>
 
           <div class="login-actions">
-            <button id="previewLoginButton" type="button">Login</button>
+            <button class="face-id-button" id="previewFaceIdButton" type="button" hidden>Use Face ID</button>
+            <button id="previewLoginButton" type="submit">Login</button>
           </div>
-          <b class="login-error" id="previewLoginError" hidden>Wrong ID or password.</b>
+          <b class="login-error" id="previewLoginError" aria-live="polite" hidden>Wrong ID or password.</b>
           <div class="login-hint">
             <strong>Face ID login</strong>
-            <span>Login once, then choose Save Password when iPhone asks. Next time, Face ID will offer the saved password automatically.</span>
+            <span id="faceIdLoginStatus">Checking this device...</span>
           </div>
-        </div>
+        </form>
       </section>
 
       <header class="preview-topbar">
@@ -181,6 +186,13 @@
             <button data-theme-choice="light" type="button">Light</button>
           </div>
         </div>
+        <div class="preview-card settings-card" id="faceIdSettingsCard">
+          <div>
+            <strong>Face ID</strong>
+            <span id="faceIdSettingsStatus">Checking this device...</span>
+          </div>
+          <button class="face-id-settings-button" id="faceIdSettingsButton" type="button" disabled>Enable</button>
+        </div>
         <div class="preview-card settings-card">
           <div>
             <strong>Access</strong>
@@ -273,8 +285,8 @@
     <a class="source-link" id="sheetLink" href="#" target="_blank" rel="noreferrer">Open source sheet</a>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="users.js?v=20260712-sheet-snapshot-1"></script>
-    <script src="app.js?v=20260712-sheet-snapshot-1"></script>
-    <script src="live-preview.js?v=20260712-sheet-snapshot-1"></script>
+    <script src="users.js?v=20260712-face-id-1"></script>
+    <script src="app.js?v=20260712-face-id-1"></script>
+    <script src="live-preview.js?v=20260712-face-id-1"></script>
   </body>
 </html>
