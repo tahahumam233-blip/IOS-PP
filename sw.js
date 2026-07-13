@@ -1,4 +1,4 @@
-const CACHE_NAME = "payment-tracker-pwa-20260713-live-plan-1";
+const CACHE_NAME = "payment-tracker-pwa-20260713-live-plan-2";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@ const STATIC_ASSETS = [
   "./location-map.css",
   "./users.js",
   "./app.js",
+  "./sheet-data.json",
   "./live-preview.js",
   "./location-map.js",
   "./location-map.html",
@@ -48,12 +49,28 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (url.pathname.endsWith("/sheet-data.json")) {
+    event.respondWith(
+      fetch(request, { cache: "no-store" })
+        .then((response) => {
+          if (!response.ok) throw new Error(`Sheet snapshot returned ${response.status}`);
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put("./sheet-data.json", copy));
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match("./sheet-data.json");
+          return cached || new Response("{}", { status: 503, headers: { "Content-Type": "application/json" } });
+        })
+    );
+    return;
+  }
+
   if (
     request.mode === "navigate" ||
     url.pathname.endsWith("/index.html") ||
     url.pathname.endsWith("/users.js") ||
     url.pathname.endsWith("/app.js") ||
-    url.pathname.endsWith("/sheet-data.json") ||
     url.pathname.endsWith("/styles.css") ||
     url.pathname.endsWith("/live-preview.css") ||
     url.pathname.endsWith("/location-map.html") ||
