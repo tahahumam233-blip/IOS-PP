@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 from datetime import datetime, timezone
@@ -41,7 +42,18 @@ def fetch_values(credentials, sheet_range):
     return response.json().get("values", [])
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Refresh the mobile planner sheet snapshot.")
+    parser.add_argument(
+        "--only-if-changed",
+        action="store_true",
+        help="Leave the existing snapshot untouched when both sheet ranges are unchanged.",
+    )
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
     service_account_path = get_service_account_path()
     credentials = service_account.Credentials.from_service_account_file(
         service_account_path,
@@ -60,6 +72,21 @@ def main():
     }
 
     output_path = ROOT / "sheet-data.json"
+    if args.only_if_changed and output_path.exists():
+        try:
+            existing = json.loads(output_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            existing = {}
+
+        if (
+            existing.get("paymentsRows") == payload["paymentsRows"]
+            and existing.get("withdrawalRows") == payload["withdrawalRows"]
+        ):
+            print("Sheet rows are unchanged; snapshot was not rewritten.")
+            print(f"Payment rows: {len(payload['paymentsRows'])}")
+            print(f"Withdrawal rows: {len(payload['withdrawalRows'])}")
+            return
+
     output_path.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"Wrote {output_path}")
     print(f"Payment rows: {len(payload['paymentsRows'])}")

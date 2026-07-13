@@ -5,6 +5,8 @@ const RANGE = "A7:J200";
 const WITHDRAWAL_START_ROW = 26;
 const WITHDRAWAL_RANGE = "L26:N200";
 const SHEET_DATA_URL = "sheet-data.json";
+const SHEET_REQUEST_TIMEOUT_MS = 8000;
+const BAGHDAD_TIME_ZONE = "Asia/Baghdad";
 const STORAGE_KEY = "zaki-payment-task-state";
 const SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
 const SUPABASE_ANON_KEY =
@@ -959,10 +961,43 @@ async function loadSheetSnapshot() {
   return snapshot;
 }
 
+function getBaghdadDateKey(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", { timeZone: BAGHDAD_TIME_ZONE }).format(date);
+}
+
+function isSnapshotFromToday(snapshot) {
+  return getBaghdadDateKey(snapshot?.generatedAt) === getBaghdadDateKey(new Date());
+}
+
+function formatSheetDataTimestamp(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "an unknown date";
+  return new Intl.DateTimeFormat([], {
+    timeZone: BAGHDAD_TIME_ZONE,
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = SHEET_REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 async function loadSheetFromGoogleCsv() {
   const [response, withdrawalResponse] = await Promise.all([
-    fetch(getSheetCsvUrl(RANGE), { cache: "no-store" }),
-    fetch(getSheetCsvUrl(WITHDRAWAL_RANGE), { cache: "no-store" }),
+    fetchWithTimeout(getSheetCsvUrl(RANGE), { cache: "no-store" }),
+    fetchWithTimeout(getSheetCsvUrl(WITHDRAWAL_RANGE), { cache: "no-store" }),
   ]);
   if (!response.ok) throw new Error(`Google Sheets returned ${response.status}`);
   if (!withdrawalResponse.ok) throw new Error(`Google Sheets withdrawals returned ${withdrawalResponse.status}`);
@@ -994,8 +1029,16 @@ async function loadSheet() {
   setLoading(true);
   try {
     let snapshot;
+    let snapshotWarning = "";
     try {
       snapshot = await loadSheetSnapshot();
+      if (!isSnapshotFromToday(snapshot)) {
+        try {
+          snapshot = await loadSheetFromGoogleCsv();
+        } catch (liveSheetError) {
+          snapshotWarning = `Warning: live sheet unavailable; showing planner data generated ${formatSheetDataTimestamp(snapshot.generatedAt)}.`;
+        }
+      }
     } catch (snapshotError) {
       snapshot = await loadSheetFromGoogleCsv();
     }
@@ -1005,16 +1048,19 @@ async function loadSheet() {
     state.payments = payments;
     state.withdrawals = withdrawals;
     await loadRemoteTaskState();
-    state.source = snapshot.source || "Live sheet";
+    state.source = snapshotWarning ? "Old sheet snapshot" : snapshot.source || "Live sheet";
     els.sheetName.textContent = "Zaki Work List";
-    const snapshotTime = snapshot.generatedAt
-      ? ` from snapshot ${new Date(snapshot.generatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
-      : "";
-    els.lastUpdated.textContent = `Updated ${new Intl.DateTimeFormat([], {
-      hour: "numeric",
-      minute: "2-digit",
-      second: "2-digit",
-    }).format(new Date())}${snapshotTime}`;
+    if (snapshotWarning) {
+      els.lastUpdated.textContent = snapshotWarning;
+    } else if (snapshot.source === "Sheet snapshot") {
+      els.lastUpdated.textContent = `Sheet data generated ${formatSheetDataTimestamp(snapshot.generatedAt)}`;
+    } else {
+      els.lastUpdated.textContent = `Updated live ${new Intl.DateTimeFormat([], {
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit",
+      }).format(new Date())}`;
+    }
     render();
   } catch (error) {
     state.source = "Demo preview";
