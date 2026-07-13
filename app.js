@@ -5,12 +5,14 @@ const RANGE = "A7:J200";
 const WITHDRAWAL_START_ROW = 26;
 const WITHDRAWAL_RANGE = "L26:N200";
 const SHEET_DATA_URL = "sheet-data.json";
-const SHEET_REQUEST_TIMEOUT_MS = 8000;
+const SHEET_REQUEST_TIMEOUT_MS = 15000;
+const SHEET_AUTO_REFRESH_MS = 20000;
 const BAGHDAD_TIME_ZONE = "Asia/Baghdad";
 const STORAGE_KEY = "zaki-payment-task-state";
 const SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhZXFubGNoZW56eWJrZnljZWxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyNzQ1OTUsImV4cCI6MjA5Mjg1MDU5NX0.2qHHPs2sx-WUjpTQGStbLKzjAI51NSv-xGl4wQvbU5Q";
+const SHEET_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/sheet-data`;
 const RECEIPTS_BUCKET = "IOS-PP- Receipts";
 const SLACK_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/hyper-action`;
 const ZAPIER_DRAFT_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/22095219/uvk15pv/";
@@ -951,6 +953,28 @@ function getSheetCsvUrl(range = RANGE) {
   return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?${params.toString()}`;
 }
 
+async function loadSheetFromProxy({ force = false } = {}) {
+  const url = new URL(SHEET_FUNCTION_URL);
+  url.searchParams.set("cache", Date.now().toString());
+  if (force) url.searchParams.set("fresh", "1");
+
+  const response = await fetchWithTimeout(url, {
+    cache: "no-store",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || `Live sheet service returned ${response.status}.`);
+  }
+  if (!Array.isArray(payload.paymentsRows) || !Array.isArray(payload.withdrawalRows)) {
+    throw new Error("Live sheet service returned incomplete data.");
+  }
+  return payload;
+}
+
 async function loadSheetSnapshot() {
   const response = await fetch(`${SHEET_DATA_URL}?cache=${Date.now()}`, { cache: "no-store" });
   if (!response.ok) throw new Error(`Sheet snapshot returned ${response.status}`);
@@ -959,16 +983,6 @@ async function loadSheetSnapshot() {
     throw new Error("Sheet snapshot is missing payment or withdrawal rows.");
   }
   return snapshot;
-}
-
-function getBaghdadDateKey(value) {
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en-CA", { timeZone: BAGHDAD_TIME_ZONE }).format(date);
-}
-
-function isSnapshotFromToday(snapshot) {
-  return getBaghdadDateKey(snapshot?.generatedAt) === getBaghdadDateKey(new Date());
 }
 
 function formatSheetDataTimestamp(value) {
@@ -1025,35 +1039,44 @@ function setLoading(isLoading) {
   els.updateButton.textContent = isLoading ? "Updating..." : "Update Data";
 }
 
-async function loadSheet() {
-  setLoading(true);
+async function loadSheet({ background = false, force = false } = {}) {
+  if (state.loading) return;
+  if (background) {
+    state.loading = true;
+  } else {
+    setLoading(true);
+  }
+
   try {
     let snapshot;
-    let snapshotWarning = "";
+    let usingFallback = false;
     try {
-      snapshot = await loadSheetSnapshot();
-      if (!isSnapshotFromToday(snapshot)) {
-        try {
-          snapshot = await loadSheetFromGoogleCsv();
-        } catch (liveSheetError) {
-          snapshotWarning = `Warning: live sheet unavailable; showing planner data generated ${formatSheetDataTimestamp(snapshot.generatedAt)}.`;
-        }
+      snapshot = await loadSheetFromProxy({ force });
+    } catch (liveSheetError) {
+      if (background && state.source === "Live Google Sheet") {
+        els.connectionLabel.textContent = "Live sheet retrying";
+        return;
       }
-    } catch (snapshotError) {
-      snapshot = await loadSheetFromGoogleCsv();
+
+      try {
+        snapshot = await loadSheetSnapshot();
+        usingFallback = true;
+      } catch (snapshotError) {
+        snapshot = await loadSheetFromGoogleCsv();
+      }
     }
+
     const { payments, withdrawals } = normalizeTasks(snapshot.paymentsRows, snapshot.withdrawalRows);
     if (!payments.length && !withdrawals.length) throw new Error("No payment or withdrawal tasks were found.");
 
     state.payments = payments;
     state.withdrawals = withdrawals;
     await loadRemoteTaskState();
-    state.source = snapshotWarning ? "Old sheet snapshot" : snapshot.source || "Live sheet";
+    state.source = usingFallback ? "Saved sheet fallback" : snapshot.source || "Live Google Sheet";
+    els.connectionLabel.textContent = state.source;
     els.sheetName.textContent = "Zaki Work List";
-    if (snapshotWarning) {
-      els.lastUpdated.textContent = snapshotWarning;
-    } else if (snapshot.source === "Sheet snapshot") {
-      els.lastUpdated.textContent = `Sheet data generated ${formatSheetDataTimestamp(snapshot.generatedAt)}`;
+    if (usingFallback) {
+      els.lastUpdated.textContent = `Live sheet unavailable; showing saved data from ${formatSheetDataTimestamp(snapshot.generatedAt)}.`;
     } else {
       els.lastUpdated.textContent = `Updated live ${new Intl.DateTimeFormat([], {
         hour: "numeric",
@@ -1063,11 +1086,19 @@ async function loadSheet() {
     }
     render();
   } catch (error) {
-    state.source = "Demo preview";
-    els.lastUpdated.textContent = error.message;
-    render();
+    if (!background || state.source === "Demo preview") {
+      state.source = "Demo preview";
+      els.lastUpdated.textContent = error.message;
+      render();
+    } else {
+      els.connectionLabel.textContent = "Live sheet retrying";
+    }
   } finally {
-    setLoading(false);
+    if (background) {
+      state.loading = false;
+    } else {
+      setLoading(false);
+    }
   }
 }
 
@@ -1515,8 +1546,8 @@ els.uploadForm.addEventListener("submit", async (event) => {
   void runBackgroundUpload({ jobId, taskId, files, noteText });
 });
 
-els.updateButton.addEventListener("click", loadSheet);
-els.refreshButton?.addEventListener("click", loadSheet);
+els.updateButton.addEventListener("click", () => void loadSheet({ force: true }));
+els.refreshButton?.addEventListener("click", () => void loadSheet({ force: true }));
 els.searchInput.addEventListener("input", renderTaskList);
 els.closeUploadModal.addEventListener("click", closeUploadModal);
 els.uploadModal.addEventListener("click", (event) => {
@@ -1618,7 +1649,19 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+function refreshVisibleSheet() {
+  if (document.visibilityState === "visible") {
+    void loadSheet({ background: true, force: true });
+  }
+}
+
+document.addEventListener("visibilitychange", refreshVisibleSheet);
+window.addEventListener("online", refreshVisibleSheet);
+
 tickClock();
 setInterval(tickClock, 1000 * 30);
+setInterval(() => {
+  if (document.visibilityState === "visible") void loadSheet({ background: true });
+}, SHEET_AUTO_REFRESH_MS);
 render();
-loadSheet();
+void loadSheet({ force: true });
