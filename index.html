@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#10070b" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -11,8 +11,8 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" type="image/png" href="assets/icon-192.png" />
     <link rel="apple-touch-icon" href="assets/icon-180.png" />
-    <link rel="stylesheet" href="styles.css?v=20260712-face-id-1" />
-    <link rel="stylesheet" href="live-preview.css?v=20260712-face-id-1" />
+    <link rel="stylesheet" href="styles.css?v=20260714-source-manager-4" />
+    <link rel="stylesheet" href="live-preview.css?v=20260714-source-manager-4" />
   </head>
   <body>
     <main class="app-preview" data-theme="dark" data-role="guest">
@@ -76,8 +76,14 @@
       </div>
 
       <section class="preview-view active" id="tasksView">
-        <p class="sheet-name" id="sheetName" aria-hidden="true">Zaki Work List</p>
-        <p class="updated-line" id="lastUpdated">Ready to connect</p>
+        <div class="source-context">
+          <div class="source-context-copy">
+            <span class="source-kicker"><i aria-hidden="true"></i> Active source</span>
+            <strong class="sheet-name" id="sheetName">SOA 2026 Q2 PP</strong>
+            <p class="updated-line" id="lastUpdated">Ready to connect</p>
+          </div>
+          <a class="source-link" id="sheetLink" href="#" target="_blank" rel="noreferrer">Open sheet</a>
+        </div>
         <section class="metrics" id="metrics" aria-label="Key metrics"></section>
 
         <div class="task-tabs" role="tablist" aria-label="Task type">
@@ -193,6 +199,13 @@
           </div>
           <button class="face-id-settings-button" id="faceIdSettingsButton" type="button" disabled>Enable</button>
         </div>
+        <div class="preview-card settings-card admin-settings-card" id="userManagerSettingsCard" hidden>
+          <div>
+            <strong>Administration</strong>
+            <span>Manage users, permissions, and Google Sheet sources.</span>
+          </div>
+          <a class="admin-settings-link" id="userManagerLink" href="user-manager.html">Open console</a>
+        </div>
         <div class="preview-card settings-card">
           <div>
             <strong>Access</strong>
@@ -282,11 +295,9 @@
       </div>
     </div>
 
-    <a class="source-link" id="sheetLink" href="#" target="_blank" rel="noreferrer">Open source sheet</a>
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="users.js?v=20260712-face-id-1"></script>
-    <script src="app.js?v=20260713-live-sheet-proxy-1"></script>
-    <script src="live-preview.js?v=20260712-face-id-1"></script>
+    <script src="users.js?v=20260714-source-manager-4"></script>
+    <script src="app.js?v=20260714-source-manager-4"></script>
+    <script src="live-preview.js?v=20260714-source-manager-4"></script>
   </body>
 </html>

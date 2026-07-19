@@ -1,9 +1,14 @@
-const SHEET_ID = "1K14ioxhRa-oCNOQ9T3DodnpNIyimkfQvsOPHP59rCbw";
-const SHEET_GID = "0";
-const PAYMENT_START_ROW = 7;
-const RANGE = "A7:J200";
-const WITHDRAWAL_START_ROW = 26;
-const WITHDRAWAL_RANGE = "L26:N200";
+const DEFAULT_SHEET_SOURCE = Object.freeze({
+  id: "soa-current",
+  name: "SOA 2026 Q2 PP",
+  spreadsheetId: "1K14ioxhRa-oCNOQ9T3DodnpNIyimkfQvsOPHP59rCbw",
+  sheetName: "PP",
+  sheetGid: "0",
+  paymentRange: "A7:J200",
+  withdrawalRange: "L26:N200",
+  layoutKey: "pp-v1",
+  configVersion: 0,
+});
 const SHEET_DATA_URL = "sheet-data.json";
 const SHEET_REQUEST_TIMEOUT_MS = 15000;
 const SHEET_AUTO_REFRESH_MS = 20000;
@@ -13,10 +18,42 @@ const SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhZXFubGNoZW56eWJrZnljZWxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyNzQ1OTUsImV4cCI6MjA5Mjg1MDU5NX0.2qHHPs2sx-WUjpTQGStbLKzjAI51NSv-xGl4wQvbU5Q";
 const SHEET_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/sheet-data`;
+const ACTIVE_SHEET_SOURCE_STORAGE_KEY = "payment-tracker-active-sheet-source-v1";
 const RECEIPTS_BUCKET = "IOS-PP- Receipts";
 const SLACK_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/hyper-action`;
 const ZAPIER_DRAFT_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/22095219/uvk15pv/";
 const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function readRememberedSheetSource() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(ACTIVE_SHEET_SOURCE_STORAGE_KEY) || "null");
+    const paymentRange = String(saved?.paymentRange || "").toUpperCase();
+    const withdrawalRange = String(saved?.withdrawalRange || "").toUpperCase();
+    if (
+      !saved?.id
+      || !saved?.spreadsheetId
+      || !saved?.sheetName
+      || !/^\d+$/.test(String(saved?.sheetGid ?? ""))
+      || !/^[A-Z]+\d+:[A-Z]+\d+$/.test(paymentRange)
+      || !/^[A-Z]+\d+:[A-Z]+\d+$/.test(withdrawalRange)
+      || !saved?.layoutKey
+    ) return null;
+
+    const configVersion = Number(saved.configVersion);
+    return {
+      ...DEFAULT_SHEET_SOURCE,
+      ...saved,
+      sheetGid: String(saved.sheetGid),
+      paymentRange,
+      withdrawalRange,
+      configVersion: Number.isFinite(configVersion) ? configVersion : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+const rememberedSheetSource = readRememberedSheetSource();
 
 const demoPayments = [
   { id: "payment-demo-1", type: "payment", name: "Al Noor Trading", iqd: 1850000, usd: 420 },
@@ -34,6 +71,8 @@ const state = {
   withdrawals: demoWithdrawals,
   activeType: "payment",
   source: "Demo preview",
+  sourceMode: "demo",
+  sheetSource: rememberedSheetSource || { ...DEFAULT_SHEET_SOURCE },
   loading: false,
   syncing: false,
   uploadJobs: {},
@@ -120,7 +159,9 @@ function escapeHtml(value) {
 }
 
 function parseAmount(value) {
-  const cleaned = String(value ?? "")
+  const raw = String(value ?? "").trim();
+  if (raw.startsWith("=")) return 0;
+  const cleaned = raw
     .replace(/[^\d.-]/g, "")
     .trim();
   const number = Number(cleaned);
@@ -164,9 +205,124 @@ function parseCsvRows(text) {
   return rows;
 }
 
+function stripSheetNameFromRange(value, fallback) {
+  const range = String(value || fallback || "").split("!").pop().replace(/'/g, "").trim();
+  return /^[A-Za-z]+\d+:[A-Za-z]+\d+$/.test(range) ? range.toUpperCase() : fallback;
+}
+
+function getRangeStartRow(value, fallback) {
+  const range = stripSheetNameFromRange(value, "");
+  const match = range.match(/^[A-Za-z]+(\d+):/);
+  return match ? Number(match[1]) : fallback;
+}
+
+function normalizeSheetSource(source = {}) {
+  const current = state?.sheetSource || DEFAULT_SHEET_SOURCE;
+  const spreadsheetId = String(source.spreadsheetId || source.spreadsheet_id || current.spreadsheetId);
+  const sheetGid = String(source.sheetGid ?? source.sheet_gid ?? current.sheetGid);
+  return {
+    id: String(source.sourceId || source.id || current.id),
+    name: String(source.sourceName || source.name || current.name),
+    spreadsheetId,
+    sheetName: String(source.sheetName || source.sheet_name || current.sheetName),
+    sheetGid,
+    paymentRange: stripSheetNameFromRange(
+      source.paymentRange || source.payment_range,
+      current.paymentRange,
+    ),
+    withdrawalRange: stripSheetNameFromRange(
+      source.withdrawalRange || source.withdrawal_range,
+      current.withdrawalRange,
+    ),
+    layoutKey: String(source.layoutKey || source.layout_key || current.layoutKey),
+    configVersion: Number(source.configVersion ?? source.version ?? 0),
+    sheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit?gid=${sheetGid}#gid=${sheetGid}`,
+  };
+}
+
+function rememberSheetSource(source) {
+  try {
+    localStorage.setItem(ACTIVE_SHEET_SOURCE_STORAGE_KEY, JSON.stringify({
+      id: source.id,
+      name: source.name,
+      spreadsheetId: source.spreadsheetId,
+      sheetName: source.sheetName,
+      sheetGid: source.sheetGid,
+      paymentRange: source.paymentRange,
+      withdrawalRange: source.withdrawalRange,
+      layoutKey: source.layoutKey,
+      configVersion: source.configVersion,
+      sheetUrl: source.sheetUrl,
+    }));
+  } catch {
+    // Loading the live source should still work if browser storage is unavailable.
+  }
+}
+
+function applySheetSource(source = {}, { remember = false } = {}) {
+  state.sheetSource = normalizeSheetSource(source);
+  if (remember) rememberSheetSource(state.sheetSource);
+  if (els.sheetName) els.sheetName.textContent = state.sheetSource.name;
+  if (els.sheetLink) els.sheetLink.href = state.sheetSource.sheetUrl;
+  return state.sheetSource;
+}
+
+function sheetSourceIdentity(source = {}) {
+  const configVersion = source.configVersion ?? source.version;
+  return {
+    id: String(source.sourceId ?? source.id ?? ""),
+    spreadsheetId: String(source.spreadsheetId ?? source.spreadsheet_id ?? ""),
+    sheetName: String(source.sheetName ?? source.sheet_name ?? ""),
+    sheetGid: String(source.sheetGid ?? source.sheet_gid ?? ""),
+    paymentRange: stripSheetNameFromRange(source.paymentRange ?? source.payment_range, ""),
+    withdrawalRange: stripSheetNameFromRange(source.withdrawalRange ?? source.withdrawal_range, ""),
+    layoutKey: String(source.layoutKey ?? source.layout_key ?? ""),
+    configVersion: configVersion === undefined || configVersion === null || configVersion === ""
+      ? null
+      : Number(configVersion),
+  };
+}
+
+function assertSheetSourceIdentity(payload, expectedSource, context) {
+  const expected = sheetSourceIdentity(expectedSource);
+  const actual = sheetSourceIdentity(payload);
+  const fields = [
+    ["id", "source ID"],
+    ["spreadsheetId", "spreadsheet ID"],
+    ["sheetName", "worksheet name"],
+    ["sheetGid", "worksheet gid"],
+    ["paymentRange", "payment range"],
+    ["withdrawalRange", "withdrawal range"],
+    ["layoutKey", "layout key"],
+  ];
+  const problems = [];
+
+  fields.forEach(([key, label]) => {
+    if (!actual[key]) problems.push(`${label} is missing`);
+    else if (actual[key] !== expected[key]) {
+      problems.push(`${label} expected “${expected[key]}” but received “${actual[key]}”`);
+    }
+  });
+
+  if (actual.configVersion === null || !Number.isFinite(actual.configVersion)) {
+    problems.push("configuration version is missing or invalid");
+  } else if (actual.configVersion !== expected.configVersion) {
+    problems.push(`configuration version expected ${expected.configVersion} but received ${actual.configVersion}`);
+  }
+
+  if (problems.length) {
+    throw new Error(`${context} source verification failed: ${problems.join("; ")}. The returned data was not accepted.`);
+  }
+}
+
+function currentSourceId() {
+  return state.sheetSource?.id || DEFAULT_SHEET_SOURCE.id;
+}
+
 function makeTaskId(type, rowNumber, name, iqd, usd) {
   const cleanName = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-  return `${todayKey()}-${type}-${rowNumber}-${cleanName}-${iqd}-${usd}`;
+  const sourceId = slugify(currentSourceId()) || "sheet";
+  return `${todayKey()}-${sourceId}-${type}-${rowNumber}-${cleanName}-${iqd}-${usd}`;
 }
 
 function isSheetSummaryRow(name) {
@@ -187,7 +343,7 @@ function normalizeWithdrawalRows(csvRows) {
       const name = (row[0] || "").trim();
       const iqd = parseAmount(row[1]);
       const usd = parseAmount(row[2]);
-      const rowNumber = WITHDRAWAL_START_ROW + index;
+      const rowNumber = getRangeStartRow(state.sheetSource.withdrawalRange, 26) + index;
       return { id: makeTaskId("withdrawal", rowNumber, name, iqd, usd), type: "withdrawal", name, iqd, usd };
     })
     .filter((task) => !isSheetSummaryRow(task.name) && (task.iqd > 0 || task.usd > 0));
@@ -207,7 +363,7 @@ function normalizeTasks(csvRows, withdrawalRows = []) {
       const name = (row[0] || "").trim();
       const iqd = parseAmount(row[8]);
       const usd = parseAmount(row[9]);
-      const rowNumber = PAYMENT_START_ROW + paymentStartIndex + index;
+      const rowNumber = getRangeStartRow(state.sheetSource.paymentRange, 7) + paymentStartIndex + index;
       return { id: makeTaskId("payment", rowNumber, name, iqd, usd), type: "payment", name, iqd, usd };
     })
     .filter((task) => task.name && (task.iqd > 0 || task.usd > 0));
@@ -337,11 +493,12 @@ function findTask(taskId) {
 }
 
 function getTaskMatchKey(task) {
-  return `${todayKey()}|${task.type}|${slugify(task.name)}`;
+  return `${currentSourceId()}|${todayKey()}|${task.type}|${slugify(task.name)}`;
 }
 
 function getTaskMatchKeyFromRow(row) {
-  return `${row.task_date || todayKey()}|${row.task_type}|${slugify(row.task_name)}`;
+  const sourceId = row.sheet_source_id || DEFAULT_SHEET_SOURCE.id;
+  return `${sourceId}|${row.task_date || todayKey()}|${row.task_type}|${slugify(row.task_name)}`;
 }
 
 function normalizeTaskStatusRow(row) {
@@ -362,6 +519,7 @@ function normalizeTaskStatusRow(row) {
 function getSupabaseRow(task, saved = getSavedTask(task.id)) {
   return {
     id: task.id,
+    sheet_source_id: currentSourceId(),
     task_type: task.type,
     task_date: getTaskDateFromId(task.id),
     task_name: task.name,
@@ -379,6 +537,7 @@ function getSupabaseRow(task, saved = getSavedTask(task.id)) {
 function getBasicSupabaseRow(task, saved = getSavedTask(task.id)) {
   return {
     id: task.id,
+    sheet_source_id: currentSourceId(),
     task_type: task.type,
     task_date: getTaskDateFromId(task.id),
     task_name: task.name,
@@ -400,11 +559,27 @@ async function loadRemoteTaskState() {
     delete state.taskState[taskId];
   });
 
-  const { data, error } = await supabaseClient
+  let query = supabaseClient
     .from("task_status")
     .select("*")
     .eq("task_date", todayKey())
     .in("task_type", ["payment", "withdrawal"]);
+
+  query = currentSourceId() === DEFAULT_SHEET_SOURCE.id
+    ? query.or(`sheet_source_id.eq.${DEFAULT_SHEET_SOURCE.id},sheet_source_id.is.null`)
+    : query.eq("sheet_source_id", currentSourceId());
+
+  let { data, error } = await query;
+  if (error && /sheet_source_id/i.test(error.message || "")) {
+    if (currentSourceId() !== DEFAULT_SHEET_SOURCE.id) return;
+    const legacy = await supabaseClient
+      .from("task_status")
+      .select("*")
+      .eq("task_date", todayKey())
+      .in("task_type", ["payment", "withdrawal"]);
+    data = legacy.data;
+    error = legacy.error;
+  }
   if (error) throw error;
 
   const rows = [...(data || [])].sort((a, b) => new Date(a.updated_at || 0) - new Date(b.updated_at || 0));
@@ -428,6 +603,23 @@ async function saveRemoteTaskState(taskId, options = {}) {
 
   const { error } = await supabaseClient.from("task_status").upsert(getSupabaseRow(task), { onConflict: "id" });
   if (!error) return;
+
+  const needsSourceColumn = /sheet_source_id/i.test(error.message || "");
+  if (needsSourceColumn) {
+    if (currentSourceId() !== DEFAULT_SHEET_SOURCE.id) throw error;
+    const legacyRow = getSupabaseRow(task);
+    delete legacyRow.sheet_source_id;
+    const legacy = await supabaseClient.from("task_status").upsert(legacyRow, { onConflict: "id" });
+    if (!legacy.error) return;
+    if (/priority|admin_note/i.test(legacy.error.message || "") && !options.requirePriority) {
+      const basicLegacyRow = getBasicSupabaseRow(task);
+      delete basicLegacyRow.sheet_source_id;
+      const basicLegacy = await supabaseClient.from("task_status").upsert(basicLegacyRow, { onConflict: "id" });
+      if (!basicLegacy.error) return;
+      throw basicLegacy.error;
+    }
+    throw legacy.error;
+  }
 
   const needsPriorityColumns = /priority|admin_note/i.test(error.message || "");
   if (!needsPriorityColumns) throw error;
@@ -943,20 +1135,36 @@ async function copyEmailText(type) {
   }
 }
 
-function getSheetCsvUrl(range = RANGE) {
+async function loadActiveSheetConfiguration() {
+  if (!supabaseClient) return state.sheetSource;
+
+  const { data, error } = await supabaseClient.rpc("get_active_app_sheet_source");
+  if (error) throw error;
+  const response = Array.isArray(data) ? data[0] : data;
+  const source = response?.source || response;
+  if (!source) throw new Error("No active sheet source is configured.");
+
+  return normalizeSheetSource({
+    ...source,
+    id: source.source_id ?? source.id,
+    name: source.source_name ?? source.name,
+    configVersion: response?.settings_version ?? response?.settingsVersion ?? response?.version,
+  });
+}
+
+function getSheetCsvUrl(range = state.sheetSource.paymentRange, source = state.sheetSource) {
   const params = new URLSearchParams({
     tqx: "out:csv",
-    gid: SHEET_GID,
+    gid: source.sheetGid,
     range,
     cache: Date.now().toString(),
   });
-  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?${params.toString()}`;
+  return `https://docs.google.com/spreadsheets/d/${source.spreadsheetId}/gviz/tq?${params.toString()}`;
 }
 
-async function loadSheetFromProxy({ force = false } = {}) {
+async function loadSheetFromProxy({ expectedSource = state.sheetSource } = {}) {
   const url = new URL(SHEET_FUNCTION_URL);
   url.searchParams.set("cache", Date.now().toString());
-  if (force) url.searchParams.set("fresh", "1");
 
   const response = await fetchWithTimeout(url, {
     cache: "no-store",
@@ -972,16 +1180,18 @@ async function loadSheetFromProxy({ force = false } = {}) {
   if (!Array.isArray(payload.paymentsRows) || !Array.isArray(payload.withdrawalRows)) {
     throw new Error("Live sheet service returned incomplete data.");
   }
+  assertSheetSourceIdentity(payload, expectedSource, "Live sheet service");
   return payload;
 }
 
-async function loadSheetSnapshot() {
+async function loadSheetSnapshot(expectedSource = state.sheetSource) {
   const response = await fetch(`${SHEET_DATA_URL}?cache=${Date.now()}`, { cache: "no-store" });
   if (!response.ok) throw new Error(`Sheet snapshot returned ${response.status}`);
   const snapshot = await response.json();
   if (!Array.isArray(snapshot.paymentsRows) || !Array.isArray(snapshot.withdrawalRows)) {
     throw new Error("Sheet snapshot is missing payment or withdrawal rows.");
   }
+  assertSheetSourceIdentity(snapshot, expectedSource, "Saved sheet snapshot");
   return snapshot;
 }
 
@@ -1008,10 +1218,10 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = SHEET_REQUEST_TIM
   }
 }
 
-async function loadSheetFromGoogleCsv() {
+async function loadSheetFromGoogleCsv(source = state.sheetSource) {
   const [response, withdrawalResponse] = await Promise.all([
-    fetchWithTimeout(getSheetCsvUrl(RANGE), { cache: "no-store" }),
-    fetchWithTimeout(getSheetCsvUrl(WITHDRAWAL_RANGE), { cache: "no-store" }),
+    fetchWithTimeout(getSheetCsvUrl(source.paymentRange, source), { cache: "no-store" }),
+    fetchWithTimeout(getSheetCsvUrl(source.withdrawalRange, source), { cache: "no-store" }),
   ]);
   if (!response.ok) throw new Error(`Google Sheets returned ${response.status}`);
   if (!withdrawalResponse.ok) throw new Error(`Google Sheets withdrawals returned ${withdrawalResponse.status}`);
@@ -1027,7 +1237,16 @@ async function loadSheetFromGoogleCsv() {
     generatedAt: new Date().toISOString(),
     paymentsRows: parseCsvRows(text),
     withdrawalRows: parseCsvRows(withdrawalText),
-    source: "Live Google Sheet",
+    source: source.name,
+    sourceId: source.id,
+    sourceName: source.name,
+    spreadsheetId: source.spreadsheetId,
+    sheetName: source.sheetName,
+    sheetGid: source.sheetGid,
+    paymentRange: source.paymentRange,
+    withdrawalRange: source.withdrawalRange,
+    layoutKey: source.layoutKey,
+    configVersion: source.configVersion,
   };
 }
 
@@ -1050,35 +1269,66 @@ async function loadSheet({ background = false, force = false } = {}) {
   try {
     let snapshot;
     let usingFallback = false;
+    let usingDirectGoogle = false;
+    let configurationError = null;
+    let expectedSource = state.sheetSource;
+
     try {
-      snapshot = await loadSheetFromProxy({ force });
+      expectedSource = await loadActiveSheetConfiguration();
+    } catch (error) {
+      configurationError = error;
+    }
+
+    try {
+      snapshot = await loadSheetFromProxy({ force, expectedSource });
     } catch (liveSheetError) {
-      if (background && state.source === "Live Google Sheet") {
+      if (background && state.sourceMode === "live") {
         els.connectionLabel.textContent = "Live sheet retrying";
         return;
       }
 
       try {
-        snapshot = await loadSheetSnapshot();
+        snapshot = await loadSheetSnapshot(expectedSource);
         usingFallback = true;
       } catch (snapshotError) {
-        snapshot = await loadSheetFromGoogleCsv();
+        try {
+          snapshot = await loadSheetFromGoogleCsv(expectedSource);
+          usingDirectGoogle = true;
+        } catch (directGoogleError) {
+          const details = [
+            `Live service: ${liveSheetError.message || "request failed"}`,
+            `Saved snapshot: ${snapshotError.message || "unavailable"}`,
+            `Direct Google Sheets: ${directGoogleError.message || "request failed"}`,
+          ];
+          if (configurationError) {
+            details.unshift(`Active-source configuration: ${configurationError.message || "unavailable"}`);
+          }
+          throw new Error(`Could not load ${expectedSource.name}. ${details.join(" ")}`);
+        }
       }
     }
 
+    applySheetSource({ ...snapshot, sourceName: expectedSource.name });
     const { payments, withdrawals } = normalizeTasks(snapshot.paymentsRows, snapshot.withdrawalRows);
-    if (!payments.length && !withdrawals.length) throw new Error("No payment or withdrawal tasks were found.");
+    if (!payments.length && !withdrawals.length) {
+      throw new Error(
+        `No actionable payment or withdrawal tasks were found in ${state.sheetSource.name}. Check the configured ranges and amount columns.`,
+      );
+    }
+    rememberSheetSource(state.sheetSource);
 
     state.payments = payments;
     state.withdrawals = withdrawals;
     await loadRemoteTaskState();
-    state.source = usingFallback ? "Saved sheet fallback" : snapshot.source || "Live Google Sheet";
+    state.sourceMode = usingFallback ? "snapshot" : "live";
+    state.source = usingFallback
+      ? `Saved fallback · ${state.sheetSource.name}`
+      : `${usingDirectGoogle ? "Direct" : "Live"} · ${state.sheetSource.name}`;
     els.connectionLabel.textContent = state.source;
-    els.sheetName.textContent = "Zaki Work List";
     if (usingFallback) {
-      els.lastUpdated.textContent = `Live sheet unavailable; showing saved data from ${formatSheetDataTimestamp(snapshot.generatedAt)}.`;
+      els.lastUpdated.textContent = `Fallback snapshot from ${formatSheetDataTimestamp(snapshot.generatedAt)}`;
     } else {
-      els.lastUpdated.textContent = `Updated live ${new Intl.DateTimeFormat([], {
+      els.lastUpdated.textContent = `Synced ${new Intl.DateTimeFormat([], {
         hour: "numeric",
         minute: "2-digit",
         second: "2-digit",
@@ -1088,6 +1338,7 @@ async function loadSheet({ background = false, force = false } = {}) {
   } catch (error) {
     if (!background || state.source === "Demo preview") {
       state.source = "Demo preview";
+      state.sourceMode = "demo";
       els.lastUpdated.textContent = error.message;
       render();
     } else {
@@ -1194,7 +1445,8 @@ async function saveExchangeEntry() {
   });
 
   const row = {
-    id: `${todayKey()}-exchange-${stamp}`,
+    id: `${todayKey()}-${slugify(currentSourceId())}-exchange-${stamp}`,
+    sheet_source_id: currentSourceId(),
     task_type: "exchange",
     task_date: todayKey(),
     task_name: `${els.exchangeSide.value}: ${formatPlainNumber(amountA, "IQD")} IQD to ${formatPlainNumber(amountB, "USD")} USD`,
@@ -1203,7 +1455,12 @@ async function saveExchangeEntry() {
     file_name: fileName,
     updated_at: new Date().toISOString(),
   };
-  const { error } = await supabaseClient.from("task_status").upsert(row, { onConflict: "id" });
+  let { error } = await supabaseClient.from("task_status").upsert(row, { onConflict: "id" });
+  if (error && /sheet_source_id/i.test(error.message || "") && currentSourceId() === DEFAULT_SHEET_SOURCE.id) {
+    const legacyRow = { ...row };
+    delete legacyRow.sheet_source_id;
+    ({ error } = await supabaseClient.from("task_status").upsert(legacyRow, { onConflict: "id" }));
+  }
   if (error) throw error;
 
   await postUploadToSlack({
@@ -1606,7 +1863,7 @@ els.exchangePanel.addEventListener("submit", async (event) => {
     }, 550);
   }
 });
-els.sheetLink.href = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit?gid=${SHEET_GID}#gid=${SHEET_GID}`;
+applySheetSource(state.sheetSource);
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

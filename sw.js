@@ -1,15 +1,18 @@
-const CACHE_NAME = "payment-tracker-pwa-20260713-live-sheet-proxy-1";
+const CACHE_NAME = "payment-tracker-pwa-20260719-q3-source-option-1";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
+  "./user-manager.html",
   "./manifest.json",
   "./styles.css",
   "./live-preview.css",
+  "./user-manager.css",
   "./location-map.css",
   "./users.js",
   "./app.js",
   "./sheet-data.json",
   "./live-preview.js",
+  "./user-manager.js",
   "./location-map.js",
   "./location-map.html",
   "./assets/icon-180.png",
@@ -66,21 +69,50 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request, { cache: "no-store" })
+        .then((response) => {
+          if (!response.ok) throw new Error(`Navigation returned ${response.status}`);
+          return response;
+        })
+        .catch(() => {
+          if (url.pathname.endsWith("/user-manager.html")) {
+            return caches.match("./user-manager.html");
+          }
+          if (url.pathname.endsWith("/location-map.html")) {
+            return caches.match("./location-map.html");
+          }
+          return caches.match("./index.html");
+        })
+    );
+    return;
+  }
+
   if (
-    request.mode === "navigate" ||
-    url.pathname.endsWith("/index.html") ||
     url.pathname.endsWith("/users.js") ||
     url.pathname.endsWith("/app.js") ||
     url.pathname.endsWith("/styles.css") ||
     url.pathname.endsWith("/live-preview.css") ||
-    url.pathname.endsWith("/location-map.html") ||
+    url.pathname.endsWith("/user-manager.css") ||
+    url.pathname.endsWith("/user-manager.js") ||
     url.pathname.endsWith("/location-map.css") ||
     url.pathname.endsWith("/location-map.js") ||
-    url.pathname.endsWith("/live-preview.js") ||
-    url.pathname.endsWith("/sw.js")
+    url.pathname.endsWith("/live-preview.js")
   ) {
     event.respondWith(
-      fetch(request, { cache: "no-store" }).catch(() => caches.match("./index.html"))
+      fetch(request, { cache: "no-store" })
+        .then((response) => {
+          if (!response.ok) throw new Error(`Static asset returned ${response.status}`);
+          const copy = response.clone();
+          const cacheKey = new Request(`${url.origin}${url.pathname}`);
+          caches.open(CACHE_NAME).then((cache) => cache.put(cacheKey, copy));
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request, { ignoreSearch: true });
+          return cached || new Response("", { status: 503 });
+        })
     );
     return;
   }

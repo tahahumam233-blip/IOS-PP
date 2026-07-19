@@ -18,6 +18,8 @@ const PREVIEW_ACTIVITY_KEY = "payment-tracker-preview-activity";
 const PREVIEW_TASK_STATE_KEY = "zaki-payment-task-state";
 const REMEMBER_LOGIN_ID_KEY = "payment-tracker-remember-login-id";
 const FACE_ID_LOGIN_KEY = "payment-tracker-face-id-login-v1";
+const ADMIN_SESSION_KEY = "payment-tracker-admin-session-v1";
+const ADMIN_SESSION_MS = 8 * 60 * 60 * 1000;
 const FACE_ID_TIMEOUT_MS = 60000;
 const PREVIEW_SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
 const PREVIEW_RECEIPTS_BUCKET = "IOS-PP- Receipts";
@@ -326,6 +328,28 @@ async function authenticateWithFaceId() {
 
 function userCan(permission) {
   return Boolean(previewUser?.permissions?.[permission]);
+}
+
+function syncAdminConsoleAccess() {
+  const card = document.querySelector("#userManagerSettingsCard");
+  const allowed = userCan("manageUsers");
+  if (card) card.hidden = !allowed;
+
+  try {
+    if (allowed) {
+      sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({
+        id: previewUser.id,
+        label: previewUser.label,
+        role: previewUser.role,
+        permissions: previewUser.permissions,
+        expiresAt: Date.now() + ADMIN_SESSION_MS,
+      }));
+    } else {
+      sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    }
+  } catch {
+    // The admin console will ask for credentials when session storage is unavailable.
+  }
 }
 
 function usersFromRows(rows = []) {
@@ -888,6 +912,7 @@ function setPreviewAccess(user) {
     : previewCanPost()
       ? `Signed in as ${user.label}. You can upload and post assigned work.`
       : "Guest mode is view-only. Sign in with a posting account to make changes.";
+  syncAdminConsoleAccess();
   if (typeof render === "function") render();
   updateFaceIdUi();
   void loadRemoteActivity();
@@ -912,6 +937,7 @@ function resetLoginForm({ keepRememberedId = true } = {}) {
   document.querySelector("#updateButton").disabled = true;
   document.querySelector("#saveExchangeButton").disabled = true;
   document.querySelector("#previewAccessText").textContent = "Login is required before posting, updating, or saving exchange records.";
+  syncAdminConsoleAccess();
   idInput.value = rememberedId;
   passwordInput.value = "";
   rememberInput.checked = Boolean(rememberedId);

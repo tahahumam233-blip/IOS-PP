@@ -1,504 +1,280 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Payment Tracker User Manager</title>
-    <style>
-      :root {
-        color-scheme: dark;
-        --bg: #08090d;
-        --panel: #14151b;
-        --line: rgba(255, 255, 255, 0.14);
-        --ink: #f8f7f8;
-        --muted: #a9a4ad;
-        --brand: #d10f3f;
-        --green: #37d57d;
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      body {
-        margin: 0;
-        min-height: 100vh;
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        color: var(--ink);
-        background:
-          radial-gradient(circle at 10% 0%, rgba(209, 15, 63, 0.22), transparent 34%),
-          linear-gradient(180deg, #10070b, var(--bg) 340px);
-      }
-
-      main {
-        width: min(1060px, calc(100% - 28px));
-        margin: 0 auto;
-        padding: 28px 0 40px;
-      }
-
-      header,
-      section {
-        border: 1px solid var(--line);
-        border-radius: 22px;
-        background: rgba(20, 21, 27, 0.86);
-        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
-        backdrop-filter: blur(18px);
-      }
-
-      header {
-        padding: 22px;
-        margin-bottom: 16px;
-      }
-
-      h1,
-      h2,
-      p {
-        margin: 0;
-      }
-
-      h1 {
-        font-size: clamp(28px, 5vw, 48px);
-        letter-spacing: -0.04em;
-      }
-
-      p {
-        color: var(--muted);
-        line-height: 1.5;
-      }
-
-      .layout {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 360px;
-        gap: 16px;
-      }
-
-      section {
-        padding: 18px;
-      }
-
-      .toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin: 16px 0;
-      }
-
-      button {
-        min-height: 42px;
-        border: 1px solid rgba(209, 15, 63, 0.72);
-        border-radius: 12px;
-        padding: 0 14px;
-        color: white;
-        background: linear-gradient(180deg, #ff3f6d, #d10f3f);
-        font: inherit;
-        font-weight: 850;
-        cursor: pointer;
-      }
-
-      button.secondary {
-        border-color: var(--line);
-        color: var(--ink);
-        background: rgba(255, 255, 255, 0.06);
-      }
-
-      button.danger {
-        border-color: rgba(255, 95, 125, 0.52);
-        color: #ff8aa0;
-        background: rgba(255, 95, 125, 0.08);
-      }
-
-      .user-list {
-        display: grid;
-        gap: 10px;
-      }
-
-      .user-card {
-        display: grid;
-        gap: 12px;
-        padding: 14px;
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        background: rgba(255, 255, 255, 0.045);
-      }
-
-      .user-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 10px;
-      }
-
-      label {
-        display: grid;
-        gap: 6px;
-        color: var(--muted);
-        font-size: 12px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-
-      input,
-      select,
-      textarea {
-        width: 100%;
-        min-height: 42px;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 0 11px;
-        color: var(--ink);
-        background: rgba(0, 0, 0, 0.24);
-        font: inherit;
-      }
-
-      textarea {
-        min-height: 360px;
-        padding: 12px;
-        resize: vertical;
-        font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-        font-size: 12px;
-        line-height: 1.5;
-      }
-
-      .permissions {
-        display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 8px;
-      }
-
-      .permissions label {
-        min-height: 42px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 0 10px;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        color: var(--ink);
-        background: rgba(0, 0, 0, 0.14);
-        text-transform: none;
-        letter-spacing: 0;
-      }
-
-      .permissions input {
-        width: 16px;
-        min-height: 16px;
-        accent-color: var(--green);
-      }
-
-      .notice {
-        margin-top: 12px;
-        padding: 12px;
-        border: 1px solid rgba(55, 213, 125, 0.28);
-        border-radius: 14px;
-        color: #d9ffe8;
-        background: rgba(55, 213, 125, 0.08);
-      }
-
-      .output-actions {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        margin-top: 10px;
-      }
-
-      @media (max-width: 860px) {
-        .layout,
-        .user-grid,
-        .permissions {
-          grid-template-columns: 1fr;
-        }
-      }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0d12" />
+    <title>Administration · Payment Tracker</title>
+    <link rel="icon" type="image/png" href="assets/icon-192.png" />
+    <link rel="apple-touch-icon" href="assets/icon-180.png" />
+    <link rel="stylesheet" href="user-manager.css?v=20260714-admin-console-4" />
   </head>
   <body>
-    <main>
-      <header>
-        <h1>User Manager</h1>
-        <p>Add users, change passwords, and set permissions for Payment Tracker.</p>
-        <div class="notice">
-          Click <strong>Save & Apply</strong> to update the live app login list. The generated <strong>users.js</strong> is kept as a backup file option.
+    <section class="auth-shell" id="authGate" aria-labelledby="authTitle">
+      <div class="auth-ambient" aria-hidden="true"></div>
+      <form class="auth-card" id="adminLoginForm">
+        <a class="auth-back" href="./">&larr; Payment Tracker</a>
+        <div class="auth-brand">
+          <img src="assets/logo-white-red.png" alt="" />
+          <span>Operations Control</span>
         </div>
-      </header>
+        <div class="auth-copy">
+          <p class="eyebrow">Protected workspace</p>
+          <h1 id="authTitle">Administration</h1>
+          <p>Sign in with an account that has user-management access.</p>
+        </div>
+        <div class="field-stack">
+          <label class="field">
+            <span>User ID</span>
+            <input id="adminLoginId" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required />
+          </label>
+          <label class="field">
+            <span>Password</span>
+            <input id="adminLoginPassword" type="password" autocomplete="current-password" required />
+          </label>
+        </div>
+        <button class="button button-primary button-large" id="adminLoginButton" type="submit">Enter admin console</button>
+        <p class="form-message" id="adminLoginError" role="alert" hidden></p>
+      </form>
+    </section>
 
-      <div class="layout">
-        <section>
-          <h2>Users</h2>
-          <div class="toolbar">
-            <button id="addUserButton" type="button">Add User</button>
-            <button id="saveApplyButton" type="button">Save & Apply</button>
-            <button class="secondary" id="generateButton" type="button">Generate users.js</button>
+    <div class="admin-shell" id="adminApp" hidden>
+      <aside class="sidebar">
+        <a class="sidebar-brand" href="./" aria-label="Back to Payment Tracker">
+          <img src="assets/logo-white-red.png" alt="" />
+          <div>
+            <strong>Payment Tracker</strong>
+            <span>Operations Control</span>
           </div>
-          <p class="notice" id="saveStatus" hidden></p>
-          <div class="user-list" id="userList"></div>
-        </section>
+        </a>
 
-        <section>
-          <h2>Generated File</h2>
-          <p>Review this before replacing <strong>users.js</strong>.</p>
-          <div class="toolbar">
-            <button id="copyButton" type="button">Copy</button>
-            <button class="secondary" id="downloadButton" type="button">Download</button>
+        <nav class="side-nav" aria-label="Administration">
+          <p>Workspace</p>
+          <button class="active" type="button" data-view="overview" aria-controls="overviewView" aria-current="page">
+            <span class="nav-index">01</span><span>Overview</span>
+          </button>
+          <button type="button" data-view="users" aria-controls="usersView">
+            <span class="nav-index">02</span><span>Users</span>
+          </button>
+          <button type="button" data-view="sources" aria-controls="sourcesView">
+            <span class="nav-index">03</span><span>Data sources</span>
+          </button>
+          <p>System</p>
+          <button type="button" data-view="advanced" aria-controls="advancedView">
+            <span class="nav-index">04</span><span>Advanced</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-foot">
+          <div class="environment-card">
+            <span class="status-dot"></span>
+            <div><strong>Production</strong><small>Live workspace</small></div>
           </div>
-          <textarea id="output" spellcheck="false"></textarea>
-        </section>
-      </div>
-    </main>
+          <button class="sidebar-action" id="themeButton" type="button">Switch to light</button>
+          <button class="sidebar-action" id="adminSignOutButton" type="button">Sign out</button>
+        </div>
+      </aside>
 
-    <script src="users.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script>
-      const SUPABASE_URL = "https://aaeqnlchenzybkfycelo.supabase.co";
-      const SUPABASE_ANON_KEY =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhZXFubGNoZW56eWJrZnljZWxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyNzQ1OTUsImV4cCI6MjA5Mjg1MDU5NX0.2qHHPs2sx-WUjpTQGStbLKzjAI51NSv-xGl4wQvbU5Q";
-      const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      const USERS_TABLE = "app_users";
-
-      const permissionLabels = {
-        post: "Post",
-        update: "Update",
-        exchange: "Exchange",
-        viewAllActivity: "All Activity",
-        manageUsers: "Manage Users",
-      };
-
-      const defaultPermissions = {
-        admin: { post: true, update: true, exchange: true, viewAllActivity: true, manageUsers: true },
-        zaki: { post: true, update: true, exchange: true, viewAllActivity: false, manageUsers: false },
-        viewer: { post: false, update: false, exchange: false, viewAllActivity: false, manageUsers: false },
-      };
-
-      let users = JSON.parse(JSON.stringify(window.PAYMENT_TRACKER_USERS || {}));
-
-      function setStatus(message, isError = false) {
-        const status = document.querySelector("#saveStatus");
-        status.hidden = false;
-        status.textContent = message;
-        status.style.borderColor = isError ? "rgba(255, 95, 125, 0.42)" : "rgba(55, 213, 125, 0.28)";
-        status.style.background = isError ? "rgba(255, 95, 125, 0.08)" : "rgba(55, 213, 125, 0.08)";
-        status.style.color = isError ? "#ff9aad" : "#d9ffe8";
-      }
-
-      function normalizeId(value) {
-        return String(value || "")
-          .trim()
-          .toLowerCase()
-          .replace(/[^a-z0-9_-]+/g, "-")
-          .replace(/(^-|-$)/g, "");
-      }
-
-      function normalizeUser(id, user) {
-        const role = user.role || "viewer";
-        return {
-          password: user.password || "",
-          role,
-          label: user.label || id,
-          permissions: {
-            ...(defaultPermissions[role] || defaultPermissions.viewer),
-            ...(user.permissions || {}),
-          },
-        };
-      }
-
-      function escapeHtml(value) {
-        return String(value ?? "")
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#039;");
-      }
-
-      function renderUsers() {
-        const list = document.querySelector("#userList");
-        const entries = Object.entries(users);
-
-        if (!entries.length) {
-          list.innerHTML = "<p>No users yet.</p>";
-          return;
-        }
-
-        list.innerHTML = entries.map(([id, rawUser]) => {
-          const user = normalizeUser(id, rawUser);
-          const permissions = Object.keys(permissionLabels).map((permission) => `
-            <label>
-              <input type="checkbox" data-field="permission" data-permission="${permission}" ${user.permissions[permission] ? "checked" : ""} />
-              ${permissionLabels[permission]}
-            </label>
-          `).join("");
-
-          return `
-            <article class="user-card" data-user-id="${id}">
-              <div class="user-grid">
-                <label>User ID
-                  <input data-field="id" value="${escapeHtml(id)}" />
-                </label>
-                <label>Name
-                  <input data-field="label" value="${escapeHtml(user.label)}" />
-                </label>
-                <label>Password
-                  <input data-field="password" value="${escapeHtml(user.password)}" />
-                </label>
-                <label>Role
-                  <select data-field="role">
-                    <option value="admin" ${user.role === "admin" ? "selected" : ""}>Admin</option>
-                    <option value="zaki" ${user.role === "zaki" ? "selected" : ""}>User</option>
-                    <option value="viewer" ${user.role === "viewer" ? "selected" : ""}>Viewer</option>
-                  </select>
-                </label>
+      <main class="workspace">
+        <header class="workspace-header">
+          <div>
+            <p class="breadcrumb">Payment Tracker / <span id="breadcrumbLabel">Overview</span></p>
+            <h1 id="pageTitle">Control center</h1>
+          </div>
+          <div class="header-actions">
+            <a class="button button-secondary" href="./">Open tracker</a>
+            <div class="profile-menu-wrap">
+              <button class="profile-button" id="profileButton" type="button" aria-label="Administrator menu" aria-expanded="false" aria-controls="profileMenu">
+                <span class="avatar" id="adminAvatar">AD</span>
+                <span><strong id="adminName">Admin</strong><small>Administrator</small></span>
+              </button>
+              <div class="profile-menu" id="profileMenu" hidden>
+                <button id="headerThemeButton" type="button">Change theme</button>
+                <button id="headerSignOutButton" type="button">Sign out</button>
               </div>
-              <div class="permissions">${permissions}</div>
-              <button class="danger" data-action="delete" type="button">Delete User</button>
+            </div>
+          </div>
+        </header>
+
+        <nav class="mobile-nav" aria-label="Administration sections">
+          <button class="active" type="button" data-view="overview" aria-controls="overviewView">Overview</button>
+          <button type="button" data-view="users" aria-controls="usersView">Users</button>
+          <button type="button" data-view="sources" aria-controls="sourcesView">Sources</button>
+          <button type="button" data-view="advanced" aria-controls="advancedView">Advanced</button>
+        </nav>
+
+        <div class="workspace-content">
+          <section class="admin-view" id="overviewView" data-section="overview">
+            <article class="hero-card">
+              <div class="hero-copy">
+                <span class="live-pill"><i></i> Operations online</span>
+                <p class="eyebrow">Active data source</p>
+                <h2 id="heroSourceName">Loading workspace&hellip;</h2>
+                <p id="heroSourceMeta">Checking the live Google Sheet configuration.</p>
+                <div class="hero-actions">
+                  <button class="button button-light" id="switchSourceButton" type="button">Manage sources</button>
+                  <a class="button button-ghost-light" id="heroSheetLink" href="#" target="_blank" rel="noreferrer">Open Google Sheet</a>
+                </div>
+              </div>
+              <div class="hero-orbit" aria-hidden="true">
+                <div class="orbit-core"><span>SOA</span><strong>LIVE</strong></div>
+                <i></i><i></i><i></i>
+              </div>
             </article>
-          `;
-        }).join("");
-      }
 
-      function collectUsers() {
-        const next = {};
-        document.querySelectorAll(".user-card").forEach((card) => {
-          const id = normalizeId(card.querySelector('[data-field="id"]').value);
-          if (!id) return;
-          const role = card.querySelector('[data-field="role"]').value;
-          const permissions = {};
-          card.querySelectorAll('[data-field="permission"]').forEach((input) => {
-            permissions[input.dataset.permission] = input.checked;
-          });
-          next[id] = {
-            password: card.querySelector('[data-field="password"]').value,
-            role,
-            label: card.querySelector('[data-field="label"]').value || id,
-            permissions,
-          };
-        });
-        users = next;
-      }
+            <div class="stat-grid" aria-label="Workspace overview">
+              <article class="stat-card"><span>Team members</span><strong id="userStat">0</strong><small id="userStatNote">Loading users</small></article>
+              <article class="stat-card"><span>Administrators</span><strong id="adminStat">0</strong><small>Full-control accounts</small></article>
+              <article class="stat-card"><span>Sheet sources</span><strong id="sourceStat">0</strong><small id="sourceStatNote">Available connections</small></article>
+              <article class="stat-card"><span>Configuration</span><strong id="versionStat">v&ndash;</strong><small>Active source version</small></article>
+            </div>
 
-      function generateUsersFile() {
-        collectUsers();
-        const content = `window.PAYMENT_TRACKER_USERS = ${JSON.stringify(users, null, 2)};\n`;
-        document.querySelector("#output").value = content;
-        return content;
-      }
+            <div class="overview-grid">
+              <article class="surface-card">
+                <div class="card-heading">
+                  <div><p class="eyebrow">Quick actions</p><h3>Workspace management</h3></div>
+                </div>
+                <div class="quick-list">
+                  <button type="button" data-quick-view="users"><span class="quick-mark">+</span><span><strong>Add a team member</strong><small>Create a login and assign permissions</small></span><b>&rarr;</b></button>
+                  <button type="button" data-quick-view="sources" data-source-preset="q3"><span class="quick-mark">Q3</span><span><strong>Prepare SOA Q3</strong><small>Add, test, and stage the new workbook</small></span><b>&rarr;</b></button>
+                  <button type="button" data-quick-view="advanced"><span class="quick-mark">JS</span><span><strong>Export user backup</strong><small>Generate a deployable users.js file</small></span><b>&rarr;</b></button>
+                </div>
+              </article>
 
-      function usersToRows() {
-        collectUsers();
-        return Object.entries(users).map(([id, user]) => ({
-          id,
-          password: user.password || "",
-          role: user.role || "viewer",
-          label: user.label || id,
-          permissions: user.permissions || {},
-          updated_at: new Date().toISOString(),
-        }));
-      }
+              <article class="surface-card health-card">
+                <div class="card-heading"><div><p class="eyebrow">System health</p><h3>Connection readiness</h3></div><span class="health-badge">Operational</span></div>
+                <div class="health-list">
+                  <div><span>Google Sheets proxy</span><strong><i></i> Configured</strong></div>
+                  <div><span>Supabase workspace</span><strong><i></i> Connected</strong></div>
+                  <div><span>Fallback snapshot</span><strong><i></i> Every 5 min</strong></div>
+                </div>
+                <p class="health-note">Test a new source before activation. The previous quarter remains available for one-click rollback.</p>
+              </article>
+            </div>
+          </section>
 
-      function makeSupabaseInList(ids) {
-        return `(${ids.map((id) => `"${String(id).replace(/"/g, '\\"')}"`).join(",")})`;
-      }
+          <section class="admin-view" id="usersView" data-section="users" hidden>
+            <div class="section-heading">
+              <div><p class="eyebrow">Access management</p><h2>Users</h2><p>Create accounts and keep every permission intentional.</p></div>
+              <button class="button button-primary" id="addUserButton" type="button">Add user</button>
+            </div>
+            <div class="toolbar-card">
+              <label class="search-control"><span class="sr-only">Search users</span><input id="userSearch" type="search" placeholder="Search name or user ID" /></label>
+              <label class="select-control"><span class="sr-only">Filter by role</span><select id="roleFilter"><option value="all">All roles</option><option value="admin">Administrators</option><option value="zaki">Operators</option><option value="viewer">Viewers</option></select></label>
+              <span class="result-count" id="userResultCount">0 users</span>
+            </div>
+            <div class="user-list" id="userList" aria-live="polite"></div>
+          </section>
 
-      async function loadRemoteUsers() {
-        if (!supabaseClient) return;
-        const { data, error } = await supabaseClient.from(USERS_TABLE).select("*").order("id", { ascending: true });
-        if (error) {
-          setStatus(`Remote users not loaded: ${error.message}. Run the app_users SQL setup first.`, true);
-          return;
-        }
-        if (!data?.length) return;
-        users = data.reduce((items, row) => {
-          items[row.id] = normalizeUser(row.id, {
-            password: row.password,
-            role: row.role,
-            label: row.label,
-            permissions: row.permissions,
-          });
-          return items;
-        }, {});
-        renderUsers();
-        generateUsersFile();
-      }
+          <section class="admin-view" id="sourcesView" data-section="sources" hidden>
+            <div class="section-heading">
+              <div><p class="eyebrow">Google Sheets</p><h2>Data sources</h2><p>Stage the next quarter, verify its layout, then activate it globally.</p></div>
+              <button class="button button-primary" id="addSourceButton" type="button">Add Q3 source</button>
+            </div>
+            <div class="setup-alert" id="sourceSetupAlert" role="alert" hidden></div>
+            <article class="source-access-card" id="sourceAccessCard">
+              <div class="source-access-icon" aria-hidden="true">S</div>
+              <div class="source-access-copy">
+                <span id="sourceAccessStatus">Source controls locked</span>
+                <p id="sourceAccessMeta">Unlock with the dedicated source-control key to make production changes.</p>
+              </div>
+              <div class="source-access-actions">
+                <button class="button button-secondary" id="unlockSourcesButton" type="button">Unlock controls</button>
+                <button class="button button-secondary" id="lockSourcesButton" type="button" hidden>Lock controls</button>
+              </div>
+            </article>
+            <article class="active-source-card" id="activeSourceCard">
+              <div class="active-source-copy"><span class="live-pill"><i></i> Active now</span><h3 id="activeSourceName">Loading&hellip;</h3><p id="activeSourceMeta">Reading saved configuration.</p></div>
+              <a class="button button-light" id="activeSourceLink" href="#" target="_blank" rel="noreferrer">Open sheet</a>
+            </article>
+            <div class="source-list-heading"><div><h3>Source registry</h3><p>Only tested sources can be activated.</p></div><span id="sourceCount">0 sources</span></div>
+            <div class="source-grid" id="sourceList" aria-live="polite"></div>
+          </section>
 
-      async function saveAndApply() {
-        const rows = usersToRows();
-        if (!rows.length) {
-          setStatus("Add at least one user before saving.", true);
-          return;
-        }
-        if (!supabaseClient) {
-          setStatus("Supabase is not loaded. Check internet connection and try again.", true);
-          return;
-        }
+          <section class="admin-view" id="advancedView" data-section="advanced" hidden>
+            <div class="section-heading">
+              <div><p class="eyebrow">System utilities</p><h2>Advanced</h2><p>Deployment backup and implementation details for administrators.</p></div>
+            </div>
+            <article class="surface-card backup-card">
+              <div class="card-heading"><div><p class="eyebrow">User backup</p><h3>Generated users.js</h3><p>This is a recovery export. Live logins are saved directly to the workspace.</p></div><div class="inline-actions"><button class="button button-secondary" id="copyBackupButton" type="button">Copy</button><button class="button button-secondary" id="downloadBackupButton" type="button">Download</button></div></div>
+              <textarea id="backupOutput" aria-label="Generated users.js" readonly spellcheck="false"></textarea>
+            </article>
+            <article class="surface-card architecture-card">
+              <p class="eyebrow">Q3 readiness</p><h3>One configuration, three resilient paths</h3>
+              <div class="architecture-flow"><span>Admin selection</span><b>&rarr;</b><span>Live proxy</span><b>&rarr;</b><span>Payment Tracker</span></div>
+              <p>The live app, direct fallback, and five-minute snapshot now follow the same active source identity, preventing a silent return to an older quarter.</p>
+            </article>
+          </section>
+        </div>
+      </main>
+    </div>
 
-        const ids = rows.map((row) => row.id);
-        const { error: deleteError } = await supabaseClient.from(USERS_TABLE).delete().not("id", "in", makeSupabaseInList(ids));
-        if (deleteError) {
-          setStatus(`Could not remove deleted users: ${deleteError.message}`, true);
-          return;
-        }
+    <dialog class="modal" id="userDialog" aria-labelledby="userDialogTitle">
+      <form method="dialog" id="userForm">
+        <div class="modal-header"><div><p class="eyebrow">Access profile</p><h2 id="userDialogTitle">Add user</h2></div><button class="icon-button" type="button" data-close-dialog="userDialog" aria-label="Close">&times;</button></div>
+        <div class="modal-body">
+          <div class="form-grid two-column">
+            <label class="field"><span>Name</span><input id="userNameInput" type="text" maxlength="80" required /></label>
+            <label class="field"><span>User ID</span><input id="userIdInput" type="text" maxlength="63" autocapitalize="none" spellcheck="false" required /><small>Lowercase letters, numbers, hyphens, and underscores.</small></label>
+          </div>
+          <div class="form-grid two-column">
+            <label class="field"><span>Role</span><select id="userRoleInput"><option value="admin">Administrator</option><option value="zaki">Operator</option><option value="viewer">Viewer</option></select></label>
+            <label class="field"><span id="passwordFieldLabel">Password</span><div class="password-control"><input id="userPasswordInput" type="password" autocomplete="new-password" /><button id="togglePasswordButton" type="button">Show</button></div><small id="passwordHelp">Required for a new account.</small></label>
+          </div>
+          <fieldset class="permission-fieldset"><legend>Permissions</legend><p>Role defaults can be tailored for this account.</p><div class="permission-grid" id="permissionGrid"></div></fieldset>
+          <p class="form-message" id="userFormError" role="alert" hidden></p>
+        </div>
+        <div class="modal-footer"><button class="button button-secondary" type="button" data-close-dialog="userDialog">Cancel</button><button class="button button-primary" id="saveUserButton" type="submit">Save user</button></div>
+      </form>
+    </dialog>
 
-        const { error } = await supabaseClient.from(USERS_TABLE).upsert(rows, { onConflict: "id" });
-        if (error) {
-          setStatus(`Save failed: ${error.message}. Run the app_users SQL setup first.`, true);
-          return;
-        }
+    <dialog class="modal source-modal" id="sourceDialog" aria-labelledby="sourceDialogTitle">
+      <form method="dialog" id="sourceForm">
+        <div class="modal-header"><div><p class="eyebrow">Google Sheets connection</p><h2 id="sourceDialogTitle">Add data source</h2></div><button class="icon-button" type="button" data-close-dialog="sourceDialog" aria-label="Close">&times;</button></div>
+        <div class="modal-body">
+          <label class="field"><span>Source name</span><input id="sourceNameInput" type="text" maxlength="80" placeholder="SOA Q3 2026" required /></label>
+          <label class="field"><span>Google Sheet URL or spreadsheet ID</span><input id="spreadsheetInput" type="text" autocomplete="off" spellcheck="false" placeholder="https://docs.google.com/spreadsheets/d/..." required /><small>Paste the full URL and the ID and gid will be detected.</small></label>
+          <div class="form-grid two-column">
+            <label class="field"><span>Source key</span><input id="sourceIdInput" type="text" maxlength="63" placeholder="soa-q3-2026" required /></label>
+            <label class="field"><span>Worksheet tab</span><input id="sheetNameInput" type="text" value="PP" maxlength="100" required /></label>
+          </div>
+          <div class="form-grid three-column">
+            <label class="field"><span>Tab gid</span><input id="sheetGidInput" type="text" inputmode="numeric" value="0" required /></label>
+            <label class="field"><span>Payment range</span><input id="paymentRangeInput" type="text" value="A7:J200" autocapitalize="characters" required /></label>
+            <label class="field"><span>Withdrawal range</span><input id="withdrawalRangeInput" type="text" value="L26:N200" autocapitalize="characters" required /></label>
+          </div>
+          <div class="layout-note"><strong>Expected SOA layout</strong><span>Payments: name in the first column, IQD in column 9, USD in column 10. Withdrawals: name, IQD, USD across three columns.</span></div>
+          <p class="form-message" id="sourceFormError" role="alert" hidden></p>
+        </div>
+        <div class="modal-footer"><button class="button button-secondary" type="button" data-close-dialog="sourceDialog">Cancel</button><button class="button button-primary" id="saveSourceButton" type="submit">Save source</button></div>
+      </form>
+    </dialog>
 
-        localStorage.setItem("payment-tracker-users-updated-at", Date.now().toString());
-        generateUsersFile();
-        setStatus("Saved and applied. The live app will use these users on the next login/open.");
-      }
+    <dialog class="modal source-unlock-modal" id="sourceUnlockDialog" aria-labelledby="sourceUnlockTitle">
+      <form method="dialog" id="sourceUnlockForm">
+        <div class="modal-header"><div><p class="eyebrow">Protected operation</p><h2 id="sourceUnlockTitle">Unlock source controls</h2></div><button class="icon-button" type="button" data-close-dialog="sourceUnlockDialog" aria-label="Close">&times;</button></div>
+        <div class="modal-body">
+          <div class="security-callout"><span aria-hidden="true">S</span><div><strong>Production changes are separately protected</strong><p>The key is exchanged for a short-lived server session and is never saved in this site.</p></div></div>
+          <label class="field"><span>Source-control key</span><input id="sourceAdminKeyInput" type="password" autocomplete="off" spellcheck="false" required /><small>Paste the key stored in your password manager.</small></label>
+          <p class="form-message" id="sourceUnlockError" role="alert" hidden></p>
+        </div>
+        <div class="modal-footer"><button class="button button-secondary" type="button" data-close-dialog="sourceUnlockDialog">Cancel</button><button class="button button-primary" id="unlockSourceButton" type="submit">Unlock controls</button></div>
+      </form>
+    </dialog>
 
-      document.querySelector("#addUserButton").addEventListener("click", () => {
-        collectUsers();
-        let index = Object.keys(users).length + 1;
-        let id = `user-${index}`;
-        while (users[id]) {
-          index += 1;
-          id = `user-${index}`;
-        }
-        users[id] = normalizeUser(id, { password: "", role: "viewer", label: "New User" });
-        renderUsers();
-        generateUsersFile();
-      });
+    <dialog class="confirm-dialog" id="confirmDialog" aria-labelledby="confirmTitle">
+      <form method="dialog" id="confirmForm">
+        <span class="confirm-mark" id="confirmMark">!</span>
+        <h2 id="confirmTitle">Confirm action</h2>
+        <p id="confirmMessage">Are you sure?</p>
+        <div class="confirm-actions"><button class="button button-secondary" value="cancel" type="button" id="confirmCancelButton">Cancel</button><button class="button button-danger" value="confirm" type="submit" id="confirmActionButton">Confirm</button></div>
+      </form>
+    </dialog>
 
-      document.querySelector("#generateButton").addEventListener("click", generateUsersFile);
-      document.querySelector("#saveApplyButton").addEventListener("click", saveAndApply);
+    <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
 
-      document.querySelector("#copyButton").addEventListener("click", async () => {
-        const content = generateUsersFile();
-        await navigator.clipboard.writeText(content);
-      });
-
-      document.querySelector("#downloadButton").addEventListener("click", () => {
-        const content = generateUsersFile();
-        const blob = new Blob([content], { type: "text/javascript" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "users.js";
-        link.click();
-        URL.revokeObjectURL(url);
-      });
-
-      document.querySelector("#userList").addEventListener("input", (event) => {
-        const target = event.target;
-        if (target.matches('[data-field="role"]')) {
-          const card = target.closest(".user-card");
-          const defaults = defaultPermissions[target.value] || defaultPermissions.viewer;
-          card.querySelectorAll('[data-field="permission"]').forEach((input) => {
-            input.checked = defaults[input.dataset.permission];
-          });
-        }
-        generateUsersFile();
-      });
-
-      document.querySelector("#userList").addEventListener("click", (event) => {
-        if (!event.target.matches('[data-action="delete"]')) return;
-        event.target.closest(".user-card").remove();
-        generateUsersFile();
-      });
-
-      renderUsers();
-      generateUsersFile();
-      void loadRemoteUsers();
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="users.js?v=20260714-admin-console-4"></script>
+    <script src="user-manager.js?v=20260719-q3-source-option-1"></script>
   </body>
 </html>
