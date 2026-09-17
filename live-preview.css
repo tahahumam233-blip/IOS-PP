@@ -240,6 +240,16 @@ label {
   background: #ffffff;
 }
 
+/* iOS Safari zooms the whole page in when a focused field is under 16px, and
+   never zooms back out. Every field here sits in a 12px <label> and uses
+   `font: inherit`, so 16px has to be pinned back on the controls themselves.
+   Left unscoped on purpose: the modals sit outside .app-preview. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+select,
+textarea {
+  font-size: 16px;
+}
+
 .login-actions {
   display: grid;
   grid-template-columns: 1fr;
