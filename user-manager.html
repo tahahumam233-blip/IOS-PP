@@ -7,7 +7,7 @@
     <title>Administration · Sindibad PayDesk</title>
     <link rel="icon" type="image/png" href="assets/icon-192.png" />
     <link rel="apple-touch-icon" href="assets/icon-180.png" />
-    <link rel="stylesheet" href="user-manager.css?v=20260714-admin-console-4" />
+    <link rel="stylesheet" href="user-manager.css?v=20261020-paydesk-2" />
   </head>
   <body>
     <section class="auth-shell" id="authGate" aria-labelledby="authTitle">
@@ -53,15 +53,18 @@
           <button class="active" type="button" data-view="overview" aria-controls="overviewView" aria-current="page">
             <span class="nav-index">01</span><span>Overview</span>
           </button>
+          <button type="button" data-view="emails" aria-controls="emailsView">
+            <span class="nav-index">02</span><span>Payment emails</span>
+          </button>
           <button type="button" data-view="users" aria-controls="usersView">
-            <span class="nav-index">02</span><span>Users</span>
+            <span class="nav-index">03</span><span>Users</span>
           </button>
           <button type="button" data-view="sources" aria-controls="sourcesView">
-            <span class="nav-index">03</span><span>Data sources</span>
+            <span class="nav-index">04</span><span>Data sources</span>
           </button>
           <p>System</p>
           <button type="button" data-view="advanced" aria-controls="advancedView">
-            <span class="nav-index">04</span><span>Advanced</span>
+            <span class="nav-index">05</span><span>Advanced</span>
           </button>
         </nav>
 
@@ -98,6 +101,7 @@
 
         <nav class="mobile-nav" aria-label="Administration sections">
           <button class="active" type="button" data-view="overview" aria-controls="overviewView">Overview</button>
+          <button type="button" data-view="emails" aria-controls="emailsView">Emails</button>
           <button type="button" data-view="users" aria-controls="usersView">Users</button>
           <button type="button" data-view="sources" aria-controls="sourcesView">Sources</button>
           <button type="button" data-view="advanced" aria-controls="advancedView">Advanced</button>
@@ -149,6 +153,33 @@
                   <div><span>Fallback snapshot</span><strong><i></i> Every 5 min</strong></div>
                 </div>
                 <p class="health-note">Test a new source before activation. The previous quarter remains available for one-click rollback.</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="admin-view" id="emailsView" data-section="emails" hidden>
+            <div class="section-heading">
+              <div><p class="eyebrow">Email maker</p><h2>Payment emails</h2><p>Build Zaki's payment or withdrawal email from the active sheet, then paste it into Outlook. Ctrl+Enter copies.</p></div>
+              <div class="inline-actions">
+                <div class="email-type-toggle" role="group" aria-label="Email type">
+                  <button class="active" type="button" data-email-type="payment" aria-pressed="true">Payments</button>
+                  <button type="button" data-email-type="withdrawal" aria-pressed="false">Withdrawals</button>
+                </div>
+                <button class="button button-secondary" id="emailRefreshButton" type="button">Refresh</button>
+                <button class="button button-primary" id="copyEmailButton" type="button">Copy email</button>
+              </div>
+            </div>
+            <p class="email-source" id="emailSourceLabel"></p>
+            <div class="email-issues" id="emailIssues" role="alert" hidden></div>
+            <div class="email-layout">
+              <article class="surface-card">
+                <div class="card-heading"><div><p class="eyebrow">Preview</p><h3 id="emailTitle">Payment email</h3></div><div class="email-totals" id="emailTotals"></div></div>
+                <div id="emailPreview"></div>
+              </article>
+              <article class="surface-card email-manual-card">
+                <div class="card-heading"><div><p class="eyebrow">Workspace</p><h3>Paste rows manually</h3><p>Pasted rows replace the sheet data until you clear them.</p></div></div>
+                <textarea id="emailManualInput" rows="10" spellcheck="false" aria-label="Pasted sheet rows" placeholder="Paste rows copied from the sheet. Payment rows need IQD and USD in columns 9 and 10; withdrawal rows can be name, IQD, USD."></textarea>
+                <button class="button button-secondary" id="emailManualClear" type="button" hidden>Use sheet data</button>
               </article>
             </div>
           </section>
@@ -275,6 +306,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="users.js?v=20260714-admin-console-4"></script>
-    <script src="user-manager.js?v=20261020-paydesk-1"></script>
+    <script src="user-manager.js?v=20261020-paydesk-2"></script>
+    <script src="email-maker.js?v=20261020-paydesk-2"></script>
   </body>
 </html>

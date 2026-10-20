@@ -1207,6 +1207,7 @@ function renderBackup() {
 function selectView(view) {
   const titles = {
     overview: ["Overview", "Control center"],
+    emails: ["Payment emails", "Email maker"],
     users: ["Users", "Access management"],
     sources: ["Data sources", "Google Sheets"],
     advanced: ["Advanced", "System utilities"],
@@ -1225,6 +1226,7 @@ function selectView(view) {
   byId("breadcrumbLabel").textContent = titles[view][0];
   byId("pageTitle").textContent = titles[view][1];
   history.replaceState(null, "", `#${view}`);
+  if (view === "emails") void window.emailMaker?.load();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -1398,7 +1400,7 @@ byId("headerSignOutButton").addEventListener("click", signOutAdmin);
 
 applyTheme(localStorage.getItem("payment-tracker-admin-theme") || "dark");
 const initialView = location.hash.slice(1);
-selectView(["overview", "users", "sources", "advanced"].includes(initialView) ? initialView : "overview");
+selectView(["overview", "emails", "users", "sources", "advanced"].includes(initialView) ? initialView : "overview");
 const savedSession = readAdminSession();
 if (savedSession) {
   restoreSourceAdminSession();

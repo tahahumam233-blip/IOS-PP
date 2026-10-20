@@ -1,6 +1,6 @@
 # Sindibad PayDesk
 
-Supplier payment, withdrawal, and exchange tracker plus the payment email maker (the **Email** tab, admin only). It replaces the old IOS Payment Tracker and the desktop Sindibad Payment Email Maker.
+Two parts: the phone tracker (`index.html`) for supplier payments, withdrawals, and exchanges, and the PC admin console (`user-manager.html`) for users, data sources, and **Payment emails**. The Payment emails section replaces the desktop Sindibad Payment Email Maker. On the PC, the taskbar shortcut opens the console in an Edge app window at `user-manager.html#emails`.
 
 The live tracker is served from `index.html`. Administrators can open the control console from **Settings > Administration** or directly at `user-manager.html`.
 

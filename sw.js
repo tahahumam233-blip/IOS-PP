@@ -1,4 +1,4 @@
-const CACHE_NAME = "payment-tracker-pwa-20261020-paydesk-1";
+const CACHE_NAME = "payment-tracker-pwa-20261020-paydesk-2";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -13,6 +13,7 @@ const STATIC_ASSETS = [
   "./sheet-data.json",
   "./live-preview.js",
   "./user-manager.js",
+  "./email-maker.js",
   "./location-map.js",
   "./location-map.html",
   "./assets/icon-180.png",
@@ -96,6 +97,7 @@ self.addEventListener("fetch", (event) => {
     url.pathname.endsWith("/live-preview.css") ||
     url.pathname.endsWith("/user-manager.css") ||
     url.pathname.endsWith("/user-manager.js") ||
+    url.pathname.endsWith("/email-maker.js") ||
     url.pathname.endsWith("/location-map.css") ||
     url.pathname.endsWith("/location-map.js") ||
     url.pathname.endsWith("/live-preview.js")

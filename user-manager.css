@@ -2092,3 +2092,132 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Payment emails */
+.email-type-toggle {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.email-type-toggle button {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--muted);
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.email-type-toggle button.active {
+  color: #fff;
+  background: var(--brand);
+}
+
+.email-source {
+  margin: 0 0 14px;
+  color: var(--soft);
+  font-size: 0.9rem;
+}
+
+.email-source.is-error {
+  color: var(--red);
+}
+
+.email-issues {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--amber) 10%, transparent);
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.email-issues strong {
+  color: var(--amber);
+}
+
+.email-issues ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.email-issues code {
+  overflow-wrap: anywhere;
+}
+
+.email-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.email-totals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px 14px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.email-totals span,
+.email-empty {
+  color: var(--soft);
+}
+
+.email-table {
+  width: 100%;
+  margin-top: 14px;
+  border-collapse: collapse;
+}
+
+.email-table td {
+  padding: 9px 10px;
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.email-table td:last-child {
+  text-align: right;
+  white-space: nowrap;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.email-manual-card textarea {
+  width: 100%;
+  min-height: 220px;
+  margin: 14px 0 10px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 12px;
+  color: var(--ink);
+  background: var(--bg);
+  font: 16px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+  outline: none;
+}
+
+.email-manual-card textarea:focus-visible {
+  border-color: var(--brand);
+}
+
+@media (max-width: 900px) {
+  .email-layout {
+    grid-template-columns: 1fr;
+  }
+}
