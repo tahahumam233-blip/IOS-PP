@@ -8,7 +8,8 @@
   const STALE_MS = 60 * 1000;
   const EMPTY_VALUES = ["", "-", "--", "—"];
 
-  const state = { type: "payment", sheet: null, loadedAt: 0, loading: false, error: "" };
+  // excluded holds the keys of lines switched off in the workbench.
+  const state = { type: "payment", sheet: null, loadedAt: 0, loading: false, error: "", excluded: new Set() };
   const el = (id) => document.getElementById(id);
 
   function formatAmount(value, currency) {
@@ -63,7 +64,7 @@
           issues.push({ name, currency, value, location });
         } else if (Math.trunc(number) > 0) {
           const amount = Math.trunc(number);
-          rows.push({ name: smartName(name, currency), currency, value: amount, amount: formatAmount(amount, currency) });
+          rows.push({ key: `${location}|${currency}`, name: smartName(name, currency), currency, value: amount, amount: formatAmount(amount, currency) });
         }
       });
     });
@@ -122,13 +123,23 @@
 
   function currentEmail() {
     const manualText = el("emailManualInput").value.trim();
+    let result;
     if (manualText) {
       const { entries, malformed } = manualEntries(manualText);
-      const result = buildRows(entries);
-      return { manual: true, rows: result.rows, issues: [...malformed, ...result.issues] };
+      const built = buildRows(entries);
+      result = { manual: true, rows: built.rows, issues: [...malformed, ...built.issues] };
+    } else {
+      result = { manual: false, ...buildRows(sheetEntries(state.type)) };
     }
-    return { manual: false, ...buildRows(sheetEntries(state.type)) };
+    const scope = `${result.manual ? "manual" : "sheet"}|${state.type}|`;
+    result.rows.forEach((row) => {
+      row.key = scope + row.key;
+      row.included = !state.excluded.has(row.key);
+    });
+    result.included = result.rows.filter((row) => row.included);
+    return result;
   }
+
 
   function totals(rows) {
     return rows.reduce(
@@ -199,8 +210,8 @@
   }
 
   async function copyEmail() {
-    const { rows } = currentEmail();
-    if (!rows.length) return showToast("Nothing to copy", `There are no ${state.type}s with amounts.`, "error");
+    const { included: rows } = currentEmail();
+    if (!rows.length) return showToast("Nothing to copy", `No ${state.type} lines are switched on.`, "error");
     try {
       await writeClipboard(emailHtml(rows), emailText(rows));
       const sum = totals(rows);
@@ -214,46 +225,70 @@
   }
 
   function render() {
-    const { manual, rows, issues } = currentEmail();
-    const sum = totals(rows);
+    const { manual, rows, included, issues } = currentEmail();
+    const sum = totals(included);
     const label = state.type === "withdrawal" ? "withdrawal" : "payment";
+
     document.querySelectorAll("[data-email-type]").forEach((button) => {
       const active = button.dataset.emailType === state.type;
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", String(active));
     });
+    if (state.sheet) {
+      el("emailCountPayment").textContent = buildRows(sheetEntries("payment")).rows.length;
+      el("emailCountWithdrawal").textContent = buildRows(sheetEntries("withdrawal")).rows.length;
+    }
+
     el("emailTitle").textContent = `${label[0].toUpperCase()}${label.slice(1)} email`;
     el("emailManualClear").hidden = !manual;
-    el("copyEmailButton").disabled = !rows.length;
+    el("emailRefreshButton").classList.toggle("spinning", state.loading);
     el("emailRefreshButton").disabled = state.loading;
-    el("emailRefreshButton").textContent = state.loading ? "Loading…" : "Refresh";
+    el("emailToggleAll").hidden = !rows.length;
+    el("emailToggleAll").textContent = included.length === rows.length ? "Clear all" : "Select all";
     el("emailSourceLabel").textContent = manual
-      ? "Using pasted rows. Clear them to go back to the sheet."
+      ? "Pasted rows"
       : state.loading && !state.sheet
         ? "Loading the active sheet…"
-        : state.error
-          ? state.error
-          : state.sheet?.statusLabel || "";
+        : state.error || state.sheet?.statusLabel || "";
     el("emailSourceLabel").classList.toggle("is-error", Boolean(state.error) && !manual);
 
     el("emailIssues").hidden = !issues.length;
     el("emailIssues").innerHTML = issues.length
-      ? `<strong>${issues.length} amount${issues.length === 1 ? "" : "s"} left out of the email</strong>
+      ? `<strong>${issues.length} value${issues.length === 1 ? "" : "s"} can't be read and ${issues.length === 1 ? "is" : "are"} left out</strong>
         <ul>${issues
-          .slice(0, 10)
-          .map((issue) => `<li><b>${escapeHtml(issue.location)}</b> ${escapeHtml(issue.currency)} <code>${escapeHtml(issue.value)}</code> ${escapeHtml(issue.name)}</li>`)
-          .join("")}</ul>${issues.length > 10 ? `<span>…and ${issues.length - 10} more</span>` : ""}`
+          .slice(0, 6)
+          .map((issue) => `<li><b>${escapeHtml(issue.name || "(no name)")}</b> <span>${escapeHtml(issue.location)} ${escapeHtml(issue.currency)}</span> <code>${escapeHtml(issue.value)}</code></li>`)
+          .join("")}</ul>${issues.length > 6 ? `<span>…and ${issues.length - 6} more</span>` : ""}`
       : "";
 
-    el("emailTotals").innerHTML = rows.length
-      ? `<span>${rows.length} line${rows.length === 1 ? "" : "s"}</span><b>${formatAmount(sum.USD, "USD")}</b><b>${formatAmount(sum.IQD, "IQD")}</b>`
-      : "";
-    el("emailPreview").innerHTML = rows.length
-      ? `<table class="email-table"><tbody>${rows
-          .map((row) => `<tr><td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.amount)}</td></tr>`)
-          .join("")}</tbody></table>`
-      : `<p class="email-empty">${state.loading ? "Loading…" : `No ${label}s with amounts.`}</p>`;
+    el("emailLines").innerHTML = rows.length
+      ? rows
+          .map(
+            (row) => `<label class="line${row.included ? "" : " off"}">
+              <input type="checkbox" data-line-key="${escapeHtml(row.key)}" ${row.included ? "checked" : ""} />
+              <span class="switch" aria-hidden="true"></span>
+              <span class="line-name">${escapeHtml(row.name)}</span>
+              <span class="line-amount"><small>${row.currency}</small>${new Intl.NumberFormat("en-US").format(row.value)}</span>
+            </label>`
+          )
+          .join("")
+      : `<p class="empty">${state.loading ? "Loading…" : `No ${label}s with amounts in the sheet.`}</p>`;
+
+    el("emailTotals").innerHTML = `
+      <div class="total"><span>USD</span><strong>${new Intl.NumberFormat("en-US").format(sum.USD)}</strong></div>
+      <div class="total"><span>IQD</span><strong>${new Intl.NumberFormat("en-US").format(sum.IQD)}</strong></div>
+      <div class="total total-lines"><span>Lines</span><strong>${included.length}<small> / ${rows.length}</small></strong></div>`;
+
+    el("emailPaper").innerHTML = included.length
+      ? `<p>Dear Zaki,</p>
+        <p>Kindly process the following ${label} today.</p>
+        <table>${included.map((row) => `<tr><td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.amount)}</td></tr>`).join("")}</table>
+        <p class="paper-totals"><strong>Total USD: ${formatAmount(sum.USD, "USD")}</strong><br><strong>Total IQD: ${formatAmount(sum.IQD, "IQD")}</strong></p>
+        <p>Best regards,</p>`
+      : `<p class="paper-empty">Switch on at least one line to build the email.</p>`;
+    el("copyEmailButton").disabled = !included.length;
   }
+
 
   async function fetchJson(url, options) {
     const controller = new AbortController();
@@ -310,8 +345,21 @@
   });
   el("emailRefreshButton").addEventListener("click", () => void load({ force: true }));
   el("copyEmailButton").addEventListener("click", () => void copyEmail());
+  el("emailLines").addEventListener("change", (event) => {
+    const key = event.target.dataset.lineKey;
+    if (!key) return;
+    if (event.target.checked) state.excluded.delete(key);
+    else state.excluded.add(key);
+    render();
+  });
+  el("emailToggleAll").addEventListener("click", () => {
+    const { rows, included } = currentEmail();
+    const allOn = included.length === rows.length;
+    rows.forEach((row) => (allOn ? state.excluded.add(row.key) : state.excluded.delete(row.key)));
+    render();
+  });
   document.addEventListener("keydown", (event) => {
-    if (el("emailsView").hidden) return;
+    if (document.getElementById("settingsDrawer").open || document.querySelector("dialog.modal[open]")) return;
     if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
       event.preventDefault();
       void copyEmail();
@@ -320,6 +368,6 @@
 
   window.emailMaker = { load };
   render();
-  // Opened straight to #emails: selectView ran before this script existed.
-  if (!el("emailsView").hidden) void load();
+  // selectView ran before this script existed, so start the first load here.
+  if (!document.getElementById("settingsDrawer").open) void load();
 })();

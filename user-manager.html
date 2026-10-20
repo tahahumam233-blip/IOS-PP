@@ -2,303 +2,237 @@
 <html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b0d12" />
-    <title>Administration · Sindibad PayDesk</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#09090c" />
+    <title>Sindibad PayDesk</title>
     <link rel="icon" type="image/png" href="assets/icon-192.png" />
     <link rel="apple-touch-icon" href="assets/icon-180.png" />
-    <link rel="stylesheet" href="user-manager.css?v=20261020-paydesk-2" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="user-manager.css?v=20261020-desk-5" />
   </head>
   <body>
-    <section class="auth-shell" id="authGate" aria-labelledby="authTitle">
-      <div class="auth-ambient" aria-hidden="true"></div>
-      <form class="auth-card" id="adminLoginForm">
-        <a class="auth-back" href="./">&larr; Sindibad PayDesk</a>
-        <div class="auth-brand">
-          <img src="assets/logo-white-red.png" alt="" />
-          <span>Operations Control</span>
+    <div class="glow" aria-hidden="true"></div>
+
+    <section class="auth" id="authGate" aria-labelledby="authTitle">
+      <form class="auth-card glass" id="adminLoginForm">
+        <div class="brand">
+          <img class="logo logo-dark" src="assets/logo-white-red.png" alt="" />
+          <img class="logo logo-light" src="assets/logo-red.png" alt="" />
+          <span class="brand-name">PayDesk</span>
         </div>
-        <div class="auth-copy">
-          <p class="eyebrow">Protected workspace</p>
-          <h1 id="authTitle">Administration</h1>
-          <p>Sign in with an account that has user-management access.</p>
+        <div>
+          <h1 id="authTitle">Welcome back</h1>
+          <p class="muted">Sign in with an administration account.</p>
         </div>
-        <div class="field-stack">
-          <label class="field">
-            <span>User ID</span>
-            <input id="adminLoginId" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required />
-          </label>
-          <label class="field">
-            <span>Password</span>
-            <input id="adminLoginPassword" type="password" autocomplete="current-password" required />
-          </label>
-        </div>
-        <button class="button button-primary button-large" id="adminLoginButton" type="submit">Enter admin console</button>
+        <label class="field">
+          <span>User ID</span>
+          <input id="adminLoginId" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required />
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input id="adminLoginPassword" type="password" autocomplete="current-password" required />
+        </label>
+        <button class="btn btn-primary btn-block btn-large" id="adminLoginButton" type="submit">Sign in</button>
         <p class="form-message" id="adminLoginError" role="alert" hidden></p>
       </form>
     </section>
 
-    <div class="admin-shell" id="adminApp" hidden>
-      <aside class="sidebar">
-        <a class="sidebar-brand" href="./" aria-label="Back to Sindibad PayDesk">
-          <img src="assets/logo-white-red.png" alt="" />
-          <div>
-            <strong>Sindibad PayDesk</strong>
-            <span>Operations Control</span>
-          </div>
-        </a>
-
-        <nav class="side-nav" aria-label="Administration">
-          <p>Workspace</p>
-          <button class="active" type="button" data-view="overview" aria-controls="overviewView" aria-current="page">
-            <span class="nav-index">01</span><span>Overview</span>
-          </button>
-          <button type="button" data-view="emails" aria-controls="emailsView">
-            <span class="nav-index">02</span><span>Payment emails</span>
-          </button>
-          <button type="button" data-view="users" aria-controls="usersView">
-            <span class="nav-index">03</span><span>Users</span>
-          </button>
-          <button type="button" data-view="sources" aria-controls="sourcesView">
-            <span class="nav-index">04</span><span>Data sources</span>
-          </button>
-          <p>System</p>
-          <button type="button" data-view="advanced" aria-controls="advancedView">
-            <span class="nav-index">05</span><span>Advanced</span>
-          </button>
-        </nav>
-
-        <div class="sidebar-foot">
-          <div class="environment-card">
-            <span class="status-dot"></span>
-            <div><strong>Production</strong><small>Live workspace</small></div>
-          </div>
-          <button class="sidebar-action" id="themeButton" type="button">Switch to light</button>
-          <button class="sidebar-action" id="adminSignOutButton" type="button">Sign out</button>
+    <div class="app" id="adminApp" hidden>
+      <header class="topbar glass">
+        <div class="brand">
+          <img class="logo logo-dark" src="assets/logo-white-red.png" alt="" />
+          <img class="logo logo-light" src="assets/logo-red.png" alt="" />
+          <span class="brand-name">PayDesk</span>
         </div>
-      </aside>
 
-      <main class="workspace">
-        <header class="workspace-header">
-          <div>
-            <p class="breadcrumb">Sindibad PayDesk / <span id="breadcrumbLabel">Overview</span></p>
-            <h1 id="pageTitle">Control center</h1>
+        <div class="segmented" role="group" aria-label="Email type">
+          <button class="active" type="button" data-email-type="payment" aria-pressed="true">Payments <span class="count" id="emailCountPayment">0</span></button>
+          <button type="button" data-email-type="withdrawal" aria-pressed="false">Withdrawals <span class="count" id="emailCountWithdrawal">0</span></button>
+        </div>
+
+        <div class="topbar-end">
+          <span class="source-pill" title="Active data source">
+            <i class="dot" aria-hidden="true"></i>
+            <span id="heroSourceName">Loading&hellip;</span>
+            <span class="sr-only" id="heroSourceMeta"></span>
+            <a id="heroSheetLink" href="#" target="_blank" rel="noreferrer" aria-label="Open the active Google Sheet" hidden>&#8599;</a>
+          </span>
+          <button class="icon-btn" id="emailRefreshButton" type="button" aria-label="Refresh sheet data" title="Refresh sheet data">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" /></svg>
+          </button>
+          <button class="icon-btn" type="button" data-view="sources" aria-label="Settings" title="Sources, users, and system">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" /></svg>
+          </button>
+          <div class="account">
+            <button class="avatar-btn" id="profileButton" type="button" aria-label="Account menu" aria-expanded="false" aria-controls="profileMenu">
+              <span class="avatar" id="adminAvatar">AD</span>
+            </button>
+            <div class="menu glass" id="profileMenu" hidden>
+              <div class="menu-head"><strong id="adminName">Admin</strong><small>Administrator</small></div>
+              <button id="themeButton" type="button">Switch to light theme</button>
+              <a href="./">Open phone tracker</a>
+              <button id="headerSignOutButton" type="button">Sign out</button>
+            </div>
           </div>
-          <div class="header-actions">
-            <a class="button button-secondary" href="./">Open tracker</a>
-            <div class="profile-menu-wrap">
-              <button class="profile-button" id="profileButton" type="button" aria-label="Administrator menu" aria-expanded="false" aria-controls="profileMenu">
-                <span class="avatar" id="adminAvatar">AD</span>
-                <span><strong id="adminName">Admin</strong><small>Administrator</small></span>
+        </div>
+      </header>
+
+      <main class="workbench" id="emailsView">
+        <!-- Left: the lines from the sheet -->
+        <section class="lines glass" aria-labelledby="linesTitle">
+          <div class="lines-head">
+            <div>
+              <h2 id="linesTitle">Lines</h2>
+              <p class="status-line" id="emailSourceLabel"></p>
+            </div>
+            <button class="btn btn-quiet" id="emailToggleAll" type="button">Clear all</button>
+          </div>
+          <div class="issues" id="emailIssues" role="alert" hidden></div>
+          <div class="line-list" id="emailLines"></div>
+          <details class="paste">
+            <summary>Paste rows instead</summary>
+            <textarea id="emailManualInput" rows="6" spellcheck="false" aria-label="Pasted sheet rows" placeholder="Paste rows copied from the sheet"></textarea>
+            <p class="hint">Payment rows need IQD and USD in columns 9 and 10; withdrawal rows can be name, IQD, USD. Pasted rows replace the sheet until cleared.</p>
+            <button class="btn btn-quiet" id="emailManualClear" type="button" hidden>Back to sheet data</button>
+          </details>
+        </section>
+
+        <!-- Right: totals and the email exactly as it pastes -->
+        <section class="stage" aria-labelledby="emailTitle">
+          <div class="totals" id="emailTotals"></div>
+          <div class="paper-wrap">
+            <div class="paper-bar">
+              <div><h1 id="emailTitle">Payment email</h1><span class="hint">Copies as a table that pastes straight into Outlook</span></div>
+              <button class="btn btn-primary btn-hero" id="copyEmailButton" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 0 1 2-2h9" /></svg>
+                Copy email
+                <span class="keys"><kbd>Ctrl</kbd><kbd>Enter</kbd></span>
               </button>
-              <div class="profile-menu" id="profileMenu" hidden>
-                <button id="headerThemeButton" type="button">Change theme</button>
-                <button id="headerSignOutButton" type="button">Sign out</button>
-              </div>
             </div>
+            <article class="paper" id="emailPaper"></article>
           </div>
-        </header>
-
-        <nav class="mobile-nav" aria-label="Administration sections">
-          <button class="active" type="button" data-view="overview" aria-controls="overviewView">Overview</button>
-          <button type="button" data-view="emails" aria-controls="emailsView">Emails</button>
-          <button type="button" data-view="users" aria-controls="usersView">Users</button>
-          <button type="button" data-view="sources" aria-controls="sourcesView">Sources</button>
-          <button type="button" data-view="advanced" aria-controls="advancedView">Advanced</button>
-        </nav>
-
-        <div class="workspace-content">
-          <section class="admin-view" id="overviewView" data-section="overview">
-            <article class="hero-card">
-              <div class="hero-copy">
-                <span class="live-pill"><i></i> Operations online</span>
-                <p class="eyebrow">Active data source</p>
-                <h2 id="heroSourceName">Loading workspace&hellip;</h2>
-                <p id="heroSourceMeta">Checking the live Google Sheet configuration.</p>
-                <div class="hero-actions">
-                  <button class="button button-light" id="switchSourceButton" type="button">Manage sources</button>
-                  <a class="button button-ghost-light" id="heroSheetLink" href="#" target="_blank" rel="noreferrer">Open Google Sheet</a>
-                </div>
-              </div>
-              <div class="hero-orbit" aria-hidden="true">
-                <div class="orbit-core"><span>SOA</span><strong>LIVE</strong></div>
-                <i></i><i></i><i></i>
-              </div>
-            </article>
-
-            <div class="stat-grid" aria-label="Workspace overview">
-              <article class="stat-card"><span>Team members</span><strong id="userStat">0</strong><small id="userStatNote">Loading users</small></article>
-              <article class="stat-card"><span>Administrators</span><strong id="adminStat">0</strong><small>Full-control accounts</small></article>
-              <article class="stat-card"><span>Sheet sources</span><strong id="sourceStat">0</strong><small id="sourceStatNote">Available connections</small></article>
-              <article class="stat-card"><span>Configuration</span><strong id="versionStat">v&ndash;</strong><small>Active source version</small></article>
-            </div>
-
-            <div class="overview-grid">
-              <article class="surface-card">
-                <div class="card-heading">
-                  <div><p class="eyebrow">Quick actions</p><h3>Workspace management</h3></div>
-                </div>
-                <div class="quick-list">
-                  <button type="button" data-quick-view="users"><span class="quick-mark">+</span><span><strong>Add a team member</strong><small>Create a login and assign permissions</small></span><b>&rarr;</b></button>
-                  <button type="button" data-quick-view="sources" data-source-preset="q4"><span class="quick-mark">Q4</span><span><strong>Prepare SOA Q4</strong><small>Add, test, and stage the new workbook</small></span><b>&rarr;</b></button>
-                  <button type="button" data-quick-view="advanced"><span class="quick-mark">JS</span><span><strong>Export user backup</strong><small>Generate a deployable users.js file</small></span><b>&rarr;</b></button>
-                </div>
-              </article>
-
-              <article class="surface-card health-card">
-                <div class="card-heading"><div><p class="eyebrow">System health</p><h3>Connection readiness</h3></div><span class="health-badge">Operational</span></div>
-                <div class="health-list">
-                  <div><span>Google Sheets proxy</span><strong><i></i> Configured</strong></div>
-                  <div><span>Supabase workspace</span><strong><i></i> Connected</strong></div>
-                  <div><span>Fallback snapshot</span><strong><i></i> Every 5 min</strong></div>
-                </div>
-                <p class="health-note">Test a new source before activation. The previous quarter remains available for one-click rollback.</p>
-              </article>
-            </div>
-          </section>
-
-          <section class="admin-view" id="emailsView" data-section="emails" hidden>
-            <div class="section-heading">
-              <div><p class="eyebrow">Email maker</p><h2>Payment emails</h2><p>Build Zaki's payment or withdrawal email from the active sheet, then paste it into Outlook. Ctrl+Enter copies.</p></div>
-              <div class="inline-actions">
-                <div class="email-type-toggle" role="group" aria-label="Email type">
-                  <button class="active" type="button" data-email-type="payment" aria-pressed="true">Payments</button>
-                  <button type="button" data-email-type="withdrawal" aria-pressed="false">Withdrawals</button>
-                </div>
-                <button class="button button-secondary" id="emailRefreshButton" type="button">Refresh</button>
-                <button class="button button-primary" id="copyEmailButton" type="button">Copy email</button>
-              </div>
-            </div>
-            <p class="email-source" id="emailSourceLabel"></p>
-            <div class="email-issues" id="emailIssues" role="alert" hidden></div>
-            <div class="email-layout">
-              <article class="surface-card">
-                <div class="card-heading"><div><p class="eyebrow">Preview</p><h3 id="emailTitle">Payment email</h3></div><div class="email-totals" id="emailTotals"></div></div>
-                <div id="emailPreview"></div>
-              </article>
-              <article class="surface-card email-manual-card">
-                <div class="card-heading"><div><p class="eyebrow">Workspace</p><h3>Paste rows manually</h3><p>Pasted rows replace the sheet data until you clear them.</p></div></div>
-                <textarea id="emailManualInput" rows="10" spellcheck="false" aria-label="Pasted sheet rows" placeholder="Paste rows copied from the sheet. Payment rows need IQD and USD in columns 9 and 10; withdrawal rows can be name, IQD, USD."></textarea>
-                <button class="button button-secondary" id="emailManualClear" type="button" hidden>Use sheet data</button>
-              </article>
-            </div>
-          </section>
-
-          <section class="admin-view" id="usersView" data-section="users" hidden>
-            <div class="section-heading">
-              <div><p class="eyebrow">Access management</p><h2>Users</h2><p>Create accounts and keep every permission intentional.</p></div>
-              <button class="button button-primary" id="addUserButton" type="button">Add user</button>
-            </div>
-            <div class="toolbar-card">
-              <label class="search-control"><span class="sr-only">Search users</span><input id="userSearch" type="search" placeholder="Search name or user ID" /></label>
-              <label class="select-control"><span class="sr-only">Filter by role</span><select id="roleFilter"><option value="all">All roles</option><option value="admin">Administrators</option><option value="zaki">Operators</option><option value="viewer">Viewers</option></select></label>
-              <span class="result-count" id="userResultCount">0 users</span>
-            </div>
-            <div class="user-list" id="userList" aria-live="polite"></div>
-          </section>
-
-          <section class="admin-view" id="sourcesView" data-section="sources" hidden>
-            <div class="section-heading">
-              <div><p class="eyebrow">Google Sheets</p><h2>Data sources</h2><p>Stage the next quarter, verify its layout, then activate it globally.</p></div>
-              <button class="button button-primary" id="addSourceButton" type="button">Add Q4 source</button>
-            </div>
-            <div class="setup-alert" id="sourceSetupAlert" role="alert" hidden></div>
-            <article class="source-access-card" id="sourceAccessCard">
-              <div class="source-access-icon" aria-hidden="true">S</div>
-              <div class="source-access-copy">
-                <span id="sourceAccessStatus">Source controls locked</span>
-                <p id="sourceAccessMeta">Unlock with the dedicated source-control key to make production changes.</p>
-              </div>
-              <div class="source-access-actions">
-                <button class="button button-secondary" id="unlockSourcesButton" type="button">Unlock controls</button>
-                <button class="button button-secondary" id="lockSourcesButton" type="button" hidden>Lock controls</button>
-              </div>
-            </article>
-            <article class="active-source-card" id="activeSourceCard">
-              <div class="active-source-copy"><span class="live-pill"><i></i> Active now</span><h3 id="activeSourceName">Loading&hellip;</h3><p id="activeSourceMeta">Reading saved configuration.</p></div>
-              <a class="button button-light" id="activeSourceLink" href="#" target="_blank" rel="noreferrer">Open sheet</a>
-            </article>
-            <div class="source-list-heading"><div><h3>Source registry</h3><p>Only tested sources can be activated.</p></div><span id="sourceCount">0 sources</span></div>
-            <div class="source-grid" id="sourceList" aria-live="polite"></div>
-          </section>
-
-          <section class="admin-view" id="advancedView" data-section="advanced" hidden>
-            <div class="section-heading">
-              <div><p class="eyebrow">System utilities</p><h2>Advanced</h2><p>Deployment backup and implementation details for administrators.</p></div>
-            </div>
-            <article class="surface-card backup-card">
-              <div class="card-heading"><div><p class="eyebrow">User backup</p><h3>Generated users.js</h3><p>This is a recovery export. Live logins are saved directly to the workspace.</p></div><div class="inline-actions"><button class="button button-secondary" id="copyBackupButton" type="button">Copy</button><button class="button button-secondary" id="downloadBackupButton" type="button">Download</button></div></div>
-              <textarea id="backupOutput" aria-label="Generated users.js" readonly spellcheck="false"></textarea>
-            </article>
-            <article class="surface-card architecture-card">
-              <p class="eyebrow">Q4 readiness</p><h3>One configuration, three resilient paths</h3>
-              <div class="architecture-flow"><span>Admin selection</span><b>&rarr;</b><span>Live proxy</span><b>&rarr;</b><span>Sindibad PayDesk</span></div>
-              <p>The live app, direct fallback, and five-minute snapshot now follow the same active source identity, preventing a silent return to an older quarter.</p>
-            </article>
-          </section>
-        </div>
+        </section>
       </main>
     </div>
 
+    <!-- Settings: sources, users, system -->
+    <div class="scrim" id="settingsScrim" hidden></div>
+    <dialog class="drawer" id="settingsDrawer" aria-labelledby="settingsTitle">
+      <div class="drawer-head">
+        <h2 id="settingsTitle">Settings</h2>
+        <nav class="drawer-tabs" aria-label="Settings sections">
+          <button type="button" data-view="sources" aria-controls="sourcesView">Sources</button>
+          <button type="button" data-view="users" aria-controls="usersView">Users</button>
+          <button type="button" data-view="advanced" aria-controls="advancedView">System</button>
+        </nav>
+        <button class="icon-btn" type="button" data-view="emails" aria-label="Close settings">&times;</button>
+      </div>
+
+      <div class="drawer-body">
+        <section class="pane" id="sourcesView" data-section="sources" hidden>
+          <div class="pane-head">
+            <p class="muted">The active Google Sheet feeds the phone tracker and the emails. Test a source before activating it.</p>
+            <button class="btn btn-primary" id="addSourceButton" type="button">Add Q4 source</button>
+          </div>
+          <div class="notice notice-error" id="sourceSetupAlert" role="alert" hidden></div>
+          <div class="row-card" id="sourceAccessCard">
+            <span class="lock-icon" aria-hidden="true"></span>
+            <div class="row-copy"><strong id="sourceAccessStatus">Source controls locked</strong><span id="sourceAccessMeta">Unlock with the source-control key to make changes.</span></div>
+            <button class="btn btn-ghost" id="unlockSourcesButton" type="button">Unlock</button>
+            <button class="btn btn-ghost" id="lockSourcesButton" type="button" hidden>Lock</button>
+          </div>
+          <div class="row-card active-row" id="activeSourceCard">
+            <i class="dot" aria-hidden="true"></i>
+            <div class="row-copy"><strong id="activeSourceName">Loading&hellip;</strong><span id="activeSourceMeta">Reading saved configuration.</span></div>
+            <a class="btn btn-ghost" id="activeSourceLink" href="#" target="_blank" rel="noreferrer">Open sheet</a>
+          </div>
+          <div class="list-head"><h3>All sources</h3><span class="muted" id="sourceCount">0 sources</span></div>
+          <div class="stack" id="sourceList" aria-live="polite"></div>
+        </section>
+
+        <section class="pane" id="usersView" data-section="users" hidden>
+          <div class="pane-head">
+            <div class="toolbar">
+              <label class="search"><span class="sr-only">Search users</span><input id="userSearch" type="search" placeholder="Search name or user ID" /></label>
+              <label><span class="sr-only">Filter by role</span><select id="roleFilter"><option value="all">All roles</option><option value="admin">Administrators</option><option value="zaki">Operators</option><option value="viewer">Viewers</option></select></label>
+            </div>
+            <button class="btn btn-primary" id="addUserButton" type="button">Add user</button>
+          </div>
+          <span class="muted small" id="userResultCount">0 users</span>
+          <div class="stack" id="userList" aria-live="polite"></div>
+        </section>
+
+        <section class="pane" id="advancedView" data-section="advanced" hidden>
+          <div class="pane-head">
+            <p class="muted">Recovery export of all logins. Live logins are saved in Supabase; this file is only a backup.</p>
+            <div class="btn-row"><button class="btn btn-ghost" id="copyBackupButton" type="button">Copy</button><button class="btn btn-ghost" id="downloadBackupButton" type="button">Download</button></div>
+          </div>
+          <textarea class="code" id="backupOutput" aria-label="Generated users.js" readonly spellcheck="false"></textarea>
+        </section>
+      </div>
+    </dialog>
+
     <dialog class="modal" id="userDialog" aria-labelledby="userDialogTitle">
       <form method="dialog" id="userForm">
-        <div class="modal-header"><div><p class="eyebrow">Access profile</p><h2 id="userDialogTitle">Add user</h2></div><button class="icon-button" type="button" data-close-dialog="userDialog" aria-label="Close">&times;</button></div>
+        <div class="modal-header"><h2 id="userDialogTitle">Add user</h2><button class="icon-btn" type="button" data-close-dialog="userDialog" aria-label="Close">&times;</button></div>
         <div class="modal-body">
-          <div class="form-grid two-column">
+          <div class="form-grid">
             <label class="field"><span>Name</span><input id="userNameInput" type="text" maxlength="80" required /></label>
             <label class="field"><span>User ID</span><input id="userIdInput" type="text" maxlength="63" autocapitalize="none" spellcheck="false" required /><small>Lowercase letters, numbers, hyphens, and underscores.</small></label>
-          </div>
-          <div class="form-grid two-column">
             <label class="field"><span>Role</span><select id="userRoleInput"><option value="admin">Administrator</option><option value="zaki">Operator</option><option value="viewer">Viewer</option></select></label>
             <label class="field"><span id="passwordFieldLabel">Password</span><div class="password-control"><input id="userPasswordInput" type="password" autocomplete="new-password" /><button id="togglePasswordButton" type="button">Show</button></div><small id="passwordHelp">Required for a new account.</small></label>
           </div>
-          <fieldset class="permission-fieldset"><legend>Permissions</legend><p>Role defaults can be tailored for this account.</p><div class="permission-grid" id="permissionGrid"></div></fieldset>
+          <fieldset class="permissions"><legend>Permissions</legend><p class="muted">Role defaults can be tailored for this account.</p><div class="permission-grid" id="permissionGrid"></div></fieldset>
           <p class="form-message" id="userFormError" role="alert" hidden></p>
         </div>
-        <div class="modal-footer"><button class="button button-secondary" type="button" data-close-dialog="userDialog">Cancel</button><button class="button button-primary" id="saveUserButton" type="submit">Save user</button></div>
+        <div class="modal-footer"><button class="btn btn-ghost" type="button" data-close-dialog="userDialog">Cancel</button><button class="btn btn-primary" id="saveUserButton" type="submit">Save user</button></div>
       </form>
     </dialog>
 
-    <dialog class="modal source-modal" id="sourceDialog" aria-labelledby="sourceDialogTitle">
+    <dialog class="modal" id="sourceDialog" aria-labelledby="sourceDialogTitle">
       <form method="dialog" id="sourceForm">
-        <div class="modal-header"><div><p class="eyebrow">Google Sheets connection</p><h2 id="sourceDialogTitle">Add data source</h2></div><button class="icon-button" type="button" data-close-dialog="sourceDialog" aria-label="Close">&times;</button></div>
+        <div class="modal-header"><h2 id="sourceDialogTitle">Add data source</h2><button class="icon-btn" type="button" data-close-dialog="sourceDialog" aria-label="Close">&times;</button></div>
         <div class="modal-body">
-          <label class="field"><span>Source name</span><input id="sourceNameInput" type="text" maxlength="80" placeholder="SOA Q4 2026" required /></label>
-          <label class="field"><span>Google Sheet URL or spreadsheet ID</span><input id="spreadsheetInput" type="text" autocomplete="off" spellcheck="false" placeholder="https://docs.google.com/spreadsheets/d/..." required /><small>Paste the full URL and the ID and gid will be detected.</small></label>
-          <div class="form-grid two-column">
-            <label class="field"><span>Source key</span><input id="sourceIdInput" type="text" maxlength="63" placeholder="soa-q4-2026" required /></label>
+          <label class="field"><span>Source name</span><input id="sourceNameInput" type="text" maxlength="80" placeholder="SOA 2026 Q4 PP" required /></label>
+          <label class="field"><span>Google Sheet URL or spreadsheet ID</span><input id="spreadsheetInput" type="text" autocomplete="off" spellcheck="false" placeholder="https://docs.google.com/spreadsheets/d/..." required /><small>Paste the full URL and the ID and gid are detected.</small></label>
+          <div class="form-grid">
+            <label class="field"><span>Source key</span><input id="sourceIdInput" type="text" maxlength="63" placeholder="soa-2026-q4" required /></label>
             <label class="field"><span>Worksheet tab</span><input id="sheetNameInput" type="text" value="PP" maxlength="100" required /></label>
           </div>
-          <div class="form-grid three-column">
+          <div class="form-grid form-grid-3">
             <label class="field"><span>Tab gid</span><input id="sheetGidInput" type="text" inputmode="numeric" value="0" required /></label>
             <label class="field"><span>Payment range</span><input id="paymentRangeInput" type="text" value="A7:J200" autocapitalize="characters" required /></label>
             <label class="field"><span>Withdrawal range</span><input id="withdrawalRangeInput" type="text" value="L26:N200" autocapitalize="characters" required /></label>
           </div>
-          <div class="layout-note"><strong>Expected SOA layout</strong><span>Payments: name in the first column, IQD in column 9, USD in column 10. Withdrawals: name, IQD, USD across three columns.</span></div>
+          <p class="hint">Payments: name in the first column, IQD in column 9, USD in column 10. Withdrawals: name, IQD, USD.</p>
           <p class="form-message" id="sourceFormError" role="alert" hidden></p>
         </div>
-        <div class="modal-footer"><button class="button button-secondary" type="button" data-close-dialog="sourceDialog">Cancel</button><button class="button button-primary" id="saveSourceButton" type="submit">Save source</button></div>
+        <div class="modal-footer"><button class="btn btn-ghost" type="button" data-close-dialog="sourceDialog">Cancel</button><button class="btn btn-primary" id="saveSourceButton" type="submit">Save source</button></div>
       </form>
     </dialog>
 
-    <dialog class="modal source-unlock-modal" id="sourceUnlockDialog" aria-labelledby="sourceUnlockTitle">
+    <dialog class="modal modal-small" id="sourceUnlockDialog" aria-labelledby="sourceUnlockTitle">
       <form method="dialog" id="sourceUnlockForm">
-        <div class="modal-header"><div><p class="eyebrow">Protected operation</p><h2 id="sourceUnlockTitle">Unlock source controls</h2></div><button class="icon-button" type="button" data-close-dialog="sourceUnlockDialog" aria-label="Close">&times;</button></div>
+        <div class="modal-header"><h2 id="sourceUnlockTitle">Unlock source controls</h2><button class="icon-btn" type="button" data-close-dialog="sourceUnlockDialog" aria-label="Close">&times;</button></div>
         <div class="modal-body">
-          <div class="security-callout"><span aria-hidden="true">S</span><div><strong>Production changes are separately protected</strong><p>The key is exchanged for a short-lived server session and is never saved in this site.</p></div></div>
-          <label class="field"><span>Source-control key</span><input id="sourceAdminKeyInput" type="password" autocomplete="off" spellcheck="false" required /><small>Paste the key stored in your password manager.</small></label>
+          <p class="muted">The key opens a 60-minute session and is never saved in this site.</p>
+          <label class="field"><span>Source-control key</span><input id="sourceAdminKeyInput" type="password" autocomplete="off" spellcheck="false" required /><small>Paste it from your password manager.</small></label>
           <p class="form-message" id="sourceUnlockError" role="alert" hidden></p>
         </div>
-        <div class="modal-footer"><button class="button button-secondary" type="button" data-close-dialog="sourceUnlockDialog">Cancel</button><button class="button button-primary" id="unlockSourceButton" type="submit">Unlock controls</button></div>
+        <div class="modal-footer"><button class="btn btn-ghost" type="button" data-close-dialog="sourceUnlockDialog">Cancel</button><button class="btn btn-primary" id="unlockSourceButton" type="submit">Unlock</button></div>
       </form>
     </dialog>
 
-    <dialog class="confirm-dialog" id="confirmDialog" aria-labelledby="confirmTitle">
+    <dialog class="modal modal-small confirm" id="confirmDialog" aria-labelledby="confirmTitle">
       <form method="dialog" id="confirmForm">
-        <span class="confirm-mark" id="confirmMark">!</span>
-        <h2 id="confirmTitle">Confirm action</h2>
-        <p id="confirmMessage">Are you sure?</p>
-        <div class="confirm-actions"><button class="button button-secondary" value="cancel" type="button" id="confirmCancelButton">Cancel</button><button class="button button-danger" value="confirm" type="submit" id="confirmActionButton">Confirm</button></div>
+        <div class="modal-body">
+          <span class="confirm-mark" id="confirmMark">!</span>
+          <h2 id="confirmTitle">Confirm action</h2>
+          <p class="muted" id="confirmMessage">Are you sure?</p>
+        </div>
+        <div class="modal-footer"><button class="btn btn-ghost" value="cancel" type="button" id="confirmCancelButton">Cancel</button><button class="btn btn-danger" value="confirm" type="submit" id="confirmActionButton">Confirm</button></div>
       </form>
     </dialog>
 
@@ -306,7 +240,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="users.js?v=20260714-admin-console-4"></script>
-    <script src="user-manager.js?v=20261020-paydesk-2"></script>
-    <script src="email-maker.js?v=20261020-paydesk-2"></script>
+    <script src="user-manager.js?v=20261020-desk-5"></script>
+    <script src="email-maker.js?v=20261020-desk-5"></script>
   </body>
 </html>
