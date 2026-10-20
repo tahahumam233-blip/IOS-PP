@@ -242,7 +242,7 @@ async function enrollFaceId(user) {
     const credential = await navigator.credentials.create({
       publicKey: {
         challenge: randomCredentialBytes(),
-        rp: { name: "Payment Tracker" },
+        rp: { name: "Sindibad PayDesk" },
         user: {
           id: randomCredentialBytes(),
           name: user.id,

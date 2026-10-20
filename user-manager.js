@@ -37,7 +37,7 @@ const EXISTING_Q2_SOURCE = {
   layout_key: "pp-v1",
   enabled: true,
   last_test_status: "success",
-  last_test_message: "Active from the existing Payment Tracker configuration.",
+  last_test_message: "Active from the existing Sindibad PayDesk configuration.",
   isFallback: true,
 };
 
@@ -61,9 +61,10 @@ let sourceSessionExpiryTimer = 0;
 let pendingSourcePreset = "";
 
 const sourcePresets = {
-  q3: {
-    id: "soa-2026-q3",
-    name: "SOA 2026 Q3 PP",
+  q4: {
+    id: "soa-2026-q4",
+    name: "SOA 2026 Q4 PP",
+    spreadsheet_id: "1xHieVlOvR2J_YoXHWIe--xpYjiRnTxYwZAL24wClPIU",
     sheet_name: "PP",
     sheet_gid: "0",
     payment_range: "A7:J200",
@@ -901,7 +902,7 @@ function renderSources() {
   byId("addSourceButton").disabled = sourceSessionActive && !sourceControlsUnlocked;
   byId("addSourceButton").textContent = sourceSessionActive && !sourceControlsUnlocked
     ? "Registry unavailable"
-    : "Add Q3 source";
+    : "Add Q4 source";
 
   const active = appState.sources.find((source) => source.id === appState.activeSourceId);
   if (active) {
@@ -1026,11 +1027,11 @@ function openSourceEditor(sourceId = "", presetId = "") {
   }
   appState.editingSourceId = source?.id || "";
   sourceIdManuallyEdited = Boolean(source || preset);
-  byId("sourceDialogTitle").textContent = source ? `Edit ${source.name}` : (preset ? "Add SOA 2026 Q3" : "Add data source");
+  byId("sourceDialogTitle").textContent = source ? `Edit ${source.name}` : (preset ? "Add SOA 2026 Q4" : "Add data source");
   byId("sourceNameInput").value = source?.name || preset?.name || "";
   byId("sourceIdInput").value = source?.id || preset?.id || "";
   byId("sourceIdInput").readOnly = Boolean(source);
-  byId("spreadsheetInput").value = source ? sheetUrl(source) : "";
+  byId("spreadsheetInput").value = source ? sheetUrl(source) : (preset?.spreadsheet_id ? sheetUrl(preset) : "");
   byId("sheetNameInput").value = source?.sheet_name || preset?.sheet_name || "PP";
   byId("sheetGidInput").value = source?.sheet_gid || preset?.sheet_gid || "0";
   byId("paymentRangeInput").value = source?.payment_range || preset?.payment_range || "A7:J200";
@@ -1066,7 +1067,7 @@ async function saveSource(event) {
   const paymentRange = normalizeRange(byId("paymentRangeInput").value);
   const withdrawalRange = normalizeRange(byId("withdrawalRangeInput").value);
 
-  if (!name) return setFormMessage(byId("sourceFormError"), "Enter a clear source name, such as SOA Q3 2026.");
+  if (!name) return setFormMessage(byId("sourceFormError"), "Enter a clear source name, such as SOA Q4 2026.");
   if (!/^[a-z0-9][a-z0-9_-]{1,62}$/.test(id)) return setFormMessage(byId("sourceFormError"), "Enter a valid source key with at least two characters.");
   if (!/^[A-Za-z0-9_-]{20,200}$/.test(details.spreadsheetId)) return setFormMessage(byId("sourceFormError"), "Paste a valid Google Sheet URL or spreadsheet ID.");
   if (!sheetName) return setFormMessage(byId("sourceFormError"), "Enter the worksheet tab name.");
@@ -1286,7 +1287,7 @@ document.querySelectorAll("[data-close-dialog]").forEach((button) => {
 byId("switchSourceButton").addEventListener("click", () => selectView("sources"));
 byId("addUserButton").addEventListener("click", () => openUserEditor());
 byId("addSourceButton").addEventListener("click", () => {
-  openPresetSourceEditor("q3");
+  openPresetSourceEditor("q4");
 });
 byId("userForm").addEventListener("submit", saveUser);
 byId("sourceForm").addEventListener("submit", saveSource);

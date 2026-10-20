@@ -82,6 +82,8 @@ const state = {
   audioUnlocked: false,
   savingExchange: false,
   activeUploadTaskId: "",
+  emailType: "payment",
+  emailIssues: [],
   taskState: JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"),
 };
 
@@ -122,10 +124,16 @@ const els = {
   searchInput: document.querySelector("#searchInput"),
   refreshButton: document.querySelector("#refreshButton"),
   sheetLink: document.querySelector("#sheetLink"),
-  createPaymentDraftButton: document.querySelector("#createPaymentDraftButton"),
   copyPaymentEmailTopButton: document.querySelector("#copyPaymentEmailTopButton"),
-  copyPaymentEmailButton: document.querySelector("#copyPaymentEmailButton"),
-  createWithdrawalDraftButton: document.querySelector("#createWithdrawalDraftButton"),
+  emailTypeButtons: document.querySelectorAll("[data-email-type]"),
+  emailTitle: document.querySelector("#emailTitle"),
+  emailSourceLabel: document.querySelector("#emailSourceLabel"),
+  emailIssues: document.querySelector("#emailIssues"),
+  emailPreview: document.querySelector("#emailPreview"),
+  emailManualInput: document.querySelector("#emailManualInput"),
+  emailManualClear: document.querySelector("#emailManualClear"),
+  copyEmailButton: document.querySelector("#copyEmailButton"),
+  createEmailDraftButton: document.querySelector("#createEmailDraftButton"),
   priorityModal: document.querySelector("#priorityModal"),
   priorityTaskName: document.querySelector("#priorityTaskName"),
   priorityLevel: document.querySelector("#priorityLevel"),
@@ -337,19 +345,51 @@ function isSheetSummaryRow(name) {
   );
 }
 
-function normalizeWithdrawalRows(csvRows) {
+function columnLetter(index) {
+  let letters = "";
+  for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26)) {
+    letters = String.fromCharCode(65 + ((n - 1) % 26)) + letters;
+  }
+  return letters;
+}
+
+function getRangeStartColumn(value) {
+  const match = stripSheetNameFromRange(value, "").match(/^([A-Za-z]+)\d+:/);
+  if (!match) return 0;
+  return [...match[1].toUpperCase()].reduce((total, char) => total * 26 + char.charCodeAt(0) - 64, 0) - 1;
+}
+
+// Amount cells the parser cannot read (formula text, "N/A", typos) would
+// otherwise silently drop out of the email, so they are reported by cell.
+function findAmountIssues(name, cells, rowNumber, range, type) {
+  if (isSheetSummaryRow(name)) return [];
+  const sheet = state.sheetSource.sheetName || "PP";
+  const startColumn = getRangeStartColumn(range);
+  return cells.flatMap(([raw, offset, currency]) => {
+    const value = String(raw ?? "").trim();
+    if (!value || ["-", "--", "—"].includes(value)) return [];
+    const cleaned = value.replace(/,|\$|USD|IQD/gi, "").trim();
+    if (!value.startsWith("=") && cleaned && Number.isFinite(Number(cleaned))) return [];
+    return [{ type, name, currency, value, cell: `${sheet}!${columnLetter(startColumn + offset)}${rowNumber}` }];
+  });
+}
+
+function normalizeWithdrawalRows(csvRows, issues = []) {
+  const range = state.sheetSource.withdrawalRange;
   return csvRows
     .map((row, index) => {
       const name = (row[0] || "").trim();
       const iqd = parseAmount(row[1]);
       const usd = parseAmount(row[2]);
-      const rowNumber = getRangeStartRow(state.sheetSource.withdrawalRange, 26) + index;
+      const rowNumber = getRangeStartRow(range, 26) + index;
+      issues.push(...findAmountIssues(name, [[row[1], 1, "IQD"], [row[2], 2, "USD"]], rowNumber, range, "withdrawal"));
       return { id: makeTaskId("withdrawal", rowNumber, name, iqd, usd), type: "withdrawal", name, iqd, usd };
     })
     .filter((task) => !isSheetSummaryRow(task.name) && (task.iqd > 0 || task.usd > 0));
 }
 
 function normalizeTasks(csvRows, withdrawalRows = []) {
+  const issues = [];
   const providerHeaderIndex = csvRows.findIndex((row) => {
     const nameHeader = String(row[0] || "").toLowerCase();
     const usdHeader = String(row[9] || "").toLowerCase();
@@ -364,13 +404,16 @@ function normalizeTasks(csvRows, withdrawalRows = []) {
       const iqd = parseAmount(row[8]);
       const usd = parseAmount(row[9]);
       const rowNumber = getRangeStartRow(state.sheetSource.paymentRange, 7) + paymentStartIndex + index;
+      if (name) {
+        issues.push(...findAmountIssues(name, [[row[8], 8, "IQD"], [row[9], 9, "USD"]], rowNumber, state.sheetSource.paymentRange, "payment"));
+      }
       return { id: makeTaskId("payment", rowNumber, name, iqd, usd), type: "payment", name, iqd, usd };
     })
     .filter((task) => task.name && (task.iqd > 0 || task.usd > 0));
 
-  const withdrawals = normalizeWithdrawalRows(withdrawalRows);
+  const withdrawals = normalizeWithdrawalRows(withdrawalRows, issues);
 
-  return { payments, withdrawals };
+  return { payments, withdrawals, issues };
 }
 
 function formatIQD(value) {
@@ -960,21 +1003,83 @@ function formatEmailAmount(value, currency) {
   return `${currency} ${amount}`;
 }
 
-function getEmailRows(type) {
-  const tasks = type === "withdrawal" ? state.withdrawals : state.payments;
-  return tasks.flatMap((task) => {
-    const rows = [];
-    if (task.iqd > 0) rows.push({ name: `${task.name} IQD`, amount: formatEmailAmount(task.iqd, "IQD") });
-    if (task.usd > 0) rows.push({ name: `${task.name} USD`, amount: formatEmailAmount(task.usd, "USD") });
-    return rows;
-  });
+// "Acme USD" + IQD becomes "Acme IQD", never "Acme USD IQD".
+function smartEmailName(name, currency) {
+  const cleanName = String(name).replace(/\b(?:USD|IQD)\b/gi, "").split(/\s+/).filter(Boolean).join(" ");
+  return `${cleanName} ${currency}`.trim();
 }
 
-function buildEmailPayload(type) {
+function makeEmailRow(name, currency, value) {
+  return { name: smartEmailName(name, currency), currency, value, amount: formatEmailAmount(value, currency) };
+}
+
+function getEmailRows(type) {
+  const tasks = type === "withdrawal" ? state.withdrawals : state.payments;
+  return tasks
+    .filter((task) => !isSheetSummaryRow(task.name))
+    .flatMap((task) => {
+      const rows = [];
+      if (Math.trunc(task.iqd) > 0) rows.push(makeEmailRow(task.name, "IQD", Math.trunc(task.iqd)));
+      if (Math.trunc(task.usd) > 0) rows.push(makeEmailRow(task.name, "USD", Math.trunc(task.usd)));
+      return rows;
+    });
+}
+
+// Hand-pasted rows from the sheet: full payment rows (IQD and USD in columns
+// 9 and 10) or the 3-column withdrawal block (name, IQD, USD).
+function parseManualEmailRows(text) {
+  const rows = [];
+  const issues = [];
+  String(text || "").split(/\r?\n/).forEach((line, index) => {
+    if (!line.trim()) return;
+    const cols = line.split("\t");
+    const amountCols = cols.length >= 9 ? [cols[8], cols[9]] : cols.length === 3 ? [cols[1], cols[2]] : null;
+    const name = (cols[0] || "").trim();
+    if (!amountCols) {
+      issues.push({ name, currency: "", value: `${cols.length} column(s)`, cell: `line ${index + 1}` });
+      return;
+    }
+    if (isSheetSummaryRow(name)) return;
+    [["IQD", amountCols[0]], ["USD", amountCols[1]]].forEach(([currency, raw]) => {
+      const value = String(raw ?? "").trim();
+      if (!value || ["-", "--", "—"].includes(value)) return;
+      const number = Number(value.replace(/,|\$|USD|IQD/gi, "").trim());
+      if (value.startsWith("=") || !Number.isFinite(number)) {
+        issues.push({ name, currency, value, cell: `line ${index + 1}` });
+      } else if (Math.trunc(number) > 0) {
+        rows.push(makeEmailRow(name, currency, Math.trunc(number)));
+      }
+    });
+  });
+  return { rows, issues };
+}
+
+function getEmailTotals(rows) {
+  return rows.reduce(
+    (totals, row) => ({ ...totals, [row.currency.toLowerCase()]: totals[row.currency.toLowerCase()] + row.value }),
+    { iqd: 0, usd: 0 }
+  );
+}
+
+// Same layout the desktop Payment Email Maker pasted into Outlook.
+function buildClipboardEmailHtml(type, rows) {
+  const totals = getEmailTotals(rows);
+  const cell = "border:1px solid #000;padding:10px;";
+  const rowsHtml = rows
+    .map((row) => `<tr><td style="${cell}">${escapeHtml(row.name)}</td><td style="${cell}font-weight:bold;">${escapeHtml(row.amount)}</td></tr>`)
+    .join("");
+  return `<html><head><meta charset="utf-8"></head><body style="font-family:'Aptos',sans-serif;background-color:#ffffff;padding:20px;">
+<p style="color:#333;">Dear Zaki,</p>
+<p style="color:#333;">Kindly process the following ${type === "withdrawal" ? "withdrawal" : "payment"} today.</p>
+<table style="border-collapse:collapse;width:100%;max-width:500px;border:1px solid #000;">${rowsHtml}</table>
+<p style="margin-top:15px;color:#000;"><strong>Total USD: ${formatEmailAmount(totals.usd, "USD")}</strong><br><strong>Total IQD: ${formatEmailAmount(totals.iqd, "IQD")}</strong></p>
+<p style="color:#333;">Best regards,</p>
+</body></html>`;
+}
+
+function buildEmailPayload(type, rows = getEmailRows(type)) {
   const isWithdrawal = type === "withdrawal";
-  const tasks = isWithdrawal ? state.withdrawals : state.payments;
-  const rows = getEmailRows(type);
-  const totals = getTotals(tasks);
+  const totals = getEmailTotals(rows);
   const reportTitle = isWithdrawal ? "Withdrawals" : "Payments";
   const intro = isWithdrawal
     ? "Kindly process the following withdrawal today."
@@ -1036,15 +1141,14 @@ function buildEmailPayload(type) {
   };
 }
 
-async function createZapierDraft(type) {
+async function createZapierDraft(type, rows = getEmailRows(type), button = null) {
   const appRole = document.querySelector(".app-preview")?.dataset.role || "guest";
   if (appRole !== "admin") {
     showStatusMessage("Admin Only", "Only Admin can create Outlook draft emails.");
     return;
   }
 
-  const button = type === "withdrawal" ? els.createWithdrawalDraftButton : els.createPaymentDraftButton;
-  const payload = buildEmailPayload(type);
+  const payload = buildEmailPayload(type, rows);
   if (!payload.rows.length) {
     showStatusMessage("No Email Items", "There are no payments or withdrawals with amounts to include.");
     return;
@@ -1103,16 +1207,63 @@ async function writeClipboardText(text) {
   if (!copied) throw new Error("Clipboard copy was blocked.");
 }
 
-async function copyEmailText(type) {
-  const payload = buildEmailPayload(type);
-  if (!payload.rows.length) {
-    showStatusMessage("No Email Items", "There are no payments with amounts to copy.");
+// Rich HTML pastes into Outlook as a real table; plain text is the fallback.
+async function writeClipboardEmail(html, text) {
+  if (window.ClipboardItem && navigator.clipboard?.write) {
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([text], { type: "text/plain" }),
+        }),
+      ]);
+      return;
+    } catch {
+      // Permission denied or HTML items unsupported; try the copy event below.
+    }
+  }
+  const onCopy = (event) => {
+    event.clipboardData.setData("text/html", html);
+    event.clipboardData.setData("text/plain", text);
+    event.preventDefault();
+  };
+  document.addEventListener("copy", onCopy);
+  try {
+    if (document.execCommand("copy")) return;
+  } finally {
+    document.removeEventListener("copy", onCopy);
+  }
+  await writeClipboardText(text);
+}
+
+function getEmailPlainText(type, rows) {
+  const totals = getEmailTotals(rows);
+  const action = type === "withdrawal" ? "withdrawal" : "payment";
+  return [
+    "Dear Zaki,",
+    "",
+    `Kindly process the following ${action} today.`,
+    "",
+    ...rows.map((row) => `${row.name}\t${row.amount}`),
+    "",
+    `Total USD: ${formatEmailAmount(totals.usd, "USD")}`,
+    `Total IQD: ${formatEmailAmount(totals.iqd, "IQD")}`,
+    "",
+    "Best regards,",
+  ].join("\n");
+}
+
+async function copyEmailText(type, rows = getEmailRows(type), extraButtons = []) {
+  const label = type === "withdrawal" ? "withdrawal" : "payment";
+  if (!rows.length) {
+    showStatusMessage("No Email Items", `There are no ${label}s with amounts to copy.`);
     return;
   }
 
-  const buttons = type === "payment"
-    ? [els.copyPaymentEmailTopButton, els.copyPaymentEmailButton].filter(Boolean)
-    : [];
+  const buttons = [
+    ...(type === "payment" ? [els.copyPaymentEmailTopButton] : []),
+    ...extraButtons,
+  ].filter(Boolean);
   const originalTexts = new Map(buttons.map((button) => [button, button.textContent]));
   buttons.forEach((button) => {
     button.disabled = true;
@@ -1120,10 +1271,11 @@ async function copyEmailText(type) {
   });
 
   try {
-    await writeClipboardText(payload.textBody);
+    await writeClipboardEmail(buildClipboardEmailHtml(type, rows), getEmailPlainText(type, rows));
+    const totals = getEmailTotals(rows);
     showStatusMessage(
-      "Payment Email Copied",
-      `${payload.rows.length} payment lines copied. Total USD: ${payload.totals.usdFormatted}. Total IQD: ${payload.totals.iqdFormatted}.`
+      `${label[0].toUpperCase()}${label.slice(1)} Email Copied`,
+      `${rows.length} ${label} lines copied. Total USD: ${formatEmailAmount(totals.usd, "USD")}. Total IQD: ${formatEmailAmount(totals.iqd, "IQD")}.`
     );
   } catch (error) {
     showStatusMessage("Copy Failed", error.message || "The browser did not allow clipboard copy.");
@@ -1309,7 +1461,7 @@ async function loadSheet({ background = false, force = false } = {}) {
     }
 
     applySheetSource({ ...snapshot, sourceName: expectedSource.name });
-    const { payments, withdrawals } = normalizeTasks(snapshot.paymentsRows, snapshot.withdrawalRows);
+    const { payments, withdrawals, issues } = normalizeTasks(snapshot.paymentsRows, snapshot.withdrawalRows);
     if (!payments.length && !withdrawals.length) {
       throw new Error(
         `No actionable payment or withdrawal tasks were found in ${state.sheetSource.name}. Check the configured ranges and amount columns.`,
@@ -1319,6 +1471,7 @@ async function loadSheet({ background = false, force = false } = {}) {
 
     state.payments = payments;
     state.withdrawals = withdrawals;
+    state.emailIssues = issues;
     await loadRemoteTaskState();
     state.sourceMode = usingFallback ? "snapshot" : "live";
     state.source = usingFallback
@@ -1643,10 +1796,56 @@ async function saveTaskPriority() {
   }
 }
 
+// The Email tab: what the desktop Payment Email Maker used to do, fed by the
+// same live sheet data as the tracker. Pasted rows override the sheet data.
+function getEmailMakerData() {
+  const manualText = els.emailManualInput?.value.trim() || "";
+  if (manualText) return { manual: true, ...parseManualEmailRows(manualText) };
+  return {
+    manual: false,
+    rows: getEmailRows(state.emailType),
+    issues: state.emailIssues.filter((issue) => issue.type === state.emailType),
+  };
+}
+
+function renderEmailMaker() {
+  if (!els.emailPreview) return;
+  const type = state.emailType;
+  const { manual, rows, issues } = getEmailMakerData();
+  const totals = getEmailTotals(rows);
+  els.emailTypeButtons.forEach((button) => button.classList.toggle("active", button.dataset.emailType === type));
+  els.emailTitle.textContent = type === "withdrawal" ? "Withdrawal email" : "Payment email";
+  els.emailSourceLabel.textContent = manual ? "From pasted rows" : state.source;
+  els.emailManualClear.hidden = !manual;
+  els.copyEmailButton.disabled = !rows.length;
+  els.createEmailDraftButton.disabled = !rows.length;
+
+  els.emailIssues.hidden = !issues.length;
+  els.emailIssues.innerHTML = issues.length
+    ? `<strong>${issues.length} amount${issues.length === 1 ? "" : "s"} left out: not a number</strong>
+      <ul>${issues
+        .slice(0, 10)
+        .map((issue) => `<li><b>${escapeHtml(issue.cell)}</b> ${escapeHtml(issue.currency)} <code>${escapeHtml(issue.value)}</code> ${escapeHtml(issue.name)}</li>`)
+        .join("")}</ul>${issues.length > 10 ? `<span>...and ${issues.length - 10} more</span>` : ""}`
+    : "";
+
+  els.emailPreview.innerHTML = rows.length
+    ? `<table class="email-table">${rows
+        .map((row) => `<tr><td>${escapeHtml(row.name)}</td><td>${escapeHtml(row.amount)}</td></tr>`)
+        .join("")}</table>
+      <div class="email-totals">
+        <span>${rows.length} line${rows.length === 1 ? "" : "s"}</span>
+        <b>${escapeHtml(formatEmailAmount(totals.usd, "USD"))}</b>
+        <b>${escapeHtml(formatEmailAmount(totals.iqd, "IQD"))}</b>
+      </div>`
+    : `<p class="email-empty">No ${type === "withdrawal" ? "withdrawals" : "payments"} with amounts.</p>`;
+}
+
 function render() {
   els.connectionLabel.textContent = state.source;
   renderMetrics();
   renderTaskList();
+  renderEmailMaker();
 }
 
 els.taskList.addEventListener("click", (event) => {
@@ -1826,10 +2025,24 @@ window.addEventListener("keydown", (event) => {
 els.paymentsTab.addEventListener("click", () => setActiveType("payment"));
 els.withdrawalsTab.addEventListener("click", () => setActiveType("withdrawal"));
 els.exchangeTab.addEventListener("click", () => setActiveType("exchange"));
-els.createPaymentDraftButton?.addEventListener("click", () => createZapierDraft("payment"));
 els.copyPaymentEmailTopButton?.addEventListener("click", () => copyEmailText("payment"));
-els.copyPaymentEmailButton?.addEventListener("click", () => copyEmailText("payment"));
-els.createWithdrawalDraftButton?.addEventListener("click", () => createZapierDraft("withdrawal"));
+els.emailTypeButtons.forEach((button) =>
+  button.addEventListener("click", () => {
+    state.emailType = button.dataset.emailType;
+    renderEmailMaker();
+  })
+);
+els.emailManualInput?.addEventListener("input", renderEmailMaker);
+els.emailManualClear?.addEventListener("click", () => {
+  els.emailManualInput.value = "";
+  renderEmailMaker();
+});
+els.copyEmailButton?.addEventListener("click", () =>
+  copyEmailText(state.emailType, getEmailMakerData().rows, [els.copyEmailButton])
+);
+els.createEmailDraftButton?.addEventListener("click", () =>
+  createZapierDraft(state.emailType, getEmailMakerData().rows, els.createEmailDraftButton)
+);
 els.exchangeAmountA.addEventListener("input", () => {
   formatExchangeInput(els.exchangeAmountA, "IQD");
   calculateExchange();

@@ -1,4 +1,6 @@
-# IOS Payment Tracker
+# Sindibad PayDesk
+
+Supplier payment, withdrawal, and exchange tracker plus the payment email maker (the **Email** tab, admin only). It replaces the old IOS Payment Tracker and the desktop Sindibad Payment Email Maker.
 
 The live tracker is served from `index.html`. Administrators can open the control console from **Settings > Administration** or directly at `user-manager.html`.
 
@@ -79,11 +81,11 @@ The strict client rejects an old snapshot that lacks complete source identity. I
 
 Deploy the updated static site only after the backend smoke test and snapshot refresh succeed. Verify that the tracker reports Q2 as active and that the live proxy and saved snapshot identify the same source.
 
-## Add and cut over to SOA 2026 Q3
+## Add and cut over to SOA 2026 Q4
 
 ### Prepare the workbook
 
-1. Create the Q3 workbook or copy the current workbook.
+1. Create the Q4 workbook or copy the current workbook. The SOA 2026 Q4 workbook is `1xHieVlOvR2J_YoXHWIe--xpYjiRnTxYwZAL24wClPIU`, and the **Add Q4 source** button pre-fills its URL.
 2. Keep the supported `pp-v1` layout, or update the parser before cutover:
 
    - Payments use 10 columns. Provider name is the first returned column, IQD is column 9, and USD is column 10. The current range is `A7:J200`.
@@ -92,49 +94,49 @@ Deploy the updated static site only after the backend smoke test and snapshot re
 
 3. Share the workbook as **Viewer** with the `client_email` from the configured Google service-account JSON. A new service account is not needed.
 4. Copy the full Google Sheet URL. Confirm that the worksheet title and the numeric `gid` in the URL identify the same tab.
-5. Add representative Q3 data before testing. The safety check rejects a blank or all-zero workbook; at least one usable payment or withdrawal row must contain a positive amount.
+5. Add representative Q4 data before testing. The safety check rejects a blank or all-zero workbook; at least one usable payment or withdrawal row must contain a positive amount.
 
-### Stage and test Q3
+### Stage and test Q4
 
 1. Open **Administration > Data sources** and unlock the source controls. If the 60-minute session expired or the page was refreshed, unlock it again.
-2. Select **Add Q3 source**. The Q3 name, key, worksheet, and ranges are filled in automatically; paste the Google Sheet URL and confirm the detected tab gid.
+2. Select **Add Q4 source**. The Q4 name, key, worksheet, and ranges are filled in automatically; paste the Google Sheet URL and confirm the detected tab gid.
 
-   - Name: `SOA 2026 Q3 PP`
-   - Source key: `soa-2026-q3` (this identifier cannot be renamed later)
-   - Google Sheet URL: the full Q3 URL
+   - Name: `SOA 2026 Q4 PP`
+   - Source key: `soa-2026-q4` (this identifier cannot be renamed later)
+   - Google Sheet URL: the full Q4 URL
    - Worksheet tab: normally `PP`
    - Tab gid: the numeric gid from that exact `PP` tab
    - Payment range: normally `A7:J200`
    - Withdrawal range: normally `L26:N200`
 
 3. Save the source. It is registered but does not become active.
-4. Select **Test connection**. Confirm both reported counts are reasonable, then compare several payment and withdrawal names and amounts with the Q3 sheet.
-5. Leave Q2 active until the planned cutover. Editing any Q3 connection field invalidates its test and requires another successful test. Successful activation tests expire after 30 minutes, so retest immediately before cutover.
+4. Select **Test connection**. Confirm both reported counts are reasonable, then compare several payment and withdrawal names and amounts with the Q4 sheet.
+5. Leave Q3 active until the planned cutover. Editing any Q4 connection field invalidates its test and requires another successful test. Successful activation tests expire after 30 minutes, so retest immediately before cutover.
 
-### Activate and verify Q3
+### Activate and verify Q4
 
-1. Select **Activate** for `SOA 2026 Q3 PP` and confirm the production cutover.
-2. In GitHub Actions, immediately run **Refresh planner sheet snapshot**. Wait for the Q3 snapshot commit and static deployment to complete; do not rely only on the five-minute schedule.
+1. Select **Activate** for `SOA 2026 Q4 PP` and confirm the production cutover.
+2. In GitHub Actions, immediately run **Refresh planner sheet snapshot**. Wait for the Q4 snapshot commit and static deployment to complete; do not rely only on the five-minute schedule.
 3. Verify all of the following:
 
-   - The public active-source lookup reports `soa-2026-q3`.
-   - The `sheet-data` Edge Function returns the same Q3 source identity and expected rows.
-   - The tracker shows the Q3 active-source badge and Google Sheet link.
-   - Representative payment and withdrawal amounts match the Q3 workbook.
-   - Completing a Q3 task does not reuse Q2 completion state.
-   - `sheet-data.json` contains the Q3 identity and current source version.
+   - The public active-source lookup reports `soa-2026-q4`.
+   - The `sheet-data` Edge Function returns the same Q4 source identity and expected rows.
+   - The tracker shows the Q4 active-source badge and Google Sheet link.
+   - Representative payment and withdrawal amounts match the Q4 workbook.
+   - Completing a Q4 task does not reuse Q3 completion state.
+   - `sheet-data.json` contains the Q4 identity and current source version.
 
 Devices check for a source change about every 20 seconds, or immediately after **Update Data**.
 
-### Roll back to Q2
+### Roll back to Q3
 
-Do not delete the Q2 source. If Q3 has a problem:
+Do not delete the Q3 source. If Q4 has a problem:
 
 1. Unlock the source controls.
-2. Test `SOA 2026 Q2 PP` again if its last test is not current.
-3. Activate Q2.
+2. Test `SOA 2026 Q3 PP` again if its last test is not current.
+3. Activate Q3.
 4. Immediately run **Refresh planner sheet snapshot** in GitHub Actions.
-5. Verify the live proxy, tracker, and snapshot all report Q2 again.
+5. Verify the live proxy, tracker, and snapshot all report Q3 again.
 
 ## Hosting and fallback notes
 

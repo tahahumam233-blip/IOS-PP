@@ -6,13 +6,13 @@
     <meta name="theme-color" content="#10070b" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Payments" />
-    <title>Payment Tracker</title>
+    <meta name="apple-mobile-web-app-title" content="PayDesk" />
+    <title>Sindibad PayDesk</title>
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" type="image/png" href="assets/icon-192.png" />
     <link rel="apple-touch-icon" href="assets/icon-180.png" />
-    <link rel="stylesheet" href="styles.css?v=20260917-no-zoom-1" />
-    <link rel="stylesheet" href="live-preview.css?v=20260917-no-zoom-1" />
+    <link rel="stylesheet" href="styles.css?v=20261020-paydesk-1" />
+    <link rel="stylesheet" href="live-preview.css?v=20261020-paydesk-1" />
   </head>
   <body>
     <main class="app-preview" data-theme="dark" data-role="guest">
@@ -22,7 +22,7 @@
             <img class="brand-logo logo-dark" src="assets/logo-white-red.png" alt="" />
             <img class="brand-logo logo-light" src="assets/logo-red.png" alt="" />
             <div>
-              <p>Payment Tracker</p>
+              <p>Sindibad PayDesk</p>
               <h1>Welcome back</h1>
             </div>
           </div>
@@ -173,11 +173,33 @@
             <span>Receipts</span><b>Stored in Supabase</b>
             <span>Slack</span><b>Daily threads</b>
           </div>
-          <div class="email-actions" aria-label="Admin email drafts">
-            <button class="email-draft-button" id="createPaymentDraftButton" type="button">Create Payment Draft</button>
-            <button class="email-draft-button email-copy-button" id="copyPaymentEmailButton" type="button">Copy Payment Email</button>
-            <button class="email-draft-button" id="createWithdrawalDraftButton" type="button">Create Withdrawal Draft</button>
+        </div>
+      </section>
+
+      <section class="preview-view" id="emailView" hidden>
+        <div class="preview-card email-maker">
+          <div class="email-maker-head">
+            <div>
+              <p>Email Maker</p>
+              <h2 id="emailTitle">Payment email</h2>
+              <span class="email-source" id="emailSourceLabel"></span>
+            </div>
+            <div class="email-type-toggle" role="group" aria-label="Email type">
+              <button class="active" data-email-type="payment" type="button">Payments</button>
+              <button data-email-type="withdrawal" type="button">Withdrawals</button>
+            </div>
           </div>
+          <div class="email-issues" id="emailIssues" role="alert" hidden></div>
+          <div class="email-preview" id="emailPreview"></div>
+          <div class="email-maker-actions">
+            <button class="email-draft-button" id="copyEmailButton" type="button">Copy Email</button>
+            <button class="email-draft-button email-secondary-button" id="createEmailDraftButton" type="button">Create Outlook Draft</button>
+          </div>
+          <details class="email-manual">
+            <summary>Paste rows manually</summary>
+            <textarea id="emailManualInput" rows="6" spellcheck="false" placeholder="Paste rows copied from the sheet. Payment rows need IQD and USD in columns 9 and 10; withdrawal rows can be name, IQD, USD."></textarea>
+            <button class="email-manual-clear" id="emailManualClear" type="button" hidden>Use live sheet data</button>
+          </details>
         </div>
       </section>
 
@@ -219,6 +241,7 @@
         <button class="active" data-preview-view="tasksView" type="button">Tasks</button>
         <button data-preview-view="activityView" type="button">Activity</button>
         <button data-preview-view="summaryView" type="button">Summary</button>
+        <button class="admin-nav-item" data-preview-view="emailView" type="button">Email</button>
         <button data-preview-view="settingsView" type="button">Settings</button>
       </nav>
     </main>
@@ -296,8 +319,8 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="users.js?v=20260917-no-zoom-1"></script>
-    <script src="app.js?v=20260917-no-zoom-1"></script>
-    <script src="live-preview.js?v=20260917-no-zoom-1"></script>
+    <script src="users.js?v=20261020-paydesk-1"></script>
+    <script src="app.js?v=20261020-paydesk-1"></script>
+    <script src="live-preview.js?v=20261020-paydesk-1"></script>
   </body>
 </html>

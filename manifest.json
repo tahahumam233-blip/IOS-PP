@@ -1,7 +1,7 @@
 {
-  "name": "Payment Tracker",
-  "short_name": "Payments",
-  "description": "Supplier payment, withdrawal, and exchange tracker for Zaki.",
+  "name": "Sindibad PayDesk",
+  "short_name": "PayDesk",
+  "description": "Supplier payments, withdrawals, exchange tracking, and payment emails for Sindibad.",
   "start_url": "./?source=pwa",
   "scope": "./",
   "display": "standalone",
