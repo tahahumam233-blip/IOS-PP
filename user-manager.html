@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@500;700&display=swap" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="user-manager.css?v=20261021-shared-1" />
+    <link rel="stylesheet" href="user-manager.css?v=20261021-resize-4" />
   </head>
   <body>
     <div class="glow" aria-hidden="true"></div>
@@ -145,6 +145,8 @@
             <div class="task-list" id="todayList" aria-live="polite"></div>
           </section>
 
+          <div class="splitter" data-split="list" role="separator" aria-orientation="vertical" aria-label="Resize the list and the map" tabindex="0" title="Drag to resize · double-click to reset"></div>
+
           <!-- Centre and right: the news map and its side panel -->
           <section class="map-card" aria-labelledby="mapTitle">
             <h2 class="sr-only" id="mapTitle">Map</h2>
@@ -176,6 +178,7 @@
                 <p class="news-zaki" id="zakiLocationStatus"></p>
               </div>
 
+              <div class="splitter" data-split="side" role="separator" aria-orientation="vertical" aria-label="Resize the map and the side panel" tabindex="0" title="Drag to resize · double-click to reset"></div>
               <aside class="side-panel" id="sidePanel" aria-label="Route, places, cash check, and log">
                 <button class="side-toggle" id="sideToggle" type="button" aria-expanded="true" aria-controls="sideBody" title="Hide the side panel">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
@@ -357,6 +360,6 @@
     <script src="user-manager.js?v=20261021-today-1"></script>
     <script src="email-maker.js?v=20261021-today-1"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="desk-today.js?v=20261021-shared-2"></script>
+    <script src="desk-today.js?v=20261021-resize-4"></script>
   </body>
 </html>

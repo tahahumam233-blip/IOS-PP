@@ -3566,3 +3566,85 @@ textarea.code {
   min-height: 34px;
   font-size: 13px;
 }
+
+/* ---------- Resizable boxes ---------- */
+.room {
+  grid-template-columns: var(--list-w, clamp(340px, 24vw, 420px)) 12px minmax(0, 1fr);
+  gap: 0;
+}
+
+.control-room .map-layout {
+  grid-template-columns: minmax(0, 1fr) 12px var(--side-w, 340px);
+  gap: 0;
+}
+
+.control-room .map-layout.side-collapsed {
+  grid-template-columns: minmax(0, 1fr) 0 0;
+}
+
+.side-collapsed .splitter {
+  visibility: hidden;
+}
+
+.splitter {
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.splitter::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 44px;
+  margin: -22px 0 0 -2px;
+  border-radius: 999px;
+  background: var(--line-strong);
+  transition: background-color 0.15s, height 0.15s, margin 0.15s;
+}
+
+.splitter:hover::before,
+.splitter:focus-visible::before,
+.splitter.dragging::before {
+  height: 88px;
+  margin-top: -44px;
+  background: var(--brand);
+}
+
+body.resizing,
+body.resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+@media (max-width: 1180px), (max-height: 700px) {
+  .room,
+  .control-room .map-layout,
+  .control-room .map-layout.side-collapsed {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .splitter {
+    display: none;
+  }
+}
+
+.control-room .side-toggle {
+  top: 18px;
+  margin-top: 0;
+  height: 40px;
+}
+
+/* No width animation while dragging a divider. */
+body.resizing .map-layout,
+body.resizing .room {
+  transition: none !important;
+}
+
+.control-room .map-layout {
+  transition: none;
+}

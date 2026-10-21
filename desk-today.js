@@ -1496,6 +1496,115 @@
   ["countedIqd", "countedUsd"].forEach((id) => el(id).addEventListener("input", () => renderCashCheck(computeTotals())));
   el("saveCashCheck").addEventListener("click", () => void saveCashCheck());
 
+  // Drag the dividers to size the list, the map, and the side panel. Sizes are
+  // remembered per browser; double-click a divider to reset it.
+  const SIZE_KEY = "paydesk-today-sizes";
+  const SIZE_LIMITS = { list: [260, 720], side: [260, 680] };
+  const sizeVar = { list: "--list-w", side: "--side-w" };
+
+  function loadSizes() {
+    try {
+      return JSON.parse(localStorage.getItem(SIZE_KEY) || "{}");
+    } catch {
+      return {};
+    }
+  }
+
+  function applySize(which, px) {
+    const room = el("todayView");
+    if (px) room.style.setProperty(sizeVar[which], `${Math.round(px)}px`);
+    else room.style.removeProperty(sizeVar[which]);
+  }
+
+  function saveSize(which, px) {
+    const sizes = loadSizes();
+    if (px) sizes[which] = Math.round(px);
+    else delete sizes[which];
+    try {
+      localStorage.setItem(SIZE_KEY, JSON.stringify(sizes));
+    } catch {
+      // Remembering sizes is only a convenience.
+    }
+  }
+
+  const MIN_MAP = 420;
+
+  // Keeps each box within its limits and never squeezes the map below MIN_MAP.
+  function clampSize(which, px) {
+    const [min, max] = SIZE_LIMITS[which];
+    const room = document.querySelector(".control-room .room")?.getBoundingClientRect().width || 0;
+    const other = which === "list" ? currentSize("side") : currentSize("list");
+    const roomForThis = room ? room - other - 24 - MIN_MAP : max;
+    return Math.min(max, Math.max(min, Math.min(px, roomForThis)));
+  }
+
+  function currentSize(which) {
+    const box = which === "list" ? document.querySelector(".control-room .today-lists") : el("sidePanel");
+    return box.getBoundingClientRect().width;
+  }
+
+  let resizeFrame = 0;
+  const refreshMap = () => {
+    cancelAnimationFrame(resizeFrame);
+    resizeFrame = requestAnimationFrame(() => state.map?.invalidateSize());
+  };
+
+  document.querySelectorAll(".splitter").forEach((handle) => {
+    const which = handle.dataset.split;
+    handle.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      try {
+        handle.setPointerCapture(event.pointerId);
+      } catch {
+        // Capture is a nicety; dragging still works without it.
+      }
+      handle.classList.add("dragging");
+      document.body.classList.add("resizing");
+      const startX = event.clientX;
+      const startWidth = currentSize(which);
+      let width = startWidth;
+      const move = (moveEvent) => {
+        const delta = moveEvent.clientX - startX;
+        // The list grows to the right; the side panel grows to the left.
+        width = clampSize(which, which === "list" ? startWidth + delta : startWidth - delta);
+        applySize(which, width);
+        refreshMap();
+      };
+      const end = () => {
+        handle.classList.remove("dragging");
+        document.body.classList.remove("resizing");
+        handle.removeEventListener("pointermove", move);
+        handle.removeEventListener("pointerup", end);
+        handle.removeEventListener("pointercancel", end);
+        // Save the dragged size, not the box (its width may still be animating).
+        saveSize(which, width);
+        refreshMap();
+      };
+      handle.addEventListener("pointermove", move);
+      handle.addEventListener("pointerup", end);
+      handle.addEventListener("pointercancel", end);
+    });
+    handle.addEventListener("dblclick", () => {
+      applySize(which, 0);
+      saveSize(which, 0);
+      refreshMap();
+    });
+    handle.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      const step = (event.shiftKey ? 64 : 16) * (event.key === "ArrowRight" ? 1 : -1);
+      const saved = loadSizes()[which];
+      const width = clampSize(which, (saved || currentSize(which)) + (which === "list" ? step : -step));
+      applySize(which, width);
+      saveSize(which, width);
+      refreshMap();
+    });
+  });
+
+  Object.entries(loadSizes()).forEach(([which, px]) => {
+    if (sizeVar[which]) applySize(which, clampSize(which, px));
+  });
+
   window.deskToday = { show };
   if (!el("todayView").hidden) void show();
 })();
