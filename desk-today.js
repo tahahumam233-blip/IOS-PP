@@ -16,7 +16,10 @@
   const OSRM_TRIP = "https://router.project-osrm.org/trip/v1/driving/";
   const GOOGLE_STOPS_PER_LINK = 10; // destination plus Google's 9-waypoint limit
   const BAGHDAD = [33.3152, 44.3661];
-  const ZAKI_POLL_MS = 30000;
+  // The map is limited to greater Baghdad; pins outside it are refused.
+  const BAGHDAD_BOUNDS = [[33.1, 44.1], [33.55, 44.7]];
+  const NOMINATIM = "https://nominatim.openstreetmap.org/search";
+  const LIVE_POLL_MS = 30000; // Zaki's posts, exchanges, and location
 
   const state = {
     list: "payment",
@@ -38,7 +41,13 @@
     layers: null,
     tiles: null,
     fitted: false,
-    zakiTimer: 0,
+    phonePosts: new Map(),
+    names: [],
+    mapTab: "route",
+    placesFilter: "missing",
+    seenPins: new Set(),
+    runnerFrame: 0,
+    liveTimer: 0,
   };
 
   const el = (id) => document.getElementById(id);
@@ -47,7 +56,9 @@
   const norm = (value) => String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
   const who = () => appState.currentUser?.label || appState.currentUser?.id || "Admin";
   const placeId = (kind, name) => `${kind}|${norm(name)}`;
-  const statusOf = (task) => state.statuses.get(task.key) || "pending";
+  const deskStatusOf = (task) => state.statuses.get(task.key) || "pending";
+  // Zaki posting on his phone always wins: the line counts as Done/Collected.
+  const statusOf = (task) => (state.phonePosts.has(task.key) ? SETTLED[task.type] : deskStatusOf(task));
 
   // Same day boundary as the phone app: after 23:00 counts as the next day.
   function todayKey() {
@@ -69,24 +80,71 @@
       || clean.includes("total usd") || clean.startsWith("updated");
   }
 
+  function rangeStartRow(range, fallback) {
+    const match = String(range || "").split("!").pop().replace(/'/g, "").match(/^[A-Za-z]+(\d+):/);
+    return match ? Number(match[1]) : fallback;
+  }
+
+  // The phone app's task ids look like
+  // "2026-10-21-soa-2026-q4-payment-8-ur-airlines-15000000-0": type, sheet
+  // row, and slugged name identify the line (amounts are left out so a
+  // corrected amount still matches).
+  function phoneSlug(name) {
+    return String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  }
+
+  // Every supplier (PP column A) and withdrawal (PP column L) name, whether
+  // or not it has an amount today, so any of them can get a map location.
+  function collectNames(sheet) {
+    const names = new Map();
+    const add = (kind, raw) => {
+      const name = String(raw || "").trim();
+      if (isSummaryRow(name) || /^\d[\d,.\s]*$/.test(name)) return;
+      const id = placeId(kind, name);
+      if (!names.has(id)) names.set(id, { id, kind, name });
+    };
+    const header = sheet.paymentsRows.findIndex(
+      (row) => norm(row[0]).includes("provider") && norm(row[9]).includes("usd payment")
+    );
+    sheet.paymentsRows.slice(header + 1).forEach((row) => add("payment", row[0]));
+    sheet.withdrawalRows.forEach((row) => add("withdrawal", row[0]));
+    return [...names.values()];
+  }
+
+  function insideBaghdad(lat, lng) {
+    const [[south, west], [north, east]] = BAGHDAD_BOUNDS;
+    return lat >= south && lat <= north && lng >= west && lng <= east;
+  }
+
+  function matchPhonePosts(rows) {
+    const posts = new Map();
+    state.tasks.forEach((task) => {
+      const row = rows.find((post) => post.task_type === task.type && String(post.id).includes(task.phoneMarker));
+      if (row) posts.set(task.key, row);
+    });
+    return posts;
+  }
+
   // Task keys use type, name, and occurrence so statuses survive rows moving
   // in the sheet and amounts being corrected there.
   function buildTasks(sheet) {
     const tasks = [];
     const seen = new Map();
-    const add = (type, rawName, iqd, usd) => {
+    const add = (type, rawName, iqd, usd, row) => {
       const name = String(rawName || "").trim();
       if (isSummaryRow(name) || (!iqd && !usd)) return;
       const base = placeId(type, name);
       const occurrence = (seen.get(base) || 0) + 1;
       seen.set(base, occurrence);
-      tasks.push({ key: `${base}|${occurrence}`, type, name, iqd, usd });
+      tasks.push({ key: `${base}|${occurrence}`, type, name, iqd, usd, phoneMarker: `-${type}-${row}-${phoneSlug(name)}-` });
     };
     const header = sheet.paymentsRows.findIndex(
       (row) => norm(row[0]).includes("provider") && norm(row[9]).includes("usd payment")
     );
-    sheet.paymentsRows.slice(header + 1).forEach((row) => add("payment", row[0], parseAmount(row[8]), parseAmount(row[9])));
-    sheet.withdrawalRows.forEach((row) => add("withdrawal", row[0], parseAmount(row[1]), parseAmount(row[2])));
+    const paymentStart = rangeStartRow(sheet.paymentRange, 7) + header + 1;
+    const withdrawalStart = rangeStartRow(sheet.withdrawalRange, 26);
+    sheet.paymentsRows.slice(header + 1).forEach((row, index) => add("payment", row[0], parseAmount(row[8]), parseAmount(row[9]), paymentStart + index));
+    sheet.withdrawalRows.forEach((row, index) => add("withdrawal", row[0], parseAmount(row[1]), parseAmount(row[2]), withdrawalStart + index));
     return tasks;
   }
 
@@ -212,16 +270,18 @@
     el("todayList").innerHTML = tasks.length
       ? tasks.map((task) => {
           const status = statusOf(task);
+          const post = state.phonePosts.get(task.key);
           const hasPlace = state.places.has(placeId(task.type, task.name));
           return `
-            <div class="task status-${status}" data-task-key="${escapeHtml(task.key)}">
+            <div class="task status-${status}${post ? " posted" : ""}" data-task-key="${escapeHtml(task.key)}">
               <div class="task-main">
                 <span class="task-name">${escapeHtml(task.name)}</span>
                 <span class="task-amounts">${escapeHtml(amountsText(task.iqd, task.usd))}</span>
+                ${post ? `<span class="posted-badge">Posted by Zaki · ${new Date(post.updated_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>` : ""}
               </div>
-              <div class="status-pick" role="group" aria-label="Status for ${escapeHtml(task.name)}">
+              <div class="status-pick" role="group" aria-label="Status for ${escapeHtml(task.name)}"${post ? ` title="Zaki posted this on his phone, so it stays ${STATUS_LABELS[SETTLED[task.type]]}"` : ""}>
                 ${STATUSES[task.type].map(([value, label]) => `
-                  <button type="button" class="s-${value}${value === status ? " active" : ""}" data-status="${value}" aria-pressed="${value === status}">${label}</button>`).join("")}
+                  <button type="button" class="s-${value}${value === status ? " active" : ""}" data-status="${value}" aria-pressed="${value === status}"${post ? " disabled" : ""}>${label}</button>`).join("")}
               </div>
               <button class="icon-btn pin-btn${hasPlace ? " has-place" : ""}" type="button" data-pin
                 aria-label="${hasPlace ? "Edit" : "Set"} map location for ${escapeHtml(task.name)}"
@@ -234,9 +294,20 @@
   }
 
   function renderLog() {
-    el("logCount").textContent = state.log.length;
-    el("logList").innerHTML = state.log.length
-      ? state.log.map((entry) => `
+    const phoneEntries = [...state.phonePosts].map(([key, post]) => {
+      const task = state.tasks.find((item) => item.key === key);
+      return {
+        changed_at: post.updated_at,
+        changed_by: "Zaki (phone)",
+        task_name: task?.name || post.task_name,
+        old_status: "pending",
+        new_status: SETTLED[post.task_type],
+      };
+    });
+    const entries = [...state.log, ...phoneEntries].sort((a, b) => String(b.changed_at).localeCompare(String(a.changed_at)));
+    el("logCount").textContent = entries.length;
+    el("logList").innerHTML = entries.length
+      ? entries.map((entry) => `
           <li>
             <time>${new Date(entry.changed_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
             <span><b>${escapeHtml(entry.changed_by)}</b> · ${escapeHtml(entry.task_name)}:
@@ -280,6 +351,7 @@
     renderCashCheck(totals);
     renderPlaces();
     renderStartOptions();
+    renderPlacesPanel();
   }
 
   // ---------- Data ----------
@@ -287,13 +359,14 @@
   async function loadRemote() {
     const day = todayKey();
     const source = state.sheet.sourceId;
-    const [statuses, exchanges, places, log, cash, zaki] = await Promise.all([
+    const [statuses, exchanges, places, log, cash, zaki, posts] = await Promise.all([
       supabaseClient.from("desk_task_status").select("task_key,status").eq("task_date", day).eq("sheet_source_id", source),
       supabaseClient.from("task_status").select("task_name,updated_at").eq("task_type", "exchange").eq("task_date", day).eq("sheet_source_id", source),
       supabaseClient.from("desk_places").select("*"),
       supabaseClient.from("desk_status_log").select("*").eq("task_date", day).eq("sheet_source_id", source).order("changed_at", { ascending: false }).limit(200),
       supabaseClient.from("desk_cash_checks").select("*").eq("id", `${day}|${source}`).maybeSingle(),
       supabaseClient.from("user_locations").select("*").eq("user_role", "zaki").order("updated_at", { ascending: false }).limit(1),
+      phonePostsQuery(day, source),
     ]);
     const deskErrors = [statuses, places, log, cash].map((result) => result.error).filter(Boolean);
     state.setupError = deskErrors.length
@@ -311,12 +384,45 @@
       el("countedUsd").value = fmt(state.cashCheck.counted_usd);
     }
     state.zaki = zaki.data?.[0] || null;
+    state.phonePosts = matchPhonePosts(posts.data || []);
+  }
+
+  function phonePostsQuery(day, source) {
+    return supabaseClient.from("task_status").select("id,task_type,task_name,updated_at")
+      .eq("task_date", day).eq("sheet_source_id", source).eq("done", true).in("task_type", ["payment", "withdrawal"]);
+  }
+
+  // Every 30 s while Today is open: Zaki's posts, exchanges, and location.
+  async function refreshLive() {
+    if (el("todayView").hidden || !state.sheet || state.loading) return;
+    const day = todayKey();
+    const source = state.sheet.sourceId;
+    const [posts, exchanges, zaki] = await Promise.all([
+      phonePostsQuery(day, source),
+      supabaseClient.from("task_status").select("task_name,updated_at").eq("task_type", "exchange").eq("task_date", day).eq("sheet_source_id", source),
+      supabaseClient.from("user_locations").select("*").eq("user_role", "zaki").order("updated_at", { ascending: false }).limit(1),
+    ]);
+    if (!posts.error) {
+      const before = new Set(state.phonePosts.keys());
+      state.phonePosts = matchPhonePosts(posts.data || []);
+      [...state.phonePosts.keys()].filter((key) => !before.has(key)).forEach((key) => {
+        const task = state.tasks.find((item) => item.key === key);
+        if (task) showToast(`Zaki posted ${task.name}`, `Marked ${STATUS_LABELS[SETTLED[task.type]]}`);
+      });
+    }
+    if (!exchanges.error) {
+      state.exchanges = (exchanges.data || []).map(parseExchange).filter(Boolean).sort((a, b) => String(b.at).localeCompare(String(a.at)));
+    }
+    if (zaki.data?.[0]) state.zaki = zaki.data[0];
+    renderAll();
+    renderZaki();
   }
 
   async function onSheet(sheet) {
     if (!sheet) return;
     state.sheet = sheet;
     state.tasks = buildTasks(sheet);
+    state.names = collectNames(sheet);
     state.loading = true;
     renderAll();
     try {
@@ -332,7 +438,11 @@
   }
 
   async function setStatus(task, status) {
-    const previous = statusOf(task);
+    if (state.phonePosts.has(task.key)) {
+      showToast("Posted by Zaki", `${task.name} was posted on his phone, so it stays ${STATUS_LABELS[SETTLED[task.type]]}.`, "error");
+      return;
+    }
+    const previous = deskStatusOf(task);
     if (previous === status || state.setupError) {
       if (state.setupError) showToast("Today isn't set up yet", state.setupError, "error");
       return;
@@ -413,10 +523,20 @@
       el("todayMap").innerHTML = `<p class="empty">The map library couldn't load. Check the internet connection and refresh.</p>`;
       return false;
     }
-    state.map = L.map("todayMap", { zoomControl: true }).setView(BAGHDAD, 12);
+    const bounds = L.latLngBounds(BAGHDAD_BOUNDS);
+    state.map = L.map("todayMap", {
+      zoomControl: false,
+      minZoom: 11,
+      maxBounds: bounds.pad(0.05),
+      maxBoundsViscosity: 1,
+      zoomSnap: 0.25,
+      wheelPxPerZoomLevel: 90,
+    }).setView(BAGHDAD, 12);
+    L.control.zoom({ position: "bottomright" }).addTo(state.map);
     // Standard OpenStreetMap tiles (no key needed); dark mode darkens them in CSS.
     state.tiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
+      bounds: bounds.pad(0.1),
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(state.map);
     state.layers = {
@@ -446,19 +566,29 @@
     if (!state.map) return;
     state.layers.places.clearLayers();
     const order = new Map((state.route?.stops || []).map((stop, index) => [stop.place.id, index + 1]));
+    let dropIndex = 0;
     state.places.forEach((place) => {
       const number = order.get(place.id);
+      const status = placeState(place);
+      // New pins drop in (staggered); pins already on the map stay still.
+      const drop = !state.seenPins.has(place.id);
+      if (drop) state.seenPins.add(place.id);
       const marker = L.marker([place.latitude, place.longitude], {
         draggable: true,
         title: place.name,
+        riseOnHover: true,
         icon: L.divIcon({
           className: "",
-          html: `<span class="pin pin-${place.kind} pin-${placeState(place)}"><b>${number || ""}</b></span>`,
-          iconSize: [28, 28],
-          iconAnchor: [14, 28],
+          html: `<span class="pin-wrap${drop ? " drop" : ""}" style="--delay:${drop ? Math.min(dropIndex++, 25) * 45 : 0}ms">
+              ${status === "in_progress" ? '<i class="pin-pulse"></i>' : ""}
+              <span class="pin pin-${place.kind} pin-${status}${number ? " numbered" : ""}"><b>${number || ""}</b></span>
+              <i class="pin-shadow"></i>
+            </span>`,
+          iconSize: [32, 40],
+          iconAnchor: [16, 36],
         }),
       });
-      marker.bindTooltip(`${escapeHtml(place.name)}${place.kind === "withdrawal" ? " (withdrawal)" : ""}`, { direction: "top", offset: [0, -26] });
+      marker.bindTooltip(`${escapeHtml(place.name)}${place.kind === "withdrawal" ? " · withdrawal" : ""}`, { direction: "top", offset: [0, -34], className: "pin-tip" });
       marker.on("dragend", () => {
         const { lat, lng } = marker.getLatLng();
         void savePlace(place.kind, place.name, lat, lng);
@@ -468,10 +598,11 @@
     });
   }
 
+
   function fitToPlaces() {
     if (!state.map || state.fitted || !state.places.size) return;
     const bounds = L.latLngBounds([...state.places.values()].map((place) => [place.latitude, place.longitude]));
-    state.map.fitBounds(bounds.pad(0.2), { maxZoom: 14 });
+    state.map.flyToBounds(bounds.pad(0.2), { maxZoom: 14, duration: 1.4 });
     state.fitted = true;
   }
 
@@ -493,14 +624,6 @@
       zIndexOffset: 1000,
     }).bindTooltip(`Zaki · ${age}`, { direction: "top" }).addTo(state.layers.zaki);
     el("zakiLocationStatus").textContent = `Zaki's location updated ${age}.`;
-  }
-
-  async function refreshZaki() {
-    if (el("todayView").hidden) return;
-    const { data } = await supabaseClient.from("user_locations").select("*").eq("user_role", "zaki").order("updated_at", { ascending: false }).limit(1);
-    if (data?.[0]) state.zaki = data[0];
-    renderZaki();
-    renderStartOptions();
   }
 
   // Accepts "33.31, 44.36" or full Google Maps links (…/@lat,lng…, ?q=lat,lng, !3dlat!4dlng).
@@ -527,10 +650,14 @@
     if (state.setupError) return showToast("Today isn't set up yet", state.setupError, "error");
     state.pickingStart = false;
     state.placing = { kind, name };
-    const exists = state.places.has(placeId(kind, name));
-    el("placingText").textContent = `${exists ? "Move" : "Place"} ${name}: click the map where it is`;
+    const existing = state.places.get(placeId(kind, name));
+    el("placingText").textContent = existing
+      ? `Move ${name}: drag its pin, click the new spot, or search below`
+      : `Place ${name}: click the map where it is, or search below`;
     el("placingLink").value = "";
-    el("placingRemove").hidden = !exists;
+    el("placingResults").hidden = true;
+    el("placingRemove").hidden = !existing;
+    if (existing && state.map) state.map.flyTo([existing.latitude, existing.longitude], 16, { duration: 1.1 });
     el("placingBar").hidden = false;
     el("todayMap").classList.add("placing");
     el("todayMap").scrollIntoView({ behavior: "smooth", block: "center" });
@@ -540,10 +667,16 @@
     state.placing = null;
     state.pickingStart = false;
     el("placingBar").hidden = true;
+    el("placingResults").hidden = true;
     el("todayMap").classList.remove("placing");
   }
 
   async function savePlace(kind, name, lat, lng) {
+    if (!insideBaghdad(lat, lng)) {
+      showToast("Outside Baghdad", `${name} wasn't saved: the map only covers Baghdad.`, "error");
+      renderPlaces();
+      return;
+    }
     const row = {
       id: placeId(kind, name),
       kind,
@@ -556,6 +689,7 @@
     const { error } = await supabaseClient.from("desk_places").upsert(row, { onConflict: "id" });
     if (error) return showToast("Location not saved", error.message, "error");
     state.places.set(row.id, { ...(state.places.get(row.id) || {}), ...row });
+    state.seenPins.delete(row.id);
     state.route = null;
     renderAll();
     renderRoute();
@@ -574,6 +708,120 @@
     renderAll();
     renderRoute();
     showToast("Pin removed", name);
+  }
+
+  // Free OpenStreetMap place search, limited to Baghdad.
+  async function searchPlaces(query) {
+    const [[south, west], [north, east]] = BAGHDAD_BOUNDS;
+    const params = new URLSearchParams({
+      q: query,
+      format: "jsonv2",
+      limit: "6",
+      bounded: "1",
+      viewbox: `${west},${north},${east},${south}`,
+      "accept-language": "en,ar",
+    });
+    const response = await fetch(`${NOMINATIM}?${params}`, { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) throw new Error(`Search returned ${response.status}`);
+    return (await response.json()).map((item) => ({ lat: Number(item.lat), lng: Number(item.lon), label: item.display_name }));
+  }
+
+  function useFoundPoint(point) {
+    if (state.placing) {
+      const { kind, name } = state.placing;
+      stopPlacing();
+      void savePlace(kind, name, point.lat, point.lng);
+      state.map?.flyTo([point.lat, point.lng], 16, { duration: 1.1 });
+    } else if (state.pickingStart) {
+      state.customStart = point;
+      stopPlacing();
+      renderStartOptions();
+      el("routeStart").value = "custom";
+      void planRoute();
+    }
+  }
+
+  async function findPlacingInput() {
+    const text = el("placingLink").value.trim();
+    if (!text) return;
+    const point = parseLocation(text);
+    if (point) return useFoundPoint(point);
+    if (/maps\.app\.goo\.gl|goo\.gl\/maps/i.test(text)) {
+      return showToast("Short link", "Open the short link in a browser and copy the full Google Maps address instead.", "error");
+    }
+    const results = el("placingResults");
+    el("placingSave").disabled = true;
+    try {
+      const found = await searchPlaces(text);
+      results.hidden = false;
+      results.innerHTML = found.length
+        ? found.map((item, index) => `<li><button type="button" data-result="${index}">${escapeHtml(item.label)}</button></li>`).join("")
+        : `<li class="empty">Nothing found in Baghdad. Try another spelling, or click the map.</li>`;
+      results.onclick = (event) => {
+        const button = event.target.closest("[data-result]");
+        if (button) useFoundPoint(found[Number(button.dataset.result)]);
+      };
+    } catch (error) {
+      showToast("Search failed", error.message, "error");
+    } finally {
+      el("placingSave").disabled = false;
+    }
+  }
+
+  // ---------- Places list ----------
+
+  function allPlaceEntries() {
+    const entries = new Map(state.names.map((entry) => [entry.id, entry]));
+    // Saved places whose name has left the sheet stay editable.
+    state.places.forEach((place) => {
+      if (!entries.has(place.id)) entries.set(place.id, { id: place.id, kind: place.kind, name: place.name });
+    });
+    return [...entries.values()].sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
+  }
+
+  function renderPlacesPanel() {
+    const entries = allPlaceEntries();
+    const setCount = entries.filter((entry) => state.places.has(entry.id)).length;
+    el("placesCount").textContent = `${setCount}/${entries.length}`;
+    document.querySelectorAll("[data-places-filter]").forEach((button) => {
+      const active = button.dataset.placesFilter === state.placesFilter;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    if (el("placesPanel").hidden) return;
+    const query = norm(el("placesSearch").value);
+    const shown = entries.filter((entry) =>
+      (state.placesFilter === "all" || !state.places.has(entry.id)) && (!query || norm(entry.name).includes(query))
+    );
+    el("placesList").innerHTML = shown.length
+      ? shown.map((entry) => {
+          const place = state.places.get(entry.id);
+          return `
+            <div class="place-row${place ? " is-set" : ""}" data-place-id="${escapeHtml(entry.id)}">
+              <i class="legend-dot legend-${entry.kind}" aria-hidden="true"></i>
+              <div class="place-copy">
+                <span class="place-name">${escapeHtml(entry.name)}</span>
+                <span class="place-meta">${entry.kind === "withdrawal" ? "Withdrawal" : "Supplier"} · ${place ? `On the map · saved by ${escapeHtml(place.updated_by)}` : "No location yet"}</span>
+              </div>
+              ${place ? `<button class="icon-btn" type="button" data-place-action="focus" aria-label="Show ${escapeHtml(entry.name)} on the map" title="Show on map">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" /></svg></button>` : ""}
+              <button class="btn ${place ? "btn-ghost" : "btn-primary"} compact" type="button" data-place-action="locate">${place ? "Edit" : "Set"}</button>
+            </div>`;
+        }).join("")
+      : `<p class="empty">${query ? "No names match that search." : state.placesFilter === "missing" ? "Every supplier and withdrawal has a location." : "No names found in PP."}</p>`;
+  }
+
+  function setMapTab(tab) {
+    state.mapTab = tab;
+    document.querySelectorAll("[data-map-tab]").forEach((button) => {
+      const active = button.dataset.mapTab === tab;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+    });
+    el("routeTools").hidden = tab !== "route";
+    el("placesPanel").hidden = tab !== "places";
+    el("routeResult").hidden = tab !== "route" || !state.route;
+    renderPlacesPanel();
   }
 
   function onMapClick(event) {
@@ -736,23 +984,66 @@
     });
   }
 
+  // The route draws itself, keeps a soft glow, and a light runs along it.
+  function drawAnimatedRoute(geometry) {
+    L.polyline(geometry, { color: "#ff2d61", weight: 14, opacity: 0.18, className: "route-glow", interactive: false }).addTo(state.layers.route);
+    const line = L.polyline(geometry, { color: "#ff4f7b", weight: 4.5, opacity: 0.95, className: "route-line", interactive: false }).addTo(state.layers.route);
+    const path = line.getElement();
+    if (path?.getTotalLength) {
+      const length = path.getTotalLength();
+      path.style.strokeDasharray = `${length}`;
+      path.style.strokeDashoffset = `${length}`;
+      path.getBoundingClientRect();
+      path.style.transition = "stroke-dashoffset 1.6s cubic-bezier(0.22, 1, 0.36, 1)";
+      path.style.strokeDashoffset = "0";
+      window.setTimeout(() => { path.style.strokeDasharray = ""; path.style.transition = ""; }, 1700);
+    }
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || geometry.length < 2) return;
+
+    const points = geometry.map((p) => L.latLng(p));
+    const distances = [0];
+    for (let i = 1; i < points.length; i++) distances.push(distances[i - 1] + points[i - 1].distanceTo(points[i]));
+    const total = distances[distances.length - 1];
+    if (!total) return;
+    const runner = L.marker(points[0], {
+      interactive: false,
+      icon: L.divIcon({ className: "", html: '<span class="route-runner"></span>', iconSize: [16, 16], iconAnchor: [8, 8] }),
+    }).addTo(state.layers.route);
+    const lapMs = Math.min(14000, Math.max(5000, total / 3));
+    const began = performance.now() + 1600;
+    const step = (now) => {
+      const t = Math.max(0, now - began) % lapMs / lapMs;
+      const target = t * total;
+      let i = 1;
+      while (i < distances.length - 1 && distances[i] < target) i++;
+      const span = distances[i] - distances[i - 1] || 1;
+      const f = (target - distances[i - 1]) / span;
+      const a = points[i - 1];
+      const b = points[i];
+      runner.setLatLng([a.lat + (b.lat - a.lat) * f, a.lng + (b.lng - a.lng) * f]);
+      state.runnerFrame = requestAnimationFrame(step);
+    };
+    state.runnerFrame = requestAnimationFrame(step);
+  }
+
   function renderRoute() {
     const box = el("routeResult");
     if (state.layers) state.layers.route.clearLayers();
+    cancelAnimationFrame(state.runnerFrame);
     if (!state.route) {
       box.hidden = true;
       return;
     }
     const { start, stops, geometry, km, minutes, roads, unplaced } = state.route;
     if (state.map) {
-      L.polyline(geometry, { color: "#ff2d61", weight: 4, opacity: 0.85 }).addTo(state.layers.route);
+      drawAnimatedRoute(geometry);
       L.circleMarker([start.lat, start.lng], { radius: 7, color: "#fff", weight: 2, fillColor: "#3ddc84", fillOpacity: 1 })
         .bindTooltip(`Start: ${escapeHtml(start.label)}`).addTo(state.layers.route);
       state.map.fitBounds(L.latLngBounds(geometry).pad(0.15), { maxZoom: 15 });
     }
     const warnings = cashWarnings(stops);
     const links = googleLinks(start, stops);
-    box.hidden = false;
+    box.hidden = state.mapTab !== "route";
     box.innerHTML = `
       <div class="route-head">
         <div>
@@ -790,7 +1081,7 @@
       void window.emailMaker?.load();
     }
     window.setTimeout(() => state.map?.invalidateSize(), 50);
-    if (!state.zakiTimer) state.zakiTimer = window.setInterval(() => void refreshZaki(), ZAKI_POLL_MS);
+    if (!state.liveTimer) state.liveTimer = window.setInterval(() => void refreshLive(), LIVE_POLL_MS);
   }
 
   document.addEventListener("paydesk:sheet", (event) => void onSheet(event.detail));
@@ -819,21 +1110,34 @@
   el("planRouteButton").addEventListener("click", () => void planRoute());
   el("placingCancel").addEventListener("click", stopPlacing);
   el("placingRemove").addEventListener("click", () => void removePlace());
-  el("placingSave").addEventListener("click", () => {
-    const point = parseLocation(el("placingLink").value);
-    if (!point) {
-      return showToast("Couldn't read that location", "Paste a full Google Maps link (not a short maps.app.goo.gl link) or coordinates like 33.31, 44.36.", "error");
+  el("placingSave").addEventListener("click", () => void findPlacingInput());
+  el("placingLink").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void findPlacingInput();
     }
-    if (state.placing) {
-      const { kind, name } = state.placing;
-      stopPlacing();
-      void savePlace(kind, name, point.lat, point.lng);
-    } else if (state.pickingStart) {
-      state.customStart = point;
-      stopPlacing();
-      renderStartOptions();
-      el("routeStart").value = "custom";
-      void planRoute();
+  });
+  document.querySelectorAll("[data-map-tab]").forEach((button) =>
+    button.addEventListener("click", () => setMapTab(button.dataset.mapTab))
+  );
+  document.querySelectorAll("[data-places-filter]").forEach((button) =>
+    button.addEventListener("click", () => {
+      state.placesFilter = button.dataset.placesFilter;
+      renderPlacesPanel();
+    })
+  );
+  el("placesSearch").addEventListener("input", renderPlacesPanel);
+  el("placesList").addEventListener("click", (event) => {
+    const row = event.target.closest("[data-place-id]");
+    const action = event.target.closest("[data-place-action]")?.dataset.placeAction;
+    if (!row || !action) return;
+    const entry = allPlaceEntries().find((item) => item.id === row.dataset.placeId);
+    if (!entry || !ensureMap()) return;
+    if (action === "focus") {
+      const place = state.places.get(entry.id);
+      if (place) state.map.flyTo([place.latitude, place.longitude], 16, { duration: 1.1 });
+    } else {
+      startPlacing(entry.kind, entry.name);
     }
   });
   ["countedIqd", "countedUsd"].forEach((id) => el(id).addEventListener("input", () => renderCashCheck(computeTotals())));

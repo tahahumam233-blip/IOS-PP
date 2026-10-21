@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="user-manager.css?v=20261021-today-1" />
+    <link rel="stylesheet" href="user-manager.css?v=20261021-today-4" />
   </head>
   <body>
     <div class="glow" aria-hidden="true"></div>
@@ -146,9 +146,13 @@
 
           <div class="today-side">
             <section class="glass map-card" aria-labelledby="mapTitle">
+              <h2 class="sr-only" id="mapTitle">Map</h2>
               <div class="map-head">
-                <h2 id="mapTitle">Map</h2>
-                <div class="map-tools">
+                <div class="segmented map-tabs" role="tablist" aria-label="Map panels">
+                  <button class="active" type="button" role="tab" data-map-tab="route" aria-selected="true">Route</button>
+                  <button type="button" role="tab" data-map-tab="places" aria-selected="false">Places <span class="count" id="placesCount">0</span></button>
+                </div>
+                <div class="map-tools" id="routeTools">
                   <label class="sr-only" for="routeStart">Route start</label>
                   <select id="routeStart"></select>
                   <button class="btn btn-primary" id="planRouteButton" type="button">Plan route</button>
@@ -156,14 +160,38 @@
               </div>
               <div class="placing-bar" id="placingBar" hidden>
                 <span id="placingText"></span>
-                <input id="placingLink" type="text" spellcheck="false" placeholder="Or paste a Google Maps link or lat, lng" aria-label="Google Maps link or coordinates" />
-                <button class="btn btn-ghost" id="placingSave" type="button">Use link</button>
-                <button class="btn btn-quiet" id="placingRemove" type="button" hidden>Remove pin</button>
-                <button class="btn btn-quiet" id="placingCancel" type="button">Cancel</button>
+                <div class="placing-search">
+                  <input id="placingLink" type="text" spellcheck="false" autocomplete="off" placeholder="Search a place in Baghdad, or paste a Google Maps link" aria-label="Search a place, or paste a Google Maps link or coordinates" />
+                  <button class="btn btn-ghost" id="placingSave" type="button">Find</button>
+                </div>
+                <ul class="placing-results" id="placingResults" hidden></ul>
+                <div class="placing-actions">
+                  <button class="btn btn-quiet" id="placingRemove" type="button" hidden>Remove pin</button>
+                  <button class="btn btn-quiet" id="placingCancel" type="button">Cancel</button>
+                </div>
               </div>
-              <div class="map" id="todayMap" aria-label="Map of suppliers, withdrawal places, and Zaki"></div>
+              <div class="map-frame">
+                <div class="map" id="todayMap" aria-label="Map of Baghdad with suppliers, withdrawal places, and Zaki"></div>
+                <div class="map-vignette" aria-hidden="true"></div>
+                <div class="map-legend" aria-hidden="true">
+                  <span><i class="legend-dot legend-payment"></i>Supplier</span>
+                  <span><i class="legend-dot legend-withdrawal"></i>Withdrawal</span>
+                  <span><i class="legend-dot legend-settled"></i>Done</span>
+                  <span><i class="legend-dot legend-zaki"></i>Zaki</span>
+                </div>
+              </div>
               <p class="status-line" id="zakiLocationStatus"></p>
               <div class="route" id="routeResult" hidden></div>
+              <div class="places-panel" id="placesPanel" hidden>
+                <div class="places-tools">
+                  <label class="search"><span class="sr-only">Search places</span><input id="placesSearch" type="search" placeholder="Search suppliers and withdrawals" /></label>
+                  <div class="segmented places-filter" role="group" aria-label="Filter places">
+                    <button class="active" type="button" data-places-filter="missing" aria-pressed="true">No location</button>
+                    <button type="button" data-places-filter="all" aria-pressed="false">All</button>
+                  </div>
+                </div>
+                <div class="places-list" id="placesList"></div>
+              </div>
             </section>
 
             <section class="glass cash-check" aria-labelledby="cashCheckTitle">
@@ -313,6 +341,6 @@
     <script src="user-manager.js?v=20261021-today-1"></script>
     <script src="email-maker.js?v=20261021-today-1"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="desk-today.js?v=20261021-today-2"></script>
+    <script src="desk-today.js?v=20261021-today-4"></script>
   </body>
 </html>
