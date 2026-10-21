@@ -10,9 +10,9 @@
     <link rel="apple-touch-icon" href="assets/icon-180.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@500;700&display=swap" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="user-manager.css?v=20261021-today-5" />
+    <link rel="stylesheet" href="user-manager.css?v=20261021-news-3" />
   </head>
   <body>
     <div class="glow" aria-hidden="true"></div>
@@ -123,69 +123,12 @@
       </main>
 
       <!-- Today: Zaki's day. Statuses, cash in hand, map, and route. Desk only. -->
-      <main class="today" id="todayView" hidden>
+      <main class="today control-room" id="todayView" hidden>
         <div class="notice notice-error" id="todaySetupAlert" role="alert" hidden></div>
-        <section class="today-totals" id="todayTotals" aria-label="Cash totals"></section>
+        <section class="today-strip" id="todayTotals" aria-label="Cash totals"></section>
 
-        <section class="glass map-card" aria-labelledby="mapTitle">
-          <h2 class="sr-only" id="mapTitle">Map</h2>
-          <div class="map-head">
-            <div class="segmented map-tabs" role="tablist" aria-label="Side panel">
-              <button class="active" type="button" role="tab" data-map-tab="route" aria-selected="true">Route</button>
-              <button type="button" role="tab" data-map-tab="places" aria-selected="false">Places <span class="count" id="placesCount">0</span></button>
-            </div>
-            <div class="map-tools" id="routeTools">
-              <label class="sr-only" for="routeStart">Route start</label>
-              <select id="routeStart"></select>
-              <button class="btn btn-ghost" id="planRouteButton" type="button">Re-plan</button>
-            </div>
-          </div>
-          <div class="placing-bar" id="placingBar" hidden>
-            <span id="placingText"></span>
-            <div class="placing-search">
-              <input id="placingLink" type="text" spellcheck="false" autocomplete="off" placeholder="Search a place in Baghdad, or paste a Google Maps link" aria-label="Search a place, or paste a Google Maps link or coordinates" />
-              <button class="btn btn-ghost" id="placingSave" type="button">Find</button>
-            </div>
-            <ul class="placing-results" id="placingResults" hidden></ul>
-            <div class="placing-actions">
-              <button class="btn btn-quiet" id="placingRemove" type="button" hidden>Remove pin</button>
-              <button class="btn btn-quiet" id="placingCancel" type="button">Cancel</button>
-            </div>
-          </div>
-          <div class="map-layout" id="mapLayout">
-            <div class="map-frame">
-              <div class="map" id="todayMap" aria-label="Map of Baghdad with suppliers, withdrawal places, and Zaki"></div>
-              <div class="map-vignette" aria-hidden="true"></div>
-              <div class="map-legend" aria-hidden="true">
-                <span><i class="legend-dot legend-payment"></i>Supplier</span>
-                <span><i class="legend-dot legend-withdrawal"></i>Withdrawal</span>
-                <span><i class="legend-dot legend-settled"></i>Done</span>
-                <span><i class="legend-dot legend-zaki"></i>Zaki</span>
-              </div>
-            </div>
-            <aside class="side-panel" id="sidePanel" aria-label="Route details and places">
-              <button class="side-toggle" id="sideToggle" type="button" aria-expanded="true" aria-controls="sideBody" title="Hide the side panel">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
-              </button>
-              <div class="side-body" id="sideBody">
-                <div class="route" id="routeResult"></div>
-                <div class="places-panel" id="placesPanel" hidden>
-                  <div class="places-tools">
-                    <label class="search"><span class="sr-only">Search places</span><input id="placesSearch" type="search" placeholder="Search suppliers and withdrawals" /></label>
-                    <div class="segmented places-filter" role="group" aria-label="Filter places">
-                      <button class="active" type="button" data-places-filter="missing" aria-pressed="true">No location</button>
-                      <button type="button" data-places-filter="all" aria-pressed="false">All</button>
-                    </div>
-                  </div>
-                  <div class="places-list" id="placesList"></div>
-                </div>
-              </div>
-            </aside>
-          </div>
-          <p class="status-line" id="zakiLocationStatus"></p>
-        </section>
-
-        <div class="today-grid">
+        <div class="room">
+          <!-- Left: today's lines -->
           <section class="glass today-lists" aria-labelledby="todayListTitle">
             <div class="lines-head">
               <div>
@@ -197,29 +140,87 @@
             <div class="segmented segmented-block" role="tablist" aria-label="Today lists">
               <button class="active" type="button" role="tab" data-today-list="payment" aria-selected="true">Payments <span class="count" id="todayCountPayment">0</span></button>
               <button type="button" role="tab" data-today-list="withdrawal" aria-selected="false">Withdrawals <span class="count" id="todayCountWithdrawal">0</span></button>
-              <button type="button" role="tab" data-today-list="exchange" aria-selected="false">Exchanges <span class="count" id="todayCountExchange">0</span></button>
+              <button type="button" role="tab" data-today-list="exchange" aria-selected="false">FX <span class="count" id="todayCountExchange">0</span></button>
             </div>
             <div class="task-list" id="todayList" aria-live="polite"></div>
           </section>
 
-          <div class="today-side">
-            <section class="glass cash-check" aria-labelledby="cashCheckTitle">
-              <div class="lines-head">
-                <div><h2 id="cashCheckTitle">End-of-day cash check</h2><p class="status-line" id="cashCheckStatus">Enter what Zaki hands back.</p></div>
+          <!-- Centre and right: the news map and its side panel -->
+          <section class="map-card" aria-labelledby="mapTitle">
+            <h2 class="sr-only" id="mapTitle">Map</h2>
+            <div class="placing-bar" id="placingBar" hidden>
+              <span id="placingText"></span>
+              <div class="placing-search">
+                <input id="placingLink" type="text" spellcheck="false" autocomplete="off" placeholder="Search a place in Baghdad, or paste a Google Maps link" aria-label="Search a place, or paste a Google Maps link or coordinates" />
+                <button class="btn btn-ghost" id="placingSave" type="button">Find</button>
               </div>
-              <div class="cash-grid">
-                <label class="field"><span>Counted IQD</span><input id="countedIqd" type="text" inputmode="numeric" autocomplete="off" /></label>
-                <label class="field"><span>Counted USD</span><input id="countedUsd" type="text" inputmode="numeric" autocomplete="off" /></label>
+              <ul class="placing-results" id="placingResults" hidden></ul>
+              <div class="placing-actions">
+                <button class="btn btn-quiet" id="placingRemove" type="button" hidden>Remove pin</button>
+                <button class="btn btn-quiet" id="placingCancel" type="button">Cancel</button>
               </div>
-              <div class="cash-diff" id="cashDiff"></div>
-              <button class="btn btn-ghost" id="saveCashCheck" type="button">Save check</button>
-            </section>
+            </div>
+            <div class="map-layout" id="mapLayout">
+              <div class="map-frame news-frame">
+                <div class="map" id="todayMap" aria-label="Map of Baghdad with suppliers, withdrawal places, and Zaki"></div>
+                <div class="map-vignette" aria-hidden="true"></div>
+                <div class="news-bug" aria-hidden="true"><span class="news-live"><i></i>Live</span><span class="news-title">Baghdad · Zaki's route</span></div>
+                <div class="news-clock" id="newsClock" aria-hidden="true"></div>
+                <button class="news-add" id="newsAddPlace" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.1-7-11.5a7 7 0 0 1 14 0C19 14.9 12 21 12 21Z" /><path d="M12 6.5v6M9 9.5h6" /></svg>
+                  Add location
+                </button>
+                <div class="news-lower" id="newsLower" aria-live="polite" hidden></div>
+                <div class="news-ticker" id="newsTicker" aria-label="Latest events"><b>Latest</b><div class="news-run" id="newsRun"></div></div>
+                <p class="news-zaki" id="zakiLocationStatus"></p>
+              </div>
 
-            <details class="glass change-log">
-              <summary>Today's changes <span class="count" id="logCount">0</span></summary>
-              <ol class="log-list" id="logList"></ol>
-            </details>
-          </div>
+              <aside class="side-panel" id="sidePanel" aria-label="Route, places, cash check, and log">
+                <button class="side-toggle" id="sideToggle" type="button" aria-expanded="true" aria-controls="sideBody" title="Hide the side panel">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+                </button>
+                <div class="side-tabs" role="tablist" aria-label="Side panel">
+                  <button class="active" type="button" role="tab" data-map-tab="route" aria-selected="true">Route</button>
+                  <button type="button" role="tab" data-map-tab="places" aria-selected="false">Places <span class="count" id="placesCount">0</span></button>
+                  <button type="button" role="tab" data-map-tab="cash" aria-selected="false">Cash</button>
+                  <button type="button" role="tab" data-map-tab="log" aria-selected="false">Log <span class="count" id="logCount">0</span></button>
+                </div>
+                <div class="side-body" id="sideBody">
+                  <div class="map-tools" id="routeTools">
+                    <label class="sr-only" for="routeStart">Route start</label>
+                    <select id="routeStart"></select>
+                    <button class="btn btn-ghost compact" id="planRouteButton" type="button">Re-plan</button>
+                  </div>
+                  <div class="route" id="routeResult"></div>
+
+                  <div class="places-panel" id="placesPanel" hidden>
+                    <div class="places-tools">
+                      <label class="search"><span class="sr-only">Search places</span><input id="placesSearch" type="search" placeholder="Search suppliers and withdrawals" /></label>
+                      <div class="segmented places-filter" role="group" aria-label="Filter places">
+                        <button class="active" type="button" data-places-filter="missing" aria-pressed="true">No location</button>
+                        <button type="button" data-places-filter="all" aria-pressed="false">All</button>
+                      </div>
+                    </div>
+                    <div class="places-list" id="placesList"></div>
+                  </div>
+
+                  <div class="cash-check" id="cashPanel" hidden>
+                    <div><h3 id="cashCheckTitle">End-of-day cash check</h3><p class="status-line" id="cashCheckStatus">Enter what Zaki hands back.</p></div>
+                    <div class="cash-grid">
+                      <label class="field"><span>Counted IQD</span><input id="countedIqd" type="text" inputmode="numeric" autocomplete="off" /></label>
+                      <label class="field"><span>Counted USD</span><input id="countedUsd" type="text" inputmode="numeric" autocomplete="off" /></label>
+                    </div>
+                    <div class="cash-diff" id="cashDiff"></div>
+                    <button class="btn btn-primary" id="saveCashCheck" type="button">Save check</button>
+                  </div>
+
+                  <div class="change-log" id="logPanel" hidden>
+                    <ol class="log-list" id="logList"></ol>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          </section>
         </div>
       </main>
     </div>
@@ -350,6 +351,6 @@
     <script src="user-manager.js?v=20261021-today-1"></script>
     <script src="email-maker.js?v=20261021-today-1"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="desk-today.js?v=20261021-today-5"></script>
+    <script src="desk-today.js?v=20261021-news-3"></script>
   </body>
 </html>

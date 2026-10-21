@@ -47,6 +47,8 @@
     placesFilter: "missing",
     seenPins: new Set(),
     runnerFrame: 0,
+    events: [],
+    clockTimer: 0,
     statusTimes: new Map(),
     routeKey: "",
     routeTimer: 0,
@@ -309,6 +311,7 @@
       };
     });
     const entries = [...state.log, ...phoneEntries].sort((a, b) => String(b.changed_at).localeCompare(String(a.changed_at)));
+    state.events = entries;
     el("logCount").textContent = entries.length;
     el("logList").innerHTML = entries.length
       ? entries.map((entry) => `
@@ -356,6 +359,7 @@
     renderPlaces();
     renderStartOptions();
     renderPlacesPanel();
+    if (state.sheet) renderNews();
   }
 
   // ---------- Data ----------
@@ -546,16 +550,47 @@
       bounds: bounds.pad(0.1),
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(state.map);
+    // Overlay panes sit between the (navy-filtered) tiles and the markers.
+    state.map.createPane("newsAreas").style.zIndex = 350;
+    state.map.createPane("newsLabels").style.zIndex = 450;
+    state.map.getPane("newsLabels").style.pointerEvents = "none";
     state.layers = {
+      areas: L.layerGroup().addTo(state.map),
       places: L.layerGroup().addTo(state.map),
       route: L.layerGroup().addTo(state.map),
       zaki: L.layerGroup().addTo(state.map),
     };
+    void loadNewsOverlay();
     state.map.on("click", onMapClick);
     // The map can be created while hidden (behind sign-in or another tab);
     // resize it whenever its box changes so tiles fill the area.
     new ResizeObserver(() => state.map.invalidateSize()).observe(el("todayMap"));
     return true;
+  }
+
+  // Election-night overlay: glowing district outlines with big names, smaller
+  // area names, and a glowing Tigris (OpenStreetMap data in assets/).
+  async function loadNewsOverlay() {
+    try {
+      const response = await fetch("assets/baghdad-map.json?v=1");
+      const geo = await response.json();
+      geo.features.forEach((feature) => {
+        const { kind, name } = feature.properties;
+        if (kind === "district") {
+          L.geoJSON(feature, { pane: "newsAreas", interactive: false, style: { color: "#4aa3ff", weight: 10, opacity: 0.1 } }).addTo(state.layers.areas);
+          L.geoJSON(feature, { pane: "newsAreas", interactive: false, style: { color: "#5fb0ff", weight: 1.6, opacity: 0.75, className: "news-district" } }).addTo(state.layers.areas);
+          L.marker(feature.properties.center, { pane: "newsLabels", interactive: false, keyboard: false, icon: L.divIcon({ className: "", html: `<div class="news-area">${escapeHtml(name)}</div>`, iconSize: [0, 0] }) }).addTo(state.layers.areas);
+        } else if (kind === "area") {
+          const [lng, lat] = feature.geometry.coordinates;
+          L.marker([lat, lng], { pane: "newsLabels", interactive: false, keyboard: false, icon: L.divIcon({ className: "", html: `<div class="news-area small">${escapeHtml(name)}</div>`, iconSize: [0, 0] }) }).addTo(state.layers.areas);
+        } else if (kind === "river") {
+          L.geoJSON(feature, { pane: "newsAreas", interactive: false, style: { color: "#3d8bff", weight: 9, opacity: 0.25 } }).addTo(state.layers.areas);
+          L.geoJSON(feature, { pane: "newsAreas", interactive: false, style: { color: "#69b4ff", weight: 2.2, opacity: 0.95, className: "news-river" } }).addTo(state.layers.areas);
+        }
+      });
+    } catch {
+      // The overlay is decoration; the map works without it.
+    }
   }
 
   // A place's colour follows today's status of the tasks at it.
@@ -577,25 +612,22 @@
     state.places.forEach((place) => {
       const number = order.get(place.id);
       const status = placeState(place);
-      // New pins drop in (staggered); pins already on the map stay still.
       const drop = !state.seenPins.has(place.id);
       if (drop) state.seenPins.add(place.id);
       const marker = L.marker([place.latitude, place.longitude], {
         draggable: true,
         title: place.name,
         riseOnHover: true,
+        zIndexOffset: number ? 300 : status === "idle" ? -200 : 0,
         icon: L.divIcon({
           className: "",
-          html: `<span class="pin-wrap${drop ? " drop" : ""}" style="--delay:${drop ? Math.min(dropIndex++, 25) * 45 : 0}ms">
-              ${status === "in_progress" ? '<i class="pin-pulse"></i>' : ""}
-              <span class="pin pin-${place.kind} pin-${status}${number ? " numbered" : ""}"><b>${number || ""}</b></span>
-              <i class="pin-shadow"></i>
-            </span>`,
-          iconSize: [32, 40],
-          iconAnchor: [16, 36],
+          html: `<div class="news-pin np-${place.kind} np-${status}${drop ? " drop" : ""}" style="--delay:${drop ? Math.min(dropIndex++, 25) * 45 : 0}ms">
+              <i class="np-dot">${number || ""}</i><span class="np-label">${escapeHtml(place.name)}</span>
+            </div>`,
+          iconSize: [18, 18],
+          iconAnchor: [9, 9],
         }),
       });
-      marker.bindTooltip(`${escapeHtml(place.name)}${place.kind === "withdrawal" ? " · withdrawal" : ""}`, { direction: "top", offset: [0, -34], className: "pin-tip" });
       marker.on("dragend", () => {
         const { lat, lng } = marker.getLatLng();
         void savePlace(place.kind, place.name, lat, lng);
@@ -604,6 +636,7 @@
       marker.addTo(state.layers.places);
     });
   }
+
 
 
   function fitToPlaces() {
@@ -827,6 +860,8 @@
     el("routeTools").hidden = tab !== "route";
     el("placesPanel").hidden = tab !== "places";
     el("routeResult").hidden = tab !== "route";
+    el("cashPanel").hidden = tab !== "cash";
+    el("logPanel").hidden = tab !== "log";
     renderPlacesPanel();
   }
 
@@ -1050,10 +1085,12 @@
     });
   }
 
-  // The route draws itself, keeps a soft glow, and a light runs along it.
+  // The route draws itself and keeps a soft glow with flowing dashes.
   function drawAnimatedRoute(geometry, animate = true) {
-    L.polyline(geometry, { color: "#ff2d61", weight: 14, opacity: 0.18, className: "route-glow", interactive: false }).addTo(state.layers.route);
-    const line = L.polyline(geometry, { color: "#ff4f7b", weight: 4.5, opacity: 0.95, className: "route-line", interactive: false }).addTo(state.layers.route);
+    L.polyline(geometry, { color: "#ff2d61", weight: 20, opacity: 0.22, className: "route-glow", interactive: false }).addTo(state.layers.route);
+    const line = L.polyline(geometry, { color: "#ff2d61", weight: 6, opacity: 0.95, className: "route-line", interactive: false }).addTo(state.layers.route);
+    // White dashes flowing along the line, like a traffic-flow graphic.
+    L.polyline(geometry, { color: "#ffffff", weight: 2, opacity: 0.85, className: "route-flow", interactive: false }).addTo(state.layers.route);
     const path = line.getElement();
     if (animate && path?.getTotalLength) {
       const length = path.getTotalLength();
@@ -1064,36 +1101,53 @@
       path.style.strokeDashoffset = "0";
       window.setTimeout(() => { path.style.strokeDasharray = ""; path.style.transition = ""; }, 1700);
     }
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || geometry.length < 2) return;
-
-    const points = geometry.map((p) => L.latLng(p));
-    const distances = [0];
-    for (let i = 1; i < points.length; i++) distances.push(distances[i - 1] + points[i - 1].distanceTo(points[i]));
-    const total = distances[distances.length - 1];
-    if (!total) return;
-    const runner = L.marker(points[0], {
-      interactive: false,
-      icon: L.divIcon({ className: "", html: '<span class="route-runner"></span>', iconSize: [16, 16], iconAnchor: [8, 8] }),
-    }).addTo(state.layers.route);
-    const lapMs = Math.min(14000, Math.max(5000, total / 3));
-    const began = performance.now() + (animate ? 1600 : 0);
-    const step = (now) => {
-      const t = Math.max(0, now - began) % lapMs / lapMs;
-      const target = t * total;
-      let i = 1;
-      while (i < distances.length - 1 && distances[i] < target) i++;
-      const span = distances[i] - distances[i - 1] || 1;
-      const f = (target - distances[i - 1]) / span;
-      const a = points[i - 1];
-      const b = points[i];
-      runner.setLatLng([a.lat + (b.lat - a.lat) * f, a.lng + (b.lng - a.lng) * f]);
-      state.runnerFrame = requestAnimationFrame(step);
-    };
-    state.runnerFrame = requestAnimationFrame(step);
   }
 
   const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
   const legText = (leg) => (leg ? `${leg.km < 10 ? leg.km.toFixed(1) : fmt(leg.km)} km${leg.minutes ? ` · ${Math.max(1, Math.round(leg.minutes))} min` : ""}` : "");
+
+  function renderNews() {
+    el("newsClock").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const route = state.route;
+    const next = route?.stops?.[0];
+    const lower = el("newsLower");
+    if (next) {
+      const key = `${next.place.id}|${legText(route.legs?.[0])}`;
+      if (lower.dataset.key !== key) {
+        lower.dataset.key = key;
+        lower.hidden = false;
+        lower.classList.remove("in");
+        void lower.offsetWidth;
+        lower.classList.add("in");
+      }
+      lower.innerHTML = `
+        <span class="kicker">Next stop</span>
+        <span class="main">${escapeHtml(next.place.name)}</span>
+        <span class="sub">${next.tasks.map((t) => `${t.type === "withdrawal" ? "Collect" : "Pay"} ${escapeHtml(amountsText(t.iqd, t.usd))}`).join(" · ")}${route.legs?.[0] ? ` · ${escapeHtml(legText(route.legs[0]))}` : ""}</span>`;
+    } else {
+      lower.hidden = true;
+      lower.dataset.key = "";
+    }
+
+    const items = [];
+    (state.events || []).slice(0, 12).forEach((entry) => {
+      const done = ["done", "collected"].includes(entry.new_status);
+      items.push(`<span>${done ? "<em>✓</em> " : ""}${escapeHtml(entry.task_name)} · ${escapeHtml(STATUS_LABELS[entry.new_status] || entry.new_status)} · ${clock(entry.changed_at)}${entry.changed_by === "Zaki (phone)" ? " · by Zaki" : ""}</span>`);
+    });
+    state.exchanges.slice(0, 3).forEach((x) => {
+      items.push(`<span>${x.buying ? "Bought" : "Sold"} ${escapeHtml(money(x.usd, "USD"))} at ${escapeHtml(fmt(x.rate))} · ${clock(x.at)}</span>`);
+    });
+    const totals = computeTotals();
+    items.push(`<span>Zaki has ${escapeHtml(money(totals.now.IQD, "IQD"))} and ${escapeHtml(money(totals.now.USD, "USD"))}</span>`);
+    if (totals.usdToBuy) items.push(`<span>USD still to buy: ${escapeHtml(fmt(totals.usdToBuy))}${totals.rate ? ` at ${escapeHtml(fmt(totals.rate))}` : ""}</span>`);
+    const html = items.join("");
+    if (el("newsRun").dataset.html !== html) {
+      el("newsRun").dataset.html = html;
+      // Two copies make the scroll loop seamless.
+      el("newsRun").innerHTML = `<div class="news-track">${html}</div><div class="news-track" aria-hidden="true">${html}</div>`;
+      el("newsRun").style.setProperty("--ticker-seconds", `${Math.max(25, items.length * 6)}s`);
+    }
+  }
 
   function renderRoute({ animate = true, keepLine = false } = {}) {
     const box = el("routeResult");
@@ -1118,6 +1172,15 @@
           icon: L.divIcon({ className: "", html: `<span class="route-start${start.finishedAt ? " is-finished" : ""}"></span>`, iconSize: [22, 22], iconAnchor: [11, 11] }),
         }).bindTooltip(start.finishedAt ? `Zaki finished ${escapeHtml(start.label)} at ${clock(start.finishedAt)}` : `Start: ${escapeHtml(start.label)}`, { direction: "top" })
           .addTo(state.layers.route);
+      }
+      const next = stops[0];
+      if (next) {
+        L.marker([next.lat, next.lng], {
+          interactive: false,
+          keyboard: false,
+          zIndexOffset: -100,
+          icon: L.divIcon({ className: "", html: '<span class="news-signal"><i></i><i></i></span>', iconSize: [0, 0] }),
+        }).addTo(state.layers.route);
       }
       if (animate || !state.routeFitted) {
         state.map.flyToBounds(L.latLngBounds(geometry).pad(0.12), { maxZoom: 15, duration: 1.1 });
@@ -1163,6 +1226,7 @@
           </div>
         </div>`;
     }
+    renderNews();
     box.innerHTML = `
       ${summary}
       ${finished.length || stops.length ? `<ol class="route-stops">${finishedHtml}${upcomingHtml}</ol>` : ""}
@@ -1184,6 +1248,7 @@
     }
     window.setTimeout(() => state.map?.invalidateSize(), 50);
     if (!state.liveTimer) state.liveTimer = window.setInterval(() => void refreshLive(), LIVE_POLL_MS);
+    if (!state.clockTimer) state.clockTimer = window.setInterval(() => { el("newsClock").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }, 15000);
   }
 
   document.addEventListener("paydesk:sheet", (event) => void onSheet(event.detail));
@@ -1224,15 +1289,22 @@
     el("sideToggle").setAttribute("aria-expanded", String(!collapsed));
     el("sideToggle").title = collapsed ? "Show the side panel" : "Hide the side panel";
     try {
-      localStorage.setItem("paydesk-side-collapsed", collapsed ? "1" : "");
+      localStorage.setItem("paydesk-side-collapsed-v2", collapsed ? "1" : "");
     } catch {
       // Only a convenience.
     }
     window.setTimeout(() => state.map?.invalidateSize(), 320);
   };
   el("sideToggle").addEventListener("click", () => setSideCollapsed(!el("mapLayout").classList.contains("side-collapsed")));
+  el("newsAddPlace").addEventListener("click", () => {
+    setSideCollapsed(false);
+    state.placesFilter = "missing";
+    setMapTab("places");
+    window.setTimeout(() => el("placesSearch").focus(), 50);
+  });
   try {
-    if (localStorage.getItem("paydesk-side-collapsed")) setSideCollapsed(true);
+    localStorage.removeItem("paydesk-side-collapsed");
+    if (localStorage.getItem("paydesk-side-collapsed-v2")) setSideCollapsed(true);
   } catch {
     // Ignore unavailable storage.
   }
