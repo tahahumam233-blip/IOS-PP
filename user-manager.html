@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Oswald:wght@500;700&display=swap" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="user-manager.css?v=20261021-news-3" />
+    <link rel="stylesheet" href="user-manager.css?v=20261021-shared-1" />
   </head>
   <body>
     <div class="glow" aria-hidden="true"></div>
@@ -154,6 +154,7 @@
                 <input id="placingLink" type="text" spellcheck="false" autocomplete="off" placeholder="Search a place in Baghdad, or paste a Google Maps link" aria-label="Search a place, or paste a Google Maps link or coordinates" />
                 <button class="btn btn-ghost" id="placingSave" type="button">Find</button>
               </div>
+              <label class="placing-same" id="placingSameWrap" hidden><span class="sr-only">Same place as another saved location</span><select id="placingSame"></select></label>
               <ul class="placing-results" id="placingResults" hidden></ul>
               <div class="placing-actions">
                 <button class="btn btn-quiet" id="placingRemove" type="button" hidden>Remove pin</button>
@@ -200,6 +201,11 @@
                         <button class="active" type="button" data-places-filter="missing" aria-pressed="true">No location</button>
                         <button type="button" data-places-filter="all" aria-pressed="false">All</button>
                       </div>
+                    </div>
+                    <div class="places-select" id="placesSelectBar" hidden>
+                      <span id="placesSelectText"></span>
+                      <button class="btn btn-primary compact" id="placesPinTogether" type="button">Pin together</button>
+                      <button class="btn btn-quiet compact" id="placesSelectClear" type="button">Clear</button>
                     </div>
                     <div class="places-list" id="placesList"></div>
                   </div>
@@ -351,6 +357,6 @@
     <script src="user-manager.js?v=20261021-today-1"></script>
     <script src="email-maker.js?v=20261021-today-1"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="desk-today.js?v=20261021-news-3"></script>
+    <script src="desk-today.js?v=20261021-shared-2"></script>
   </body>
 </html>

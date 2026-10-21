@@ -3422,3 +3422,147 @@ textarea.code {
 .news-frame .leaflet-top.leaflet-right {
   top: 96px;
 }
+
+/* ---------- Shared locations ---------- */
+.np-mixed .np-dot {
+  background: linear-gradient(135deg, #ff2d61 50%, #22c97a 50%);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.15), 0 0 16px rgba(255, 45, 97, 0.8);
+}
+
+.np-mixed .np-label {
+  border-left-color: #ffb547;
+}
+
+.np-shared .np-dot {
+  width: 22px;
+  height: 22px;
+}
+
+.np-more {
+  margin-left: 4px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: #e3164d;
+  color: #fff;
+  font-size: 10px;
+}
+
+.np-list {
+  position: absolute;
+  top: 26px;
+  left: 0;
+  display: none;
+  min-width: 160px;
+  padding: 6px 0;
+  border-left: 3px solid #e3164d;
+  background: rgba(8, 18, 45, 0.95);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+}
+
+.np-list span {
+  display: block;
+  padding: 4px 10px;
+  color: #eaf2ff;
+  font: 700 11px/1.2 Inter, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.leaflet-marker-icon:hover .np-list {
+  display: block;
+}
+
+.news-pin {
+  position: relative;
+}
+
+.news-popup .leaflet-popup-content-wrapper {
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  background: var(--glass-solid);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.news-popup .leaflet-popup-tip {
+  background: var(--glass-solid);
+}
+
+.news-popup .leaflet-popup-content {
+  margin: 12px 14px;
+  font: 13px/1.4 var(--font);
+}
+
+.news-popup a.leaflet-popup-close-button {
+  color: var(--muted);
+}
+
+.loc-popup {
+  display: grid;
+  gap: 8px;
+}
+
+.loc-popup ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.loc-popup li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loc-popup li span {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.loc-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.loc-actions .btn {
+  flex: 1;
+}
+
+.places-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--brand) 45%, transparent);
+  border-radius: var(--radius-mid);
+  background: var(--brand-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.places-select span {
+  flex: 1;
+  min-width: 0;
+}
+
+.place-check {
+  flex: none;
+}
+
+.place-row.is-selected {
+  border-color: color-mix(in srgb, var(--brand) 55%, transparent);
+  background: var(--brand-soft);
+}
+
+.placing-same {
+  grid-column: 1 / -1;
+}
+
+.placing-same select {
+  width: 100%;
+  min-height: 34px;
+  font-size: 13px;
+}

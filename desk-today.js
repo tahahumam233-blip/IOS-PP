@@ -46,6 +46,8 @@
     mapTab: "route",
     placesFilter: "missing",
     seenPins: new Set(),
+    selected: new Set(),
+    attachTo: null,
     runnerFrame: 0,
     events: [],
     clockTimer: 0,
@@ -594,8 +596,31 @@
   }
 
   // A place's colour follows today's status of the tasks at it.
-  function placeState(place) {
-    const tasks = state.tasks.filter((task) => placeId(task.type, task.name) === place.id);
+  // Names saved with the same coordinates are one location (a shared
+  // building): one pin, one route stop, moved together.
+  const locKey = (place) => `${Number(place.latitude).toFixed(6)},${Number(place.longitude).toFixed(6)}`;
+
+  function locations() {
+    const byKey = new Map();
+    state.places.forEach((place) => {
+      const key = locKey(place);
+      if (!byKey.has(key)) byKey.set(key, { id: key, lat: place.latitude, lng: place.longitude, members: [] });
+      byKey.get(key).members.push(place);
+    });
+    byKey.forEach((loc) => {
+      loc.members.sort((a, b) => a.name.localeCompare(b.name));
+      loc.name = loc.members.length > 1 ? `${loc.members[0].name} +${loc.members.length - 1}` : loc.members[0].name;
+      loc.fullName = loc.members.map((member) => member.name).join(", ");
+      const kinds = new Set(loc.members.map((member) => member.kind));
+      loc.kind = kinds.size > 1 ? "mixed" : [...kinds][0];
+    });
+    return byKey;
+  }
+
+  // A location's colour follows today's status of the tasks at it.
+  function placeState(loc) {
+    const ids = new Set(loc.members.map((member) => member.id));
+    const tasks = state.tasks.filter((task) => ids.has(placeId(task.type, task.name)));
     if (!tasks.length) return "idle";
     const statuses = tasks.map(statusOf);
     if (statuses.some((s) => s === "in_progress")) return "in_progress";
@@ -604,38 +629,83 @@
     return "settled";
   }
 
+
   function renderPlaces() {
     if (!state.map) return;
     state.layers.places.clearLayers();
     const order = new Map((state.route?.stops || []).map((stop, index) => [stop.place.id, index + 1]));
     let dropIndex = 0;
-    state.places.forEach((place) => {
-      const number = order.get(place.id);
-      const status = placeState(place);
-      const drop = !state.seenPins.has(place.id);
-      if (drop) state.seenPins.add(place.id);
-      const marker = L.marker([place.latitude, place.longitude], {
+    locations().forEach((loc) => {
+      const number = order.get(loc.id);
+      const status = placeState(loc);
+      const shared = loc.members.length > 1;
+      const drop = !state.seenPins.has(loc.id);
+      if (drop) state.seenPins.add(loc.id);
+      const label = shared
+        ? `${escapeHtml(loc.members[0].name)} <b class="np-more">+${loc.members.length - 1}</b>`
+        : escapeHtml(loc.name);
+      const marker = L.marker([loc.lat, loc.lng], {
         draggable: true,
-        title: place.name,
+        title: loc.fullName,
         riseOnHover: true,
         zIndexOffset: number ? 300 : status === "idle" ? -200 : 0,
         icon: L.divIcon({
           className: "",
-          html: `<div class="news-pin np-${place.kind} np-${status}${drop ? " drop" : ""}" style="--delay:${drop ? Math.min(dropIndex++, 25) * 45 : 0}ms">
-              <i class="np-dot">${number || ""}</i><span class="np-label">${escapeHtml(place.name)}</span>
+          html: `<div class="news-pin np-${loc.kind} np-${status}${shared ? " np-shared" : ""}${drop ? " drop" : ""}" style="--delay:${drop ? Math.min(dropIndex++, 25) * 45 : 0}ms">
+              <i class="np-dot">${number || (shared ? loc.members.length : "")}</i>
+              <span class="np-label">${label}</span>
+              ${shared ? `<span class="np-list">${loc.members.map((m) => `<span>${escapeHtml(m.name)}</span>`).join("")}</span>` : ""}
             </div>`,
           iconSize: [18, 18],
           iconAnchor: [9, 9],
         }),
       });
+      // Dragging a shared pin moves every name at that location.
       marker.on("dragend", () => {
         const { lat, lng } = marker.getLatLng();
-        void savePlace(place.kind, place.name, lat, lng);
+        void savePlaces(loc.members, lat, lng);
       });
-      marker.on("click", () => startPlacing(place.kind, place.name));
+      if (shared) {
+        marker.bindPopup(() => locationPopup(loc), { className: "news-popup", closeButton: true, offset: [0, -6], maxWidth: 280 });
+        marker.on("popupopen", (event) => wireLocationPopup(event.popup, loc));
+      } else {
+        marker.on("click", () => startPlacing([loc.members[0]]));
+      }
       marker.addTo(state.layers.places);
     });
   }
+
+  function locationPopup(loc) {
+    return `
+      <div class="loc-popup">
+        <strong>${loc.members.length} names at this place</strong>
+        <ul>${loc.members.map((m) => `
+          <li><i class="legend-dot legend-${m.kind}" aria-hidden="true"></i><span>${escapeHtml(m.name)}</span>
+            <button type="button" class="btn btn-quiet compact" data-loc-edit="${escapeHtml(m.id)}">Edit</button></li>`).join("")}</ul>
+        <div class="loc-actions">
+          <button type="button" class="btn btn-ghost compact" data-loc-move>Move all</button>
+          <button type="button" class="btn btn-primary compact" data-loc-add>Add names here</button>
+        </div>
+      </div>`;
+  }
+
+  function wireLocationPopup(popup, loc) {
+    popup.getElement().onclick = (event) => {
+      const edit = event.target.closest("[data-loc-edit]");
+      if (edit) {
+        const member = loc.members.find((m) => m.id === edit.dataset.locEdit);
+        popup.close();
+        if (member) startPlacing([member]);
+      } else if (event.target.closest("[data-loc-move]")) {
+        popup.close();
+        startPlacing(loc.members);
+      } else if (event.target.closest("[data-loc-add]")) {
+        popup.close();
+        beginAttach(loc);
+      }
+    };
+  }
+
 
 
 
@@ -686,22 +756,32 @@
     return null;
   }
 
-  function startPlacing(kind, name) {
+  // Starts placing one or more names; several names are saved to the same spot.
+  function startPlacing(members) {
     if (state.setupError) return showToast("Today isn't set up yet", state.setupError, "error");
+    members = members.map((m) => ({ kind: m.kind, name: m.name }));
     state.pickingStart = false;
-    state.placing = { kind, name };
-    const existing = state.places.get(placeId(kind, name));
-    el("placingText").textContent = existing
-      ? `Move ${name}: drag its pin, click the new spot, or search below`
-      : `Place ${name}: click the map where it is, or search below`;
+    state.placing = { members };
+    const existing = members.map((m) => state.places.get(placeId(m.kind, m.name))).filter(Boolean);
+    const label = members.length > 1 ? `${members.length} names (${members.map((m) => m.name).join(", ")})` : members[0].name;
+    el("placingText").textContent = existing.length
+      ? `Move ${label}: drag the pin, click the new spot, or search below`
+      : `Place ${label}: click the map where it is, or search below`;
     el("placingLink").value = "";
     el("placingResults").hidden = true;
-    el("placingRemove").hidden = !existing;
-    if (existing && state.map) state.map.flyTo([existing.latitude, existing.longitude], 16, { duration: 1.1 });
+    el("placingRemove").hidden = !existing.length;
+    el("placingRemove").textContent = members.length > 1 ? "Remove these pins" : "Remove pin";
+    const ids = new Set(members.map((m) => placeId(m.kind, m.name)));
+    const others = [...locations().values()].filter((loc) => !loc.members.every((m) => ids.has(m.id)));
+    el("placingSame").innerHTML = `<option value="">Same place as…</option>${others
+      .sort((a, b) => a.fullName.localeCompare(b.fullName))
+      .map((loc) => `<option value="${escapeHtml(loc.id)}">${escapeHtml(loc.fullName)}</option>`).join("")}`;
+    el("placingSameWrap").hidden = !others.length;
+    if (existing.length && state.map) state.map.flyTo([existing[0].latitude, existing[0].longitude], 16, { duration: 1.1 });
     el("placingBar").hidden = false;
     el("todayMap").classList.add("placing");
-    el("todayMap").scrollIntoView({ behavior: "smooth", block: "center" });
   }
+
 
   function stopPlacing() {
     state.placing = null;
@@ -711,42 +791,46 @@
     el("todayMap").classList.remove("placing");
   }
 
-  async function savePlace(kind, name, lat, lng) {
+  async function savePlaces(members, lat, lng) {
+    const label = members.length > 1 ? `${members.length} names` : members[0].name;
     if (!insideBaghdad(lat, lng)) {
-      showToast("Outside Baghdad", `${name} wasn't saved: the map only covers Baghdad.`, "error");
+      showToast("Outside Baghdad", `${label} wasn't saved: the map only covers Baghdad.`, "error");
       renderPlaces();
       return;
     }
-    const row = {
-      id: placeId(kind, name),
-      kind,
-      name,
+    const at = new Date().toISOString();
+    const rows = members.map((m) => ({
+      id: placeId(m.kind, m.name),
+      kind: m.kind,
+      name: m.name,
       latitude: lat,
       longitude: lng,
       updated_by: who(),
-      updated_at: new Date().toISOString(),
-    };
-    const { error } = await supabaseClient.from("desk_places").upsert(row, { onConflict: "id" });
+      updated_at: at,
+    }));
+    const { error } = await supabaseClient.from("desk_places").upsert(rows, { onConflict: "id" });
     if (error) return showToast("Location not saved", error.message, "error");
-    state.places.set(row.id, { ...(state.places.get(row.id) || {}), ...row });
-    state.seenPins.delete(row.id);
+    rows.forEach((row) => state.places.set(row.id, { ...(state.places.get(row.id) || {}), ...row }));
+    state.seenPins.delete(locKey({ latitude: lat, longitude: lng }));
     renderAll();
     scheduleRoute();
-    showToast("Location saved", name);
+    showToast("Location saved", members.length > 1 ? members.map((m) => m.name).join(", ") : label);
   }
+
 
   async function removePlace() {
     if (!state.placing) return;
-    const { kind, name } = state.placing;
-    const id = placeId(kind, name);
-    const { error } = await supabaseClient.from("desk_places").delete().eq("id", id);
+    const ids = state.placing.members.map((m) => placeId(m.kind, m.name));
+    const { error } = await supabaseClient.from("desk_places").delete().in("id", ids);
     if (error) return showToast("Pin not removed", error.message, "error");
-    state.places.delete(id);
+    ids.forEach((id) => state.places.delete(id));
+    const label = state.placing.members.map((m) => m.name).join(", ");
     stopPlacing();
     renderAll();
     scheduleRoute();
-    showToast("Pin removed", name);
+    showToast("Pin removed", label);
   }
+
 
   // Free OpenStreetMap place search, limited to Baghdad.
   async function searchPlaces(query) {
@@ -766,9 +850,9 @@
 
   function useFoundPoint(point) {
     if (state.placing) {
-      const { kind, name } = state.placing;
+      const { members } = state.placing;
       stopPlacing();
-      void savePlace(kind, name, point.lat, point.lng);
+      void savePlaces(members, point.lat, point.lng);
       state.map?.flyTo([point.lat, point.lng], 16, { duration: 1.1 });
     } else if (state.pickingStart) {
       state.customStart = point;
@@ -832,15 +916,22 @@
     const shown = entries.filter((entry) =>
       (state.placesFilter === "all" || !state.places.has(entry.id)) && (!query || norm(entry.name).includes(query))
     );
+    const locs = locations();
+    renderSelectBar();
     el("placesList").innerHTML = shown.length
       ? shown.map((entry) => {
           const place = state.places.get(entry.id);
+          const loc = place ? locs.get(locKey(place)) : null;
+          const sharedWith = loc ? loc.members.filter((m) => m.id !== entry.id).map((m) => m.name) : [];
           return `
-            <div class="place-row${place ? " is-set" : ""}" data-place-id="${escapeHtml(entry.id)}">
+            <div class="place-row${place ? " is-set" : ""}${state.selected.has(entry.id) ? " is-selected" : ""}" data-place-id="${escapeHtml(entry.id)}">
+              <input type="checkbox" class="place-check" data-place-action="select" aria-label="Select ${escapeHtml(entry.name)}" ${state.selected.has(entry.id) ? "checked" : ""} />
               <i class="legend-dot legend-${entry.kind}" aria-hidden="true"></i>
               <div class="place-copy">
                 <span class="place-name">${escapeHtml(entry.name)}</span>
-                <span class="place-meta">${entry.kind === "withdrawal" ? "Withdrawal" : "Supplier"} · ${place ? `On the map · saved by ${escapeHtml(place.updated_by)}` : "No location yet"}</span>
+                <span class="place-meta">${entry.kind === "withdrawal" ? "Withdrawal" : "Supplier"} · ${place
+                  ? (sharedWith.length ? `Shared with ${escapeHtml(sharedWith.join(", "))}` : `On the map · saved by ${escapeHtml(place.updated_by)}`)
+                  : "No location yet"}</span>
               </div>
               ${place ? `<button class="icon-btn" type="button" data-place-action="focus" aria-label="Show ${escapeHtml(entry.name)} on the map" title="Show on map">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" /></svg></button>` : ""}
@@ -848,6 +939,31 @@
             </div>`;
         }).join("")
       : `<p class="empty">${query ? "No names match that search." : state.placesFilter === "missing" ? "Every supplier and withdrawal has a location." : "No names found in PP."}</p>`;
+  }
+
+  function selectedMembers() {
+    return allPlaceEntries().filter((entry) => state.selected.has(entry.id));
+  }
+
+  function renderSelectBar() {
+    const count = state.selected.size;
+    const attach = state.attachTo;
+    el("placesSelectBar").hidden = !count && !attach;
+    el("placesSelectText").textContent = attach
+      ? `Adding to ${attach.fullName}: tick names, then add them.`
+      : `${count} selected`;
+    el("placesPinTogether").textContent = attach ? `Add ${count || ""} here`.replace("  ", " ") : count > 1 ? `Pin ${count} together` : "Pin selected";
+    el("placesPinTogether").disabled = !count;
+  }
+
+  // "Add names here" on a shared pin: tick names in Places, then add them.
+  function beginAttach(loc) {
+    state.attachTo = loc;
+    state.selected.clear();
+    state.placesFilter = "missing";
+    el("mapLayout").classList.remove("side-collapsed");
+    setMapTab("places");
+    window.setTimeout(() => el("placesSearch").focus(), 50);
   }
 
   function setMapTab(tab) {
@@ -867,9 +983,9 @@
 
   function onMapClick(event) {
     if (state.placing) {
-      const { kind, name } = state.placing;
+      const { members } = state.placing;
       stopPlacing();
-      void savePlace(kind, name, event.latlng.lat, event.latlng.lng);
+      void savePlaces(members, event.latlng.lat, event.latlng.lng);
     } else if (state.pickingStart) {
       state.customStart = { lat: event.latlng.lat, lng: event.latlng.lng };
       stopPlacing();
@@ -994,11 +1110,13 @@
   function groupStops(predicate) {
     const byPlace = new Map();
     const unplaced = [];
+    const locs = locations();
     state.tasks.filter(predicate).forEach((task) => {
       const place = state.places.get(placeId(task.type, task.name));
       if (!place) return unplaced.push(task);
-      if (!byPlace.has(place.id)) byPlace.set(place.id, { place, lat: place.latitude, lng: place.longitude, tasks: [], at: "" });
-      const stop = byPlace.get(place.id);
+      const loc = locs.get(locKey(place));
+      if (!byPlace.has(loc.id)) byPlace.set(loc.id, { place: loc, lat: loc.lat, lng: loc.lng, tasks: [], at: "" });
+      const stop = byPlace.get(loc.id);
       stop.tasks.push(task);
       const at = String(state.phonePosts.get(task.key)?.updated_at || state.statusTimes.get(task.key) || "");
       if (at > stop.at) stop.at = at;
@@ -1104,7 +1222,12 @@
   }
 
   const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
-  const legText = (leg) => (leg ? `${leg.km < 10 ? leg.km.toFixed(1) : fmt(leg.km)} km${leg.minutes ? ` · ${Math.max(1, Math.round(leg.minutes))} min` : ""}` : "");
+  const legText = (leg) => {
+    if (!leg) return "";
+    // A stop in the same building as the last one is right where Zaki is.
+    if (leg.km < 0.05) return "Here";
+    return `${leg.km < 10 ? leg.km.toFixed(1) : fmt(leg.km)} km${leg.minutes ? ` · ${Math.max(1, Math.round(leg.minutes))} min` : ""}`;
+  };
 
   function renderNews() {
     el("newsClock").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -1194,8 +1317,8 @@
         <li class="route-stop is-done">
           <span class="route-num done" aria-label="Finished">✓</span>
           <div>
-            <b>${escapeHtml(stop.place.name)}</b>
-            <span class="hint">${stop.tasks.map((t) => `${t.type === "withdrawal" ? "Collected" : "Paid"} ${escapeHtml(amountsText(t.iqd, t.usd))}`).join(" · ")}</span>
+            <b>${escapeHtml(stop.place.fullName || stop.place.name)}</b>
+            <span class="hint">${stop.tasks.map((t) => `${stop.place.members?.length > 1 ? `${escapeHtml(t.name)}: ` : ""}${t.type === "withdrawal" ? "Collected" : "Paid"} ${escapeHtml(amountsText(t.iqd, t.usd))}`).join(" · ")}</span>
             ${stop.at ? `<span class="route-time">Finished ${clock(stop.at)}</span>` : ""}
           </div>
         </li>`).join("");
@@ -1203,9 +1326,9 @@
         <li class="route-stop${warnings[index] ? " warn" : ""}">
           <span class="route-num">${index + 1}</span>
           <div>
-            <b>${escapeHtml(stop.place.name)}</b>
-            <span class="hint">${stop.tasks.map((t) => `${t.type === "withdrawal" ? "Collect" : "Pay"} ${escapeHtml(amountsText(t.iqd, t.usd))}`).join(" · ")}</span>
-            <span class="route-leg">${escapeHtml(legText(legs?.[index]))}${index === 0 && start ? ` from ${escapeHtml(start.label)}` : ""}</span>
+            <b>${escapeHtml(stop.place.fullName || stop.place.name)}</b>
+            <span class="hint">${stop.tasks.map((t) => `${stop.place.members?.length > 1 ? `${escapeHtml(t.name)}: ` : ""}${t.type === "withdrawal" ? "Collect" : "Pay"} ${escapeHtml(amountsText(t.iqd, t.usd))}`).join(" · ")}</span>
+            <span class="route-leg">${escapeHtml(legText(legs?.[index]))}${index === 0 && start && legs?.[0]?.km >= 0.05 ? ` from ${escapeHtml(start.label)}` : ""}</span>
             ${warnings[index] ? `<span class="route-warn">${escapeHtml(warnings[index])}</span>` : ""}
           </div>
         </li>`).join("");
@@ -1269,7 +1392,7 @@
     if (statusButton) return void setStatus(task, statusButton.dataset.status);
     if (event.target.closest("[data-pin]")) {
       if (!ensureMap()) return;
-      startPlacing(task.type, task.name);
+      startPlacing([{ kind: task.type, name: task.name }]);
     }
   });
 
@@ -1332,13 +1455,43 @@
     const action = event.target.closest("[data-place-action]")?.dataset.placeAction;
     if (!row || !action) return;
     const entry = allPlaceEntries().find((item) => item.id === row.dataset.placeId);
-    if (!entry || !ensureMap()) return;
+    if (!entry) return;
+    if (action === "select") {
+      if (event.target.checked) state.selected.add(entry.id);
+      else state.selected.delete(entry.id);
+      row.classList.toggle("is-selected", event.target.checked);
+      renderSelectBar();
+      return;
+    }
+    if (!ensureMap()) return;
     if (action === "focus") {
       const place = state.places.get(entry.id);
       if (place) state.map.flyTo([place.latitude, place.longitude], 16, { duration: 1.1 });
     } else {
-      startPlacing(entry.kind, entry.name);
+      startPlacing([entry]);
     }
+  });
+  el("placesPinTogether").addEventListener("click", () => {
+    const members = selectedMembers();
+    if (!members.length) return;
+    const attach = state.attachTo;
+    state.selected.clear();
+    state.attachTo = null;
+    renderPlacesPanel();
+    if (attach) void savePlaces(members, attach.lat, attach.lng);
+    else if (ensureMap()) startPlacing(members);
+  });
+  el("placesSelectClear").addEventListener("click", () => {
+    state.selected.clear();
+    state.attachTo = null;
+    renderPlacesPanel();
+  });
+  el("placingSame").addEventListener("change", () => {
+    const loc = locations().get(el("placingSame").value);
+    if (!loc || !state.placing) return;
+    const { members } = state.placing;
+    stopPlacing();
+    void savePlaces(members, loc.lat, loc.lng);
   });
   ["countedIqd", "countedUsd"].forEach((id) => el(id).addEventListener("input", () => renderCashCheck(computeTotals())));
   el("saveCashCheck").addEventListener("click", () => void saveCashCheck());
