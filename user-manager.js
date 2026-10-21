@@ -55,6 +55,7 @@ const appState = {
   sourceAdminError: "",
   sourceCatalogAvailable: false,
   activeView: "emails",
+  mainView: "emails",
 };
 
 let sourceSessionExpiryTimer = 0;
@@ -1195,32 +1196,36 @@ function renderBackup() {
   byId("backupOutput").value = `window.PAYMENT_TRACKER_USERS = ${JSON.stringify(users, null, 2)};\n`;
 }
 
-// Emails is the workbench itself; the other views live in the settings
-// drawer, which is non-modal so dialogs and toasts can stack above it.
+// Emails and Today are the two main screens; the other views live in the
+// settings drawer, which is non-modal so dialogs and toasts can stack above it.
 function selectView(view) {
-  const titles = { emails: "", sources: "Sources", users: "Users", advanced: "System" };
+  const titles = { emails: "", today: "Today", sources: "Sources", users: "Users", advanced: "System" };
   if (!(view in titles)) return;
-  appState.activeView = view;
   const drawer = byId("settingsDrawer");
-  const inDrawer = view !== "emails";
+  const inDrawer = !["emails", "today"].includes(view);
   if (inDrawer) {
     document.querySelectorAll("[data-section]").forEach((section) => {
       section.hidden = section.dataset.section !== view;
     });
     if (!drawer.open) drawer.show();
-  } else if (drawer.open) {
-    drawer.close();
+  } else {
+    appState.mainView = view;
+    byId("emailsView").hidden = view !== "emails";
+    byId("todayView").hidden = view !== "today";
+    if (drawer.open) drawer.close();
   }
+  appState.activeView = view;
   byId("settingsScrim").hidden = !inDrawer;
-  document.querySelectorAll(".drawer-tabs [data-view]").forEach((button) => {
-    const active = button.dataset.view === view;
+  document.querySelectorAll(".drawer-tabs [data-view], .main-tabs [data-view]").forEach((button) => {
+    const active = button.dataset.view === view || (inDrawer && button.dataset.view === appState.mainView);
     button.classList.toggle("active", active);
-    if (active) button.setAttribute("aria-current", "page");
+    if (button.dataset.view === view) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   });
-  document.title = inDrawer ? `${titles[view]} · Sindibad PayDesk` : "Sindibad PayDesk";
+  document.title = titles[view] ? `${titles[view]} · Sindibad PayDesk` : "Sindibad PayDesk";
   history.replaceState(null, "", `#${view}`);
-  if (!inDrawer) void window.emailMaker?.load();
+  if (view === "emails") void window.emailMaker?.load();
+  if (view === "today") void window.deskToday?.show();
 }
 
 function applyTheme(theme) {
@@ -1377,16 +1382,17 @@ document.addEventListener("click", () => {
 });
 
 byId("headerSignOutButton").addEventListener("click", signOutAdmin);
-byId("settingsScrim").addEventListener("click", () => selectView("emails"));
+byId("settingsScrim").addEventListener("click", () => selectView(appState.mainView));
+byId("settingsClose").addEventListener("click", () => selectView(appState.mainView));
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape" || !byId("settingsDrawer").open) return;
   if (document.querySelector("dialog.modal[open]")) return;
-  selectView("emails");
+  selectView(appState.mainView);
 });
 
 applyTheme(localStorage.getItem("payment-tracker-admin-theme") || "dark");
 const initialView = location.hash.slice(1);
-selectView(["emails", "users", "sources", "advanced"].includes(initialView) ? initialView : "emails");
+selectView(["emails", "today", "users", "sources", "advanced"].includes(initialView) ? initialView : "emails");
 const savedSession = readAdminSession();
 if (savedSession) {
   restoreSourceAdminSession();

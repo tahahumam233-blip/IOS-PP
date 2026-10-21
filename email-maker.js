@@ -329,6 +329,8 @@
       state.loading = false;
       state.loadedAt = Date.now();
       render();
+      // The Today tab builds on the same sheet data.
+      if (state.sheet) document.dispatchEvent(new CustomEvent("paydesk:sheet", { detail: state.sheet }));
     }
   }
 
@@ -359,14 +361,14 @@
     render();
   });
   document.addEventListener("keydown", (event) => {
-    if (document.getElementById("settingsDrawer").open || document.querySelector("dialog.modal[open]")) return;
+    if (el("emailsView").hidden || document.getElementById("settingsDrawer").open || document.querySelector("dialog.modal[open]")) return;
     if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
       event.preventDefault();
       void copyEmail();
     }
   });
 
-  window.emailMaker = { load };
+  window.emailMaker = { load, sheet: () => state.sheet };
   render();
   // selectView ran before this script existed, so start the first load here.
   if (!document.getElementById("settingsDrawer").open) void load();

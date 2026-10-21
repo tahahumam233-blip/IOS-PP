@@ -11,7 +11,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
-    <link rel="stylesheet" href="user-manager.css?v=20261020-desk-5" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="user-manager.css?v=20261021-today-1" />
   </head>
   <body>
     <div class="glow" aria-hidden="true"></div>
@@ -48,10 +49,10 @@
           <span class="brand-name">PayDesk</span>
         </div>
 
-        <div class="segmented" role="group" aria-label="Email type">
-          <button class="active" type="button" data-email-type="payment" aria-pressed="true">Payments <span class="count" id="emailCountPayment">0</span></button>
-          <button type="button" data-email-type="withdrawal" aria-pressed="false">Withdrawals <span class="count" id="emailCountWithdrawal">0</span></button>
-        </div>
+        <nav class="segmented main-tabs" aria-label="Main sections">
+          <button type="button" data-view="emails" aria-controls="emailsView">Emails</button>
+          <button type="button" data-view="today" aria-controls="todayView">Today</button>
+        </nav>
 
         <div class="topbar-end">
           <span class="source-pill" title="Active data source">
@@ -83,9 +84,13 @@
       <main class="workbench" id="emailsView">
         <!-- Left: the lines from the sheet -->
         <section class="lines glass" aria-labelledby="linesTitle">
+          <h2 class="sr-only" id="linesTitle">Lines</h2>
+          <div class="segmented segmented-block" role="group" aria-label="Email type">
+            <button class="active" type="button" data-email-type="payment" aria-pressed="true">Payments <span class="count" id="emailCountPayment">0</span></button>
+            <button type="button" data-email-type="withdrawal" aria-pressed="false">Withdrawals <span class="count" id="emailCountWithdrawal">0</span></button>
+          </div>
           <div class="lines-head">
             <div>
-              <h2 id="linesTitle">Lines</h2>
               <p class="status-line" id="emailSourceLabel"></p>
             </div>
             <button class="btn btn-quiet" id="emailToggleAll" type="button">Clear all</button>
@@ -116,6 +121,70 @@
           </div>
         </section>
       </main>
+
+      <!-- Today: Zaki's day. Statuses, cash in hand, map, and route. Desk only. -->
+      <main class="today" id="todayView" hidden>
+        <div class="notice notice-error" id="todaySetupAlert" role="alert" hidden></div>
+        <section class="today-totals" id="todayTotals" aria-label="Cash totals"></section>
+
+        <div class="today-grid">
+          <section class="glass today-lists" aria-labelledby="todayListTitle">
+            <div class="lines-head">
+              <div>
+                <h2 id="todayListTitle">Today</h2>
+                <p class="status-line" id="todayStatus"></p>
+              </div>
+              <button class="btn btn-quiet" id="todayRefreshButton" type="button">Refresh</button>
+            </div>
+            <div class="segmented segmented-block" role="tablist" aria-label="Today lists">
+              <button class="active" type="button" role="tab" data-today-list="payment" aria-selected="true">Payments <span class="count" id="todayCountPayment">0</span></button>
+              <button type="button" role="tab" data-today-list="withdrawal" aria-selected="false">Withdrawals <span class="count" id="todayCountWithdrawal">0</span></button>
+              <button type="button" role="tab" data-today-list="exchange" aria-selected="false">Exchanges <span class="count" id="todayCountExchange">0</span></button>
+            </div>
+            <div class="task-list" id="todayList" aria-live="polite"></div>
+          </section>
+
+          <div class="today-side">
+            <section class="glass map-card" aria-labelledby="mapTitle">
+              <div class="map-head">
+                <h2 id="mapTitle">Map</h2>
+                <div class="map-tools">
+                  <label class="sr-only" for="routeStart">Route start</label>
+                  <select id="routeStart"></select>
+                  <button class="btn btn-primary" id="planRouteButton" type="button">Plan route</button>
+                </div>
+              </div>
+              <div class="placing-bar" id="placingBar" hidden>
+                <span id="placingText"></span>
+                <input id="placingLink" type="text" spellcheck="false" placeholder="Or paste a Google Maps link or lat, lng" aria-label="Google Maps link or coordinates" />
+                <button class="btn btn-ghost" id="placingSave" type="button">Use link</button>
+                <button class="btn btn-quiet" id="placingRemove" type="button" hidden>Remove pin</button>
+                <button class="btn btn-quiet" id="placingCancel" type="button">Cancel</button>
+              </div>
+              <div class="map" id="todayMap" aria-label="Map of suppliers, withdrawal places, and Zaki"></div>
+              <p class="status-line" id="zakiLocationStatus"></p>
+              <div class="route" id="routeResult" hidden></div>
+            </section>
+
+            <section class="glass cash-check" aria-labelledby="cashCheckTitle">
+              <div class="lines-head">
+                <div><h2 id="cashCheckTitle">End-of-day cash check</h2><p class="status-line" id="cashCheckStatus">Enter what Zaki hands back.</p></div>
+              </div>
+              <div class="cash-grid">
+                <label class="field"><span>Counted IQD</span><input id="countedIqd" type="text" inputmode="numeric" autocomplete="off" /></label>
+                <label class="field"><span>Counted USD</span><input id="countedUsd" type="text" inputmode="numeric" autocomplete="off" /></label>
+              </div>
+              <div class="cash-diff" id="cashDiff"></div>
+              <button class="btn btn-ghost" id="saveCashCheck" type="button">Save check</button>
+            </section>
+
+            <details class="glass change-log">
+              <summary>Today's changes <span class="count" id="logCount">0</span></summary>
+              <ol class="log-list" id="logList"></ol>
+            </details>
+          </div>
+        </div>
+      </main>
     </div>
 
     <!-- Settings: sources, users, system -->
@@ -128,7 +197,7 @@
           <button type="button" data-view="users" aria-controls="usersView">Users</button>
           <button type="button" data-view="advanced" aria-controls="advancedView">System</button>
         </nav>
-        <button class="icon-btn" type="button" data-view="emails" aria-label="Close settings">&times;</button>
+        <button class="icon-btn" id="settingsClose" type="button" aria-label="Close settings">&times;</button>
       </div>
 
       <div class="drawer-body">
@@ -241,7 +310,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="users.js?v=20260714-admin-console-4"></script>
-    <script src="user-manager.js?v=20261020-desk-5"></script>
-    <script src="email-maker.js?v=20261020-desk-5"></script>
+    <script src="user-manager.js?v=20261021-today-1"></script>
+    <script src="email-maker.js?v=20261021-today-1"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="desk-today.js?v=20261021-today-2"></script>
   </body>
 </html>

@@ -52,7 +52,12 @@ type SheetPayload = {
   configVersion: number;
   paymentsRows: unknown[][];
   withdrawalRows: unknown[][];
+  // IQD per 1 USD from the worksheet's B3 cell; null when B3 is not a number.
+  exchangeRate: number | null;
 };
+
+// pp-v1 workbooks keep the day's exchange rate in B3 ("Exchange Rate" in A3).
+const EXCHANGE_RATE_CELL = "B3";
 
 let accessToken = "";
 let accessTokenExpiresAt = 0;
@@ -303,6 +308,7 @@ async function fetchSheetPayload(source: SheetSource) {
   });
   params.append("ranges", paymentRange);
   params.append("ranges", withdrawalRange);
+  params.append("ranges", qualifyRange(source.sheetName, EXCHANGE_RATE_CELL));
 
   const response = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${source.spreadsheetId}/values:batchGet?${params}`,
@@ -326,6 +332,8 @@ async function fetchSheetPayload(source: SheetSource) {
   if (!hasMeaningfulPaymentRow(paymentsRows) && !hasMeaningfulWithdrawalRow(withdrawalRows)) {
     throw new Error("The configured ranges contain no usable payment or withdrawal rows.");
   }
+  const rate = parseAmount(valueRanges[2]?.values?.[0]?.[0]);
+  const exchangeRate = rate > 0 ? rate : null;
 
   return {
     generatedAt: new Date().toISOString(),
@@ -342,6 +350,7 @@ async function fetchSheetPayload(source: SheetSource) {
     configVersion: source.configVersion,
     paymentsRows,
     withdrawalRows,
+    exchangeRate,
   } satisfies SheetPayload;
 }
 
