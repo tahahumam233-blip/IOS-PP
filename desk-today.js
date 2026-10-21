@@ -1499,7 +1499,7 @@
   // Drag the dividers to size the list, the map, and the side panel. Sizes are
   // remembered per browser; double-click a divider to reset it.
   const SIZE_KEY = "paydesk-today-sizes";
-  const SIZE_LIMITS = { list: [260, 720], side: [260, 680] };
+  const SIZE_LIMITS = { list: [260, 1100], side: [260, 1100] };
   const sizeVar = { list: "--list-w", side: "--side-w" };
 
   function loadSizes() {

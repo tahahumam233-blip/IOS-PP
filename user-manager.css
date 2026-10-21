@@ -3569,12 +3569,12 @@ textarea.code {
 
 /* ---------- Resizable boxes ---------- */
 .room {
-  grid-template-columns: var(--list-w, clamp(340px, 24vw, 420px)) 12px minmax(0, 1fr);
+  grid-template-columns: var(--list-w, clamp(340px, 22vw, 560px)) 12px minmax(0, 1fr);
   gap: 0;
 }
 
 .control-room .map-layout {
-  grid-template-columns: minmax(0, 1fr) 12px var(--side-w, 340px);
+  grid-template-columns: minmax(0, 1fr) 12px var(--side-w, clamp(340px, 18vw, 480px));
   gap: 0;
 }
 
@@ -3647,4 +3647,9 @@ body.resizing .room {
 
 .control-room .map-layout {
   transition: none;
+}
+
+/* Today uses the full width of any screen, including wide monitors. */
+.today.control-room {
+  max-width: none;
 }
