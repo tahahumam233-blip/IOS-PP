@@ -1,4 +1,4 @@
-const CACHE_NAME = "payment-tracker-pwa-20261021-wide-1";
+const CACHE_NAME = "payment-tracker-pwa-20261021-rate-1";
 const STATIC_ASSETS = [
   "./",
   "./index.html",

@@ -402,15 +402,21 @@ function formatPlainNumber(value, currency = "") {
   }).format(number);
 }
 
+function formatRate(value) {
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(Number(value) || 0);
+}
+
 function formatExchangeInput(input, currency) {
   const raw = input.value;
   if (!raw) return;
-  const parsed = parseAmount(raw);
-  if (!parsed) {
+  // USD keeps cents while typing: "95,000." and "95,000.5" stay as typed.
+  const decimals = currency === "USD" ? /\.(\d{0,2})/.exec(raw.replace(/,/g, "")) : null;
+  const whole = parseAmount(raw.split(".")[0]);
+  if (!whole && !decimals) {
     input.value = "";
     return;
   }
-  input.value = formatPlainNumber(parsed, currency);
+  input.value = decimals ? `${formatPlainNumber(whole)}.${decimals[1]}` : formatPlainNumber(parseAmount(raw), currency);
 }
 
 function getTasks(type = state.activeType) {
@@ -1363,7 +1369,7 @@ function renderMetrics() {
       <article class="metric-card total-card">
         <div>
           <b>Exchange rate</b>
-          <strong>${rate ? formatIQD(rate).replace(" IQD", "") : "0"}</strong>
+          <strong>${rate ? formatRate(rate) : "0"}</strong>
         </div>
         <span class="metric-chip">IQD per USD</span>
       </article>
@@ -1404,7 +1410,7 @@ function renderMetrics() {
 function calculateExchange() {
   const amountA = parseAmount(els.exchangeAmountA.value);
   const amountB = parseAmount(els.exchangeAmountB.value);
-  els.exchangeRate.value = amountA && amountB ? formatPlainNumber(amountA / amountB, "IQD") : "";
+  els.exchangeRate.value = amountA && amountB ? formatRate(amountA / amountB) : "";
 
   renderMetrics();
 }
@@ -1421,7 +1427,7 @@ function getExchangeText() {
     `Operation: ${els.exchangeSide.value}`,
     `Amount 1: ${formatPlainNumber(amountA, "IQD")} IQD`,
     `Amount 2: ${formatPlainNumber(amountB, "USD")} USD`,
-    `Exchange Rate: ${formatPlainNumber(rate, "IQD")} IQD per 1 USD`,
+    `Exchange Rate: ${formatRate(rate)} IQD per 1 USD`,
     "",
     "Saved from Zaki Payment Tasks",
   ].join("\n");

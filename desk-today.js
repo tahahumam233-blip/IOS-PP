@@ -60,6 +60,7 @@
 
   const el = (id) => document.getElementById(id);
   const fmt = (value) => new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.round(value));
+  const fmtRate = (value) => new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value);
   const money = (value, currency) => `${currency} ${fmt(value)}`;
   const norm = (value) => String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
   const who = () => appState.currentUser?.label || appState.currentUser?.id || "Admin";
@@ -156,9 +157,9 @@
     return tasks;
   }
 
-  // Phone exchange records read "Buying USD: 161,405,000 IQD to 95,000 USD".
+  // Phone exchange records read "Buying USD: 161,405,000 IQD to 95,000.50 USD".
   function parseExchange(row) {
-    const match = /^(Buying|Selling) USD:\s*([\d,]+)\s*IQD to\s*([\d,]+)\s*USD/i.exec(row.task_name || "");
+    const match = /^(Buying|Selling) USD:\s*([\d,.]+)\s*IQD to\s*([\d,.]+)\s*USD/i.exec(row.task_name || "");
     if (!match) return null;
     const iqd = Number(match[2].replace(/,/g, ""));
     const usd = Number(match[3].replace(/,/g, ""));
@@ -218,8 +219,8 @@
   function renderTotals() {
     const t = computeTotals();
     const rateNote = [
-      sheetRate() ? `B3 rate ${fmt(sheetRate())}` : "B3 rate unavailable",
-      averageBuyRate() ? `bought today at ${fmt(averageBuyRate())}` : "",
+      sheetRate() ? `B3 rate ${fmtRate(sheetRate())}` : "B3 rate unavailable",
+      averageBuyRate() ? `bought today at ${fmtRate(averageBuyRate())}` : "",
     ].filter(Boolean).join(" · ");
     el("todayTotals").innerHTML = `
       <article class="total-card">
@@ -266,7 +267,7 @@
             <div class="task exchange">
               <div class="task-main">
                 <span class="task-name">${x.buying ? "Bought" : "Sold"} ${money(x.usd, "USD")}</span>
-                <span class="task-amounts">for ${money(x.iqd, "IQD")} · rate ${fmt(x.rate)}</span>
+                <span class="task-amounts">for ${money(x.iqd, "IQD")} · rate ${fmtRate(x.rate)}</span>
               </div>
               <span class="task-time">${new Date(x.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
             </div>`).join("")
@@ -1258,11 +1259,11 @@
       items.push(`<span>${done ? "<em>✓</em> " : ""}${escapeHtml(entry.task_name)} · ${escapeHtml(STATUS_LABELS[entry.new_status] || entry.new_status)} · ${clock(entry.changed_at)}${entry.changed_by === "Zaki (phone)" ? " · by Zaki" : ""}</span>`);
     });
     state.exchanges.slice(0, 3).forEach((x) => {
-      items.push(`<span>${x.buying ? "Bought" : "Sold"} ${escapeHtml(money(x.usd, "USD"))} at ${escapeHtml(fmt(x.rate))} · ${clock(x.at)}</span>`);
+      items.push(`<span>${x.buying ? "Bought" : "Sold"} ${escapeHtml(money(x.usd, "USD"))} at ${escapeHtml(fmtRate(x.rate))} · ${clock(x.at)}</span>`);
     });
     const totals = computeTotals();
     items.push(`<span>Zaki has ${escapeHtml(money(totals.now.IQD, "IQD"))} and ${escapeHtml(money(totals.now.USD, "USD"))}</span>`);
-    if (totals.usdToBuy) items.push(`<span>USD still to buy: ${escapeHtml(fmt(totals.usdToBuy))}${totals.rate ? ` at ${escapeHtml(fmt(totals.rate))}` : ""}</span>`);
+    if (totals.usdToBuy) items.push(`<span>USD still to buy: ${escapeHtml(fmt(totals.usdToBuy))}${totals.rate ? ` at ${escapeHtml(fmtRate(totals.rate))}` : ""}</span>`);
     const html = items.join("");
     if (el("newsRun").dataset.html !== html) {
       el("newsRun").dataset.html = html;
