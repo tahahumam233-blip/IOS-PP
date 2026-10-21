@@ -47,6 +47,10 @@
     placesFilter: "missing",
     seenPins: new Set(),
     runnerFrame: 0,
+    statusTimes: new Map(),
+    routeKey: "",
+    routeTimer: 0,
+    routeFitted: false,
     liveTimer: 0,
   };
 
@@ -360,7 +364,7 @@
     const day = todayKey();
     const source = state.sheet.sourceId;
     const [statuses, exchanges, places, log, cash, zaki, posts] = await Promise.all([
-      supabaseClient.from("desk_task_status").select("task_key,status").eq("task_date", day).eq("sheet_source_id", source),
+      supabaseClient.from("desk_task_status").select("task_key,status,updated_at").eq("task_date", day).eq("sheet_source_id", source),
       supabaseClient.from("task_status").select("task_name,updated_at").eq("task_type", "exchange").eq("task_date", day).eq("sheet_source_id", source),
       supabaseClient.from("desk_places").select("*"),
       supabaseClient.from("desk_status_log").select("*").eq("task_date", day).eq("sheet_source_id", source).order("changed_at", { ascending: false }).limit(200),
@@ -375,6 +379,7 @@
         : `Couldn't load today's statuses: ${deskErrors[0].message}`)
       : "";
     state.statuses = new Map((statuses.data || []).map((row) => [row.task_key, row.status]));
+    state.statusTimes = new Map((statuses.data || []).map((row) => [row.task_key, row.updated_at]));
     state.exchanges = (exchanges.data || []).map(parseExchange).filter(Boolean).sort((a, b) => String(b.at).localeCompare(String(a.at)));
     state.places = new Map((places.data || []).map((row) => [row.id, row]));
     state.log = log.data || [];
@@ -416,6 +421,7 @@
     if (zaki.data?.[0]) state.zaki = zaki.data[0];
     renderAll();
     renderZaki();
+    scheduleRoute();
   }
 
   async function onSheet(sheet) {
@@ -434,6 +440,7 @@
       renderAll();
       renderZaki();
       fitToPlaces();
+      scheduleRoute();
     }
   }
 
@@ -448,9 +455,7 @@
       return;
     }
     state.statuses.set(task.key, status);
-    state.route = null;
     renderAll();
-    renderRoute();
     const day = todayKey();
     const source = state.sheet.sourceId;
     const by = who();
@@ -483,8 +488,10 @@
       changed_by: by,
       changed_at: at,
     };
+    state.statusTimes.set(task.key, at);
     state.log.unshift(entry);
     renderLog();
+    scheduleRoute();
     const logged = await supabaseClient.from("desk_status_log").insert(entry);
     if (logged.error) showToast("Change saved but not logged", logged.error.message, "error");
   }
@@ -690,9 +697,8 @@
     if (error) return showToast("Location not saved", error.message, "error");
     state.places.set(row.id, { ...(state.places.get(row.id) || {}), ...row });
     state.seenPins.delete(row.id);
-    state.route = null;
     renderAll();
-    renderRoute();
+    scheduleRoute();
     showToast("Location saved", name);
   }
 
@@ -704,9 +710,8 @@
     if (error) return showToast("Pin not removed", error.message, "error");
     state.places.delete(id);
     stopPlacing();
-    state.route = null;
     renderAll();
-    renderRoute();
+    scheduleRoute();
     showToast("Pin removed", name);
   }
 
@@ -737,7 +742,8 @@
       stopPlacing();
       renderStartOptions();
       el("routeStart").value = "custom";
-      void planRoute();
+      state.routeKey = "";
+      void planRoute({ auto: true });
     }
   }
 
@@ -820,7 +826,7 @@
     });
     el("routeTools").hidden = tab !== "route";
     el("placesPanel").hidden = tab !== "places";
-    el("routeResult").hidden = tab !== "route" || !state.route;
+    el("routeResult").hidden = tab !== "route";
     renderPlacesPanel();
   }
 
@@ -834,7 +840,8 @@
       stopPlacing();
       renderStartOptions();
       el("routeStart").value = "custom";
-      void planRoute();
+      state.routeKey = "";
+      void planRoute({ auto: true });
     }
   }
 
@@ -851,7 +858,8 @@
       .sort((a, b) => a.name.localeCompare(b.name))
       .forEach((place) => options.push([`place:${place.id}`, `Start: ${place.name}`]));
     select.innerHTML = options.map(([value, label]) => `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`).join("");
-    if (options.some(([value]) => value === current)) select.value = current;
+    const wanted = current || savedStart();
+    if (options.some(([value]) => value === wanted)) select.value = wanted;
   }
 
   function startPoint() {
@@ -900,12 +908,14 @@
         .sort((a, b) => a.position - b.position)
         .map((item) => item.stop);
       const trip = data.trips[0];
-      return { ordered, geometry: trip.geometry.coordinates.map(([lng, lat]) => [lat, lng]), km: trip.distance / 1000, minutes: trip.duration / 60, roads: true };
+      const legs = trip.legs.map((leg) => ({ km: leg.distance / 1000, minutes: leg.duration / 60 }));
+      return { ordered, legs, geometry: trip.geometry.coordinates.map(([lng, lat]) => [lat, lng]), km: trip.distance / 1000, minutes: trip.duration / 60, roads: true };
     } catch {
       const ordered = nearestNeighbourOrder(start, stops);
-      let km = 0;
-      [start, ...ordered].reduce((a, b) => { km += distanceKm(a, b); return b; });
-      return { ordered, geometry: [start, ...ordered].map((p) => [p.lat, p.lng]), km, minutes: null, roads: false };
+      const legs = [];
+      [start, ...ordered].reduce((a, b) => { legs.push({ km: distanceKm(a, b), minutes: null }); return b; });
+      const km = legs.reduce((sum, leg) => sum + leg.km, 0);
+      return { ordered, legs, geometry: [start, ...ordered].map((p) => [p.lat, p.lng]), km, minutes: null, roads: false };
     }
   }
 
@@ -926,45 +936,101 @@
     return links;
   }
 
-  async function planRoute() {
-    if (el("routeStart").value === "pick") {
+  const startStorageKey = () => `paydesk-route-start-${todayKey()}`;
+
+  function savedStart() {
+    try {
+      return localStorage.getItem(startStorageKey()) || "";
+    } catch {
+      return "";
+    }
+  }
+
+  function rememberStart(value) {
+    try {
+      localStorage.setItem(startStorageKey(), value);
+    } catch {
+      // Remembering the start is only a convenience.
+    }
+  }
+
+  // Groups today's lines by map place. Finished stops carry the time Zaki
+  // finished them (his phone post, or the Desk status change).
+  function groupStops(predicate) {
+    const byPlace = new Map();
+    const unplaced = [];
+    state.tasks.filter(predicate).forEach((task) => {
+      const place = state.places.get(placeId(task.type, task.name));
+      if (!place) return unplaced.push(task);
+      if (!byPlace.has(place.id)) byPlace.set(place.id, { place, lat: place.latitude, lng: place.longitude, tasks: [], at: "" });
+      const stop = byPlace.get(place.id);
+      stop.tasks.push(task);
+      const at = String(state.phonePosts.get(task.key)?.updated_at || state.statusTimes.get(task.key) || "");
+      if (at > stop.at) stop.at = at;
+    });
+    return { stops: [...byPlace.values()], unplaced };
+  }
+
+  function scheduleRoute() {
+    window.clearTimeout(state.routeTimer);
+    state.routeTimer = window.setTimeout(() => void planRoute({ auto: true }), 600);
+  }
+
+  // The route always runs from Zaki's last finished stop (or the chosen
+  // start before he finishes anything) through every open stop, and is
+  // re-planned whenever a status, a phone post, or a pin changes.
+  async function planRoute({ auto = false } = {}) {
+    if (!auto && el("routeStart").value === "pick") {
       if (!ensureMap()) return;
       state.placing = null;
       state.pickingStart = true;
       el("placingText").textContent = "Click the map where Zaki starts";
       el("placingRemove").hidden = true;
+      el("placingResults").hidden = true;
       el("placingBar").hidden = false;
       el("todayMap").classList.add("placing");
       return;
     }
-    const start = startPoint();
-    if (!start) return showToast("Choose a start", "Pick where Zaki starts the route.", "error");
+    if (!state.sheet) return;
+    const finished = groupStops((task) => statusOf(task) === SETTLED[task.type]).stops
+      .sort((a, b) => a.at.localeCompare(b.at));
+    const { stops, unplaced } = groupStops((task) => OPEN.has(statusOf(task)));
+    const last = finished[finished.length - 1];
+    const chosen = startPoint();
+    const start = last
+      ? { lat: last.lat, lng: last.lng, label: last.place.name, finishedAt: last.at }
+      : chosen;
 
-    const byPlace = new Map();
-    const unplaced = [];
-    state.tasks.filter((task) => OPEN.has(statusOf(task))).forEach((task) => {
-      const place = state.places.get(placeId(task.type, task.name));
-      if (!place) return unplaced.push(task);
-      if (!byPlace.has(place.id)) byPlace.set(place.id, { place, lat: place.latitude, lng: place.longitude, tasks: [] });
-      byPlace.get(place.id).tasks.push(task);
-    });
-    const stops = [...byPlace.values()];
-    if (!stops.length) {
-      return showToast("Nothing to route", unplaced.length ? "Set map locations for today's open items first." : "No open payments or withdrawals today.", "error");
+    if (!start || !stops.length) {
+      state.routeKey = "";
+      state.route = { start, stops: [], legs: [], geometry: [], finished, unplaced, empty: true };
+      renderPlaces();
+      renderRoute({ animate: false });
+      return;
+    }
+
+    const key = JSON.stringify([start.lat, start.lng, stops.map((stop) => `${stop.place.id}:${stop.tasks.map((t) => t.key).join(",")}`)]);
+    if (auto && key === state.routeKey && state.route && !state.route.empty) {
+      state.route = { ...state.route, finished, unplaced };
+      renderRoute({ animate: false, keepLine: true });
+      return;
     }
 
     el("planRouteButton").disabled = true;
     el("planRouteButton").textContent = "Planning…";
     try {
       const result = await orderStops(start, stops);
-      state.route = { start, stops: result.ordered, ...result, unplaced };
+      const changed = key !== state.routeKey;
+      state.routeKey = key;
+      state.route = { start, stops: result.ordered, ...result, finished, unplaced };
       renderPlaces();
-      renderRoute();
+      renderRoute({ animate: changed || !auto });
     } finally {
       el("planRouteButton").disabled = false;
-      el("planRouteButton").textContent = "Plan route";
+      el("planRouteButton").textContent = "Re-plan";
     }
   }
+
 
   // Walks the route with Zaki's current cash and flags payments he can't
   // cover yet. With a rate, IQD and USD are pooled since he can exchange.
@@ -985,11 +1051,11 @@
   }
 
   // The route draws itself, keeps a soft glow, and a light runs along it.
-  function drawAnimatedRoute(geometry) {
+  function drawAnimatedRoute(geometry, animate = true) {
     L.polyline(geometry, { color: "#ff2d61", weight: 14, opacity: 0.18, className: "route-glow", interactive: false }).addTo(state.layers.route);
     const line = L.polyline(geometry, { color: "#ff4f7b", weight: 4.5, opacity: 0.95, className: "route-line", interactive: false }).addTo(state.layers.route);
     const path = line.getElement();
-    if (path?.getTotalLength) {
+    if (animate && path?.getTotalLength) {
       const length = path.getTotalLength();
       path.style.strokeDasharray = `${length}`;
       path.style.strokeDashoffset = `${length}`;
@@ -1010,7 +1076,7 @@
       icon: L.divIcon({ className: "", html: '<span class="route-runner"></span>', iconSize: [16, 16], iconAnchor: [8, 8] }),
     }).addTo(state.layers.route);
     const lapMs = Math.min(14000, Math.max(5000, total / 3));
-    const began = performance.now() + 1600;
+    const began = performance.now() + (animate ? 1600 : 0);
     const step = (now) => {
       const t = Math.max(0, now - began) % lapMs / lapMs;
       const target = t * total;
@@ -1026,47 +1092,83 @@
     state.runnerFrame = requestAnimationFrame(step);
   }
 
-  function renderRoute() {
+  const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
+  const legText = (leg) => (leg ? `${leg.km < 10 ? leg.km.toFixed(1) : fmt(leg.km)} km${leg.minutes ? ` · ${Math.max(1, Math.round(leg.minutes))} min` : ""}` : "");
+
+  function renderRoute({ animate = true, keepLine = false } = {}) {
     const box = el("routeResult");
-    if (state.layers) state.layers.route.clearLayers();
-    cancelAnimationFrame(state.runnerFrame);
-    if (!state.route) {
-      box.hidden = true;
+    box.hidden = state.mapTab !== "route";
+    const route = state.route;
+    if (!keepLine && state.layers) {
+      state.layers.route.clearLayers();
+      cancelAnimationFrame(state.runnerFrame);
+    }
+    if (!route) {
+      box.innerHTML = `<p class="empty">Loading today's route…</p>`;
       return;
     }
-    const { start, stops, geometry, km, minutes, roads, unplaced } = state.route;
-    if (state.map) {
-      drawAnimatedRoute(geometry);
-      L.circleMarker([start.lat, start.lng], { radius: 7, color: "#fff", weight: 2, fillColor: "#3ddc84", fillOpacity: 1 })
-        .bindTooltip(`Start: ${escapeHtml(start.label)}`).addTo(state.layers.route);
-      state.map.fitBounds(L.latLngBounds(geometry).pad(0.15), { maxZoom: 15 });
+    const { start, stops, legs, geometry, km, minutes, roads, finished, unplaced } = route;
+
+    if (state.map && !keepLine && geometry.length > 1) {
+      drawAnimatedRoute(geometry, animate);
+      if (start) {
+        L.marker([start.lat, start.lng], {
+          interactive: true,
+          zIndexOffset: 500,
+          icon: L.divIcon({ className: "", html: `<span class="route-start${start.finishedAt ? " is-finished" : ""}"></span>`, iconSize: [22, 22], iconAnchor: [11, 11] }),
+        }).bindTooltip(start.finishedAt ? `Zaki finished ${escapeHtml(start.label)} at ${clock(start.finishedAt)}` : `Start: ${escapeHtml(start.label)}`, { direction: "top" })
+          .addTo(state.layers.route);
+      }
+      if (animate || !state.routeFitted) {
+        state.map.flyToBounds(L.latLngBounds(geometry).pad(0.12), { maxZoom: 15, duration: 1.1 });
+        state.routeFitted = true;
+      }
     }
-    const warnings = cashWarnings(stops);
-    const links = googleLinks(start, stops);
-    box.hidden = state.mapTab !== "route";
+
+    const warnings = stops.length ? cashWarnings(stops) : [];
+    const links = stops.length && start ? googleLinks(start, stops) : [];
+    const finishedHtml = finished.map((stop) => `
+        <li class="route-stop is-done">
+          <span class="route-num done" aria-label="Finished">✓</span>
+          <div>
+            <b>${escapeHtml(stop.place.name)}</b>
+            <span class="hint">${stop.tasks.map((t) => `${t.type === "withdrawal" ? "Collected" : "Paid"} ${escapeHtml(amountsText(t.iqd, t.usd))}`).join(" · ")}</span>
+            ${stop.at ? `<span class="route-time">Finished ${clock(stop.at)}</span>` : ""}
+          </div>
+        </li>`).join("");
+    const upcomingHtml = stops.map((stop, index) => `
+        <li class="route-stop${warnings[index] ? " warn" : ""}">
+          <span class="route-num">${index + 1}</span>
+          <div>
+            <b>${escapeHtml(stop.place.name)}</b>
+            <span class="hint">${stop.tasks.map((t) => `${t.type === "withdrawal" ? "Collect" : "Pay"} ${escapeHtml(amountsText(t.iqd, t.usd))}`).join(" · ")}</span>
+            <span class="route-leg">${escapeHtml(legText(legs?.[index]))}${index === 0 && start ? ` from ${escapeHtml(start.label)}` : ""}</span>
+            ${warnings[index] ? `<span class="route-warn">${escapeHtml(warnings[index])}</span>` : ""}
+          </div>
+        </li>`).join("");
+
+    let summary;
+    if (route.empty && !start) {
+      summary = `<div class="route-summary"><strong>Choose where Zaki starts</strong><span class="hint">Pick a start above. Once he finishes a stop, the route starts from there by itself.</span></div>`;
+    } else if (route.empty) {
+      summary = `<div class="route-summary"><strong>${finished.length ? "All mapped stops are done" : "No stops on the map yet"}</strong><span class="hint">${unplaced.length ? "Set locations in Places to add the rest of today's stops." : "Nothing left to route today."}</span></div>`;
+    } else {
+      summary = `
+        <div class="route-summary">
+          <strong>${stops.length} stop${stops.length === 1 ? "" : "s"} left</strong>
+          <span class="hint">${legText({ km, minutes })}${minutes ? " without traffic" : ""}${roads ? "" : " · straight-line estimate"}</span>
+          <span class="route-from">From <b>${escapeHtml(start.label)}</b>${start.finishedAt ? ` · finished ${clock(start.finishedAt)}` : ""}</span>
+          <div class="route-links">
+            ${links.map((url, index) => `<a class="btn btn-primary" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">Open in Google Maps${links.length > 1 ? ` (${index + 1}/${links.length})` : ""}</a>`).join("")}
+          </div>
+        </div>`;
+    }
     box.innerHTML = `
-      <div class="route-head">
-        <div>
-          <strong>${stops.length} stop${stops.length === 1 ? "" : "s"}</strong>
-          <span class="hint">${fmt(km)} km${minutes ? ` · about ${fmt(minutes)} min without traffic` : " · straight-line estimate"}${roads ? "" : " (road routing unavailable)"}</span>
-        </div>
-        <div class="route-links">
-          ${links.map((url, index) => `<a class="btn btn-primary" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">Open in Google Maps${links.length > 1 ? ` (${index + 1}/${links.length})` : ""}</a>`).join("")}
-        </div>
-      </div>
-      <ol class="route-stops">
-        ${stops.map((stop, index) => `
-          <li class="${warnings[index] ? "warn" : ""}">
-            <span class="route-num">${index + 1}</span>
-            <div>
-              <b>${escapeHtml(stop.place.name)}</b>
-              <span class="hint">${stop.tasks.map((t) => `${t.type === "withdrawal" ? "Collect" : "Pay"} ${escapeHtml(amountsText(t.iqd, t.usd))}`).join(" · ")}</span>
-              ${warnings[index] ? `<span class="route-warn">${escapeHtml(warnings[index])}</span>` : ""}
-            </div>
-          </li>`).join("")}
-      </ol>
-      ${unplaced.length ? `<p class="hint">Not on the map yet: ${unplaced.map((t) => escapeHtml(t.name)).join(", ")}</p>` : ""}`;
+      ${summary}
+      ${finished.length || stops.length ? `<ol class="route-stops">${finishedHtml}${upcomingHtml}</ol>` : ""}
+      ${unplaced.length ? `<p class="hint route-unplaced">Not on the map yet: ${unplaced.map((t) => escapeHtml(t.name)).join(", ")}</p>` : ""}`;
   }
+
 
   // ---------- Wiring ----------
 
@@ -1107,7 +1209,33 @@
   });
 
   el("todayRefreshButton").addEventListener("click", () => void window.emailMaker?.load({ force: true }));
-  el("planRouteButton").addEventListener("click", () => void planRoute());
+  el("planRouteButton").addEventListener("click", () => {
+    state.routeKey = "";
+    void planRoute();
+  });
+  el("routeStart").addEventListener("change", () => {
+    const value = el("routeStart").value;
+    if (value !== "pick") rememberStart(value);
+    if (value === "pick") void planRoute();
+    else scheduleRoute();
+  });
+  const setSideCollapsed = (collapsed) => {
+    el("mapLayout").classList.toggle("side-collapsed", collapsed);
+    el("sideToggle").setAttribute("aria-expanded", String(!collapsed));
+    el("sideToggle").title = collapsed ? "Show the side panel" : "Hide the side panel";
+    try {
+      localStorage.setItem("paydesk-side-collapsed", collapsed ? "1" : "");
+    } catch {
+      // Only a convenience.
+    }
+    window.setTimeout(() => state.map?.invalidateSize(), 320);
+  };
+  el("sideToggle").addEventListener("click", () => setSideCollapsed(!el("mapLayout").classList.contains("side-collapsed")));
+  try {
+    if (localStorage.getItem("paydesk-side-collapsed")) setSideCollapsed(true);
+  } catch {
+    // Ignore unavailable storage.
+  }
   el("placingCancel").addEventListener("click", stopPlacing);
   el("placingRemove").addEventListener("click", () => void removePlace());
   el("placingSave").addEventListener("click", () => void findPlacingInput());
